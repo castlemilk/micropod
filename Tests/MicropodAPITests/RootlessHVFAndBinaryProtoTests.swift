@@ -205,7 +205,12 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             return XCTFail("unexpected /v1/rig/health response: \(healthResp)")
         }
         XCTAssertEqual(hvfInfo["installed"] as? Bool, true)
-        XCTAssertEqual(hvfInfo["cacheDiskPresent"] as? Bool, true)
+        // No guest runs here, so whether it mounted caches.ext4 is unknown:
+        // a file on the host is no evidence (B12).
+        XCTAssertEqual(hvfInfo["cacheDiskPresent"] as? Bool, false)
+        let cacheDisk = hvfInfo["cacheDisk"] as? [String: Any] ?? [:]
+        XCTAssertEqual(cacheDisk["configured"] as? Bool, true)
+        XCTAssertEqual(cacheDisk["source"] as? String, "unknown")
 
         // PUT /v1/caches/policy -> updates machine.json + live guest-config/cache-policy.json
         let policyBody = try JSONSerialization.data(withJSONObject: [

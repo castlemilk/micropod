@@ -195,6 +195,68 @@ final class CacheRoutesTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: layout.config), broken)
     }
 
+    /// GET policy and rig health never present the defaults as the config
+    /// in force when machine.json does not load.
+    func testAnUnreadableMachineConfigIsReportedNotReplacedByDefaults() async throws {
+        try Data(#"{"cpus": "#.utf8).write(to: layout.config)
+        let api = await makeHandlers()
+        let policy = await send(api, .get, "/v1/caches/policy", "")
+        XCTAssertNotEqual(policy.status, 200, "\(policy.body)")
+        XCTAssertTrue((policy.body["error"] as? String ?? "").contains("is not a valid hvf machine config"))
+        let health = await send(api, .get, "/v1/rig/health", "")
+        XCTAssertEqual(health.status, 200)
+        XCTAssertTrue(
+            (health.body["configError"] as? String ?? "").contains("is not a valid hvf machine config"),
+            "\(health.body)")
+    }
+
+    /// A policy URL that opens no host port is saved, and the reply says so.
+    func testPolicyPutWarnsWhenAPolicyURLOpensNoHostPort() async throws {
+        _ = try writeConfig(HVFMachineConfig())
+        let api = await makeHandlers()
+        let opened = await send(api, .put, "/v1/caches/policy", #"{"goProxy": "http://10.42.0.1:7677/go|direct"}"#)
+        XCTAssertEqual(opened.status, 200, "\(opened.body)")
+        XCTAssertNil(opened.body["warnings"], "the depproxy port is opened: \(opened.body)")
+        let refused = await send(api, .put, "/v1/caches/policy", #"{"goProxy": "http://10.43.0.1:5555/go"}"#)
+        XCTAssertEqual(refused.status, 200, "\(refused.body)")
+        let warnings = refused.body["warnings"] as? [String] ?? []
+        XCTAssertFalse(warnings.isEmpty, "\(refused.body)")
+        XCTAssertEqual(
+            try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy.goProxy, "http://10.43.0.1:5555/go")
+    }
+
+    // MARK: Rollback
+
+    func testRollbackReadsOnlyForceAndMapsADeferralToAConflict() async throws {
+        let api = await makeHandlers()
+        try FileManager.default.createDirectory(at: layout.root, withIntermediateDirectories: true)
+        for body in [#"{"force": "yes"}"#, #"{"forced": true}"#, "[]"] {
+            let reply = await send(api, .post, "/v1/rig/hvf/update/rollback", body)
+            XCTAssertEqual(reply.status, 400, "\(body): \(reply.body)")
+        }
+        // No known-good yet: refused, whether forced or not.
+        for body in ["", "{}", #"{"force": true}"#] {
+            let reply = await send(api, .post, "/v1/rig/hvf/update/rollback", body)
+            XCTAssertNotEqual(reply.status, 200, "\(body): \(reply.body)")
+            XCTAssertTrue((reply.body["error"] as? String ?? "").contains("no known-good"), "\(reply.body)")
+        }
+        XCTAssertEqual(APIHandlers.rollbackStatus(.noop), 200)
+        XCTAssertEqual(APIHandlers.rollbackStatus(.rolledBack), 200)
+        XCTAssertEqual(APIHandlers.rollbackStatus(.deferred), 409)
+        XCTAssertEqual(APIHandlers.rollbackStatus(.failedRollback), 500)
+        let deferred = HVFActivationResult(action: .deferred, activeContainers: 2, detail: "2 running container(s)")
+        let encoded = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(APIHandlers.RollbackReply(result: deferred)))
+                as? [String: Any])
+        XCTAssertEqual(encoded["action"] as? String, "deferred")
+        XCTAssertEqual(encoded["error"] as? String, "2 running container(s)")
+        let done = try XCTUnwrap(
+            try JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(APIHandlers.RollbackReply(result: .init(action: .noop, detail: "x"))))
+                as? [String: Any])
+        XCTAssertNil(done["error"])
+    }
+
     // MARK: Explain
 
     func testExplainDecodesTheIdAndRefusesOnesThatAreNotContainerReferences() async throws {

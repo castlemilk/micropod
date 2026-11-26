@@ -99,6 +99,32 @@ final class APIHandlers: Sendable {
         return HVFMachineClient()
     }
 
+    /// `POST /v1/rig/hvf/update/rollback`: 200 once on known-good, 409 when
+    /// deferred (nothing changed: workloads run, or idleness could not be
+    /// confirmed; retry with `{"force": true}`), 500 when the rollback boot
+    /// failed its probes.
+    static func rollbackStatus(_ action: HVFActivationResult.Action) -> Int {
+        switch action {
+        case .noop, .rolledBack, .activated: return 200
+        case .deferred: return 409
+        case .failedRollback, .failed: return 500
+        }
+    }
+
+    /// The rollback's result, with `error` (its detail) when it is not a success.
+    struct RollbackReply: Encodable {
+        let result: HVFActivationResult
+
+        func encode(to encoder: any Encoder) throws {
+            try result.encode(to: encoder)
+            guard rollbackStatus(result.action) != 200 else { return }
+            var c = encoder.container(keyedBy: ErrorKey.self)
+            try c.encode(result.detail, forKey: .error)
+        }
+
+        private enum ErrorKey: String, CodingKey { case error }
+    }
+
     private func encodeJSONResponse<T: Encodable>(_ status: Int, _ value: T) throws -> HTTPResponse {
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
@@ -407,8 +433,9 @@ final class APIHandlers: Sendable {
                 return try encodeJSONResponse(200, result)
 
             case ("caches", .get) where segments == ["v1", "caches", "policy"]:
-                let client = hvfMachineClient()
-                let cfg = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+                // A machine.json that does not load is an error, never the
+                // defaults presented as the policy in force.
+                let cfg = try HVFMachineConfig.load(from: hvfMachineClient().layout.config)
                 return try encodeJSONResponse(200, cfg.effectiveCachePolicy)
 
             case ("caches", .put) where segments == ["v1", "caches", "policy"]:
@@ -422,18 +449,21 @@ final class APIHandlers: Sendable {
                         message: "cache policy: name at least one field to change "
                             + "(\(Self.cachePolicyFields.sorted().joined(separator: ", "))); nothing was written")
                 }
-                let layout = hvfMachineClient().layout
+                let client = hvfMachineClient()
+                let layout = client.layout
                 if layout.installInProgress { throw layout.installInProgressError() }
                 var cfg = try HVFMachineConfig.load(from: layout.config)
                 let policy = try Self.cachePolicy(cfg.effectiveCachePolicy, patchedWith: patch)
                 cfg.cache = policy
                 try cfg.save(to: layout.config)
                 try HVFMachineCachePolicy.write(policy, layout: layout)
-                return try encodeJSONResponse(200, policy)
+                // The saved policy, plus `warnings` when a policy URL opens
+                // no host port or names one the running machine has not opened.
+                return try encodeJSONResponse(200, HVFCachePolicyUpdateResponse(saved: cfg, client: client))
 
             case ("caches", .get) where segments.count == 4 && segments[2] == "explain":
                 let container = segments[3].removingPercentEncoding ?? segments[3]
-                guard container.range(of: "^[A-Za-z0-9][A-Za-z0-9_.-]{0,254}$", options: .regularExpression) != nil
+                guard container.range(of: HVFMachineClient.containerReference, options: .regularExpression) != nil
                 else {
                     throw BadRequest(message: "cache explain: '\(container)' is not a container id or name")
                 }
@@ -470,9 +500,17 @@ final class APIHandlers: Sendable {
                 return try encodeJSONResponse(200, HVFPayloadStore.status(layout: client.layout))
 
             case ("rig", .post) where segments == ["v1", "rig", "hvf", "update", "rollback"]:
-                let client = hvfMachineClient()
-                let manifest = try await HVFPayloadStore.rollback(layout: client.layout)
-                return try encodeJSONResponse(200, manifest)
+                // `{}` or no body: the safe default, deferred while workloads
+                // run. `{"force": true}` restarts the machine regardless.
+                let force: Bool
+                if request.body.isEmpty {
+                    force = false
+                } else {
+                    force =
+                        try RequestFields(request.body, allowed: ["force"], what: "hvf rollback").bool("force") ?? false
+                }
+                let result = try await HVFPayloadStore.rollback(layout: hvfMachineClient().layout, force: force)
+                return try encodeJSONResponse(Self.rollbackStatus(result.action), RollbackReply(result: result))
 
             case ("rig", .post) where segments == ["v1", "rig", "hvf", "link-socket"]:
                 let client = hvfMachineClient()
@@ -490,35 +528,44 @@ final class APIHandlers: Sendable {
             case ("rig", .get) where segments == ["v1", "rig", "health"]:
                 let client = hvfMachineClient()
                 let hvf = client.status()
-                let cfg = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+                // Shown with the defaults' values, but flagged: a machine.json
+                // that does not load is never presented as the config in force.
+                let loaded = Result { try HVFMachineConfig.load(from: client.layout.config) }
+                let cfg = (try? loaded.get()) ?? HVFMachineConfig()
                 let payloadStatus = HVFPayloadStore.status(layout: client.layout)
                 let depproxyOK = await Self.probeLoopbackDepproxy()
-                return .json(
-                    200,
-                    [
-                        "mode": engineRegistry.activeMode?.rawValue ?? engineRegistry.defaultName,
-                        "defaultRuntime": engineRegistry.defaultName,
-                        "hvf": [
-                            "installed": hvf.installed,
-                            "phase": hvf.phase.rawValue,
-                            "summary": hvf.summary,
-                            "root": hvf.root,
-                            "dockerEndpoint": client.layout.dockerEndpoint,
-                            "cacheDiskPresent": FileManager.default.fileExists(atPath: client.layout.cacheDisk.path),
-                            "updatePending": hvf.updatePending,
-                            "payloadVersion": payloadStatus.current?.version ?? "",
-                        ],
-                        "cachePolicy": [
-                            "mode": cfg.effectiveCachePolicy.mode.rawValue,
-                            "sharedL0": cfg.effectiveCachePolicy.sharedL0,
-                            "goProxy": cfg.effectiveCachePolicy.goProxy ?? "",
-                            "toolCount": cfg.effectiveCachePolicy.tools.count,
-                        ],
-                        "depproxy": [
-                            "url": "http://127.0.0.1:7677",
-                            "healthy": depproxyOK,
-                        ],
-                    ])
+                let cacheDisk = await client.cacheDiskObservation()
+                var health: [String: Any] = [
+                    "mode": engineRegistry.activeMode?.rawValue ?? engineRegistry.defaultName,
+                    "defaultRuntime": engineRegistry.defaultName,
+                    "hvf": [
+                        "installed": hvf.installed,
+                        "phase": hvf.phase.rawValue,
+                        "summary": hvf.summary,
+                        "root": hvf.root,
+                        "dockerEndpoint": client.layout.dockerEndpoint,
+                        // The guest's own account: a caches.ext4 the guest
+                        // failed to mount is not present.
+                        "cacheDiskPresent": cacheDisk.mounted,
+                        "cacheDisk": cacheDisk.jsonObject,
+                        "updatePending": hvf.updatePending,
+                        "payloadVersion": payloadStatus.current?.version ?? "",
+                    ],
+                    "cachePolicy": [
+                        "mode": cfg.effectiveCachePolicy.mode.rawValue,
+                        "sharedL0": cfg.effectiveCachePolicy.sharedL0,
+                        "goProxy": cfg.effectiveCachePolicy.goProxy ?? "",
+                        "toolCount": cfg.effectiveCachePolicy.tools.count,
+                    ],
+                    "depproxy": [
+                        "url": "http://127.0.0.1:7677",
+                        "healthy": depproxyOK,
+                    ],
+                ]
+                if case .failure(let error) = loaded {
+                    health["configError"] = error.localizedDescription
+                }
+                return .json(200, health)
 
             // MARK: System
             case ("usage", .get):
