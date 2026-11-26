@@ -1,0 +1,422 @@
+{
+  "timestamp_utc": "2026-11-26T00:48:56.581242+00:00",
+  "version": "0.1.0-b9",
+  "kernel": "7.3.5-micropod-b8",
+  "images": {
+    "alpine": "alpine:3.23",
+    "ryuk": "testcontainers/ryuk:0.13.0",
+    "postgres": "postgres:16-alpine"
+  },
+  "qualification": {
+    "micropod": {
+      "core": {
+        "passed": true,
+        "elapsed_ms": 4319.49
+      },
+      "name-filters": {
+        "passed": true,
+        "elapsed_ms": 87.13
+      },
+      "single-network": {
+        "passed": true,
+        "elapsed_ms": 1594.37
+      },
+      "multi-network": {
+        "passed": true,
+        "elapsed_ms": 2787.51
+      },
+      "ryuk-abandon": {
+        "passed": true,
+        "elapsed_ms": 10799.03,
+        "automatic_cleanup": {
+          "fixture_status": 404,
+          "named_resources": {
+            "active": {
+              "network": 404,
+              "volume": 404
+            },
+            "control": {
+              "network": 200,
+              "volume": 200
+            }
+          },
+          "ryuk_status": 404,
+          "used_manual_cleanup": false
+        }
+      }
+    },
+    "orbstack": {
+      "core": {
+        "passed": true,
+        "elapsed_ms": 1768.0
+      },
+      "name-filters": {
+        "passed": true,
+        "elapsed_ms": 454.98
+      },
+      "single-network": {
+        "passed": true,
+        "elapsed_ms": 2076.45
+      },
+      "multi-network": {
+        "passed": true,
+        "elapsed_ms": 3595.49
+      },
+      "ryuk-abandon": {
+        "passed": true,
+        "elapsed_ms": 11234.08,
+        "automatic_cleanup": {
+          "fixture_status": 404,
+          "named_resources": {
+            "active": {
+              "network": 404,
+              "volume": 404
+            },
+            "control": {
+              "network": 200,
+              "volume": 200
+            }
+          },
+          "ryuk_status": 404,
+          "used_manual_cleanup": false
+        }
+      }
+    }
+  },
+  "eight_service_ryuk": {
+    "pairs": [
+      {
+        "pair": 1,
+        "first": "micropod",
+        "micropod": {
+          "start_to_last_ready_ms": 810.11,
+          "to_verified_cleanup_ms": 11684.43,
+          "reap_window_ms": 10874.32,
+          "manual_cleanup_count": 0
+        },
+        "orbstack": {
+          "start_to_last_ready_ms": 1308.91,
+          "to_verified_cleanup_ms": 12712.07,
+          "reap_window_ms": 11403.16,
+          "manual_cleanup_count": 0
+        }
+      },
+      {
+        "pair": 2,
+        "first": "orbstack",
+        "orbstack": {
+          "start_to_last_ready_ms": 1561.61,
+          "to_verified_cleanup_ms": 13058.5,
+          "reap_window_ms": 11496.89,
+          "manual_cleanup_count": 0
+        },
+        "micropod": {
+          "start_to_last_ready_ms": 1021.04,
+          "to_verified_cleanup_ms": 11888.39,
+          "reap_window_ms": 10867.35,
+          "manual_cleanup_count": 0
+        }
+      },
+      {
+        "pair": 3,
+        "first": "micropod",
+        "micropod": {
+          "start_to_last_ready_ms": 892.44,
+          "to_verified_cleanup_ms": 11759.38,
+          "reap_window_ms": 10866.94,
+          "manual_cleanup_count": 0
+        },
+        "orbstack": {
+          "start_to_last_ready_ms": 1442.93,
+          "to_verified_cleanup_ms": 12972.43,
+          "reap_window_ms": 11529.5,
+          "manual_cleanup_count": 0
+        }
+      },
+      {
+        "pair": 4,
+        "first": "orbstack",
+        "orbstack": {
+          "start_to_last_ready_ms": 1592.71,
+          "to_verified_cleanup_ms": 13559.02,
+          "reap_window_ms": 11966.31,
+          "manual_cleanup_count": 0
+        },
+        "micropod": {
+          "start_to_last_ready_ms": 1189.57,
+          "to_verified_cleanup_ms": 12124.49,
+          "reap_window_ms": 10934.92,
+          "manual_cleanup_count": 0
+        }
+      }
+    ],
+    "medians": {
+      "micropod": {
+        "start_to_last_ready_ms": 956.74,
+        "reap_window_ms": 10870.83,
+        "to_verified_cleanup_ms": 11823.88
+      },
+      "orbstack": {
+        "start_to_last_ready_ms": 1502.27,
+        "reap_window_ms": 11513.19,
+        "to_verified_cleanup_ms": 13015.47
+      }
+    }
+  },
+  "postgres_ryuk": {
+    "pairs": [
+      {
+        "pair": 1,
+        "first": "micropod",
+        "micropod": {
+          "ready_ms": 975.19,
+          "sql_exec_ms": 8.55,
+          "reap_to_404_ms": 10237.33,
+          "total_lifecycle_ms": 11214.01,
+          "verified_rows": "INSERT 0 1\n2"
+        },
+        "orbstack": {
+          "ready_ms": 2782.49,
+          "sql_exec_ms": 45.48,
+          "reap_to_404_ms": 10657.22,
+          "total_lifecycle_ms": 13451.77,
+          "verified_rows": "INSERT 0 1\n2"
+        }
+      },
+      {
+        "pair": 2,
+        "first": "orbstack",
+        "orbstack": {
+          "ready_ms": 2969.26,
+          "sql_exec_ms": 40.25,
+          "reap_to_404_ms": 10478.44,
+          "total_lifecycle_ms": 13457.86,
+          "verified_rows": "INSERT 0 1\n2"
+        },
+        "micropod": {
+          "ready_ms": 862.85,
+          "sql_exec_ms": 9.09,
+          "reap_to_404_ms": 10239.47,
+          "total_lifecycle_ms": 11105.2,
+          "verified_rows": "INSERT 0 1\n2"
+        }
+      },
+      {
+        "pair": 3,
+        "first": "micropod",
+        "micropod": {
+          "ready_ms": 853.18,
+          "sql_exec_ms": 9.07,
+          "reap_to_404_ms": 10203.76,
+          "total_lifecycle_ms": 11063.52,
+          "verified_rows": "INSERT 0 1\n2"
+        },
+        "orbstack": {
+          "ready_ms": 2640.81,
+          "sql_exec_ms": 36.73,
+          "reap_to_404_ms": 10416.94,
+          "total_lifecycle_ms": 13067.0,
+          "verified_rows": "INSERT 0 1\n2"
+        }
+      }
+    ],
+    "medians": {
+      "micropod": {
+        "ready_ms": 862.85,
+        "sql_exec_ms": 9.07,
+        "reap_to_404_ms": 10237.33,
+        "total_lifecycle_ms": 11105.2
+      },
+      "orbstack": {
+        "ready_ms": 2782.49,
+        "sql_exec_ms": 40.25,
+        "reap_to_404_ms": 10478.44,
+        "total_lifecycle_ms": 13451.77
+      }
+    }
+  },
+  "instrumentation": {
+    "verdict": "healthy",
+    "warnings": [],
+    "docker_api": {
+      "conflicts409": 1,
+      "durationUsecTotal": 12170371,
+      "errors4xx": 250,
+      "errors5xx": 0,
+      "maxDurationUsec": 2778352,
+      "notImplemented501": 0,
+      "requestsTotal": 6659,
+      "routes": {
+        "DELETE /containers/{id}": {
+          "count": 12,
+          "durationUsecTotal": 7758,
+          "errors": 1,
+          "maxDurationUsec": 1578
+        },
+        "DELETE /networks/{id}": {
+          "count": 4,
+          "durationUsecTotal": 146525,
+          "errors": 0,
+          "maxDurationUsec": 50699
+        },
+        "DELETE /volumes/{id}": {
+          "count": 1,
+          "durationUsecTotal": 42,
+          "errors": 0,
+          "maxDurationUsec": 42
+        },
+        "GET /containers/json": {
+          "count": 242,
+          "durationUsecTotal": 14325,
+          "errors": 0,
+          "maxDurationUsec": 2635
+        },
+        "GET /containers/{id}/json": {
+          "count": 5217,
+          "durationUsecTotal": 332160,
+          "errors": 231,
+          "maxDurationUsec": 1843
+        },
+        "GET /containers/{id}/logs": {
+          "count": 70,
+          "durationUsecTotal": 0,
+          "errors": 0,
+          "maxDurationUsec": 0
+        },
+        "GET /exec/{id}/json": {
+          "count": 107,
+          "durationUsecTotal": 4438,
+          "errors": 0,
+          "maxDurationUsec": 1352
+        },
+        "GET /images/{id}/json": {
+          "count": 83,
+          "durationUsecTotal": 72801,
+          "errors": 0,
+          "maxDurationUsec": 13674
+        },
+        "GET /info": {
+          "count": 86,
+          "durationUsecTotal": 4811,
+          "errors": 0,
+          "maxDurationUsec": 417
+        },
+        "GET /networks": {
+          "count": 164,
+          "durationUsecTotal": 3393,
+          "errors": 0,
+          "maxDurationUsec": 739
+        },
+        "GET /networks/{id}": {
+          "count": 157,
+          "durationUsecTotal": 4329,
+          "errors": 12,
+          "maxDurationUsec": 88
+        },
+        "GET /volumes": {
+          "count": 118,
+          "durationUsecTotal": 2748,
+          "errors": 0,
+          "maxDurationUsec": 101
+        },
+        "GET /volumes/{id}": {
+          "count": 135,
+          "durationUsecTotal": 5636,
+          "errors": 4,
+          "maxDurationUsec": 147
+        },
+        "HEAD /_ping": {
+          "count": 20,
+          "durationUsecTotal": 241,
+          "errors": 0,
+          "maxDurationUsec": 114
+        },
+        "POST /containers/create": {
+          "count": 57,
+          "durationUsecTotal": 77573,
+          "errors": 2,
+          "maxDurationUsec": 3994
+        },
+        "POST /containers/{id}/exec": {
+          "count": 58,
+          "durationUsecTotal": 3415,
+          "errors": 0,
+          "maxDurationUsec": 723
+        },
+        "POST /containers/{id}/start": {
+          "count": 51,
+          "durationUsecTotal": 6096834,
+          "errors": 0,
+          "maxDurationUsec": 2778352
+        },
+        "POST /containers/{id}/stop": {
+          "count": 8,
+          "durationUsecTotal": 3891745,
+          "errors": 0,
+          "maxDurationUsec": 1066603
+        },
+        "POST /exec/{id}/start": {
+          "count": 58,
+          "durationUsecTotal": 0,
+          "errors": 0,
+          "maxDurationUsec": 0
+        },
+        "POST /images/load": {
+          "count": 3,
+          "durationUsecTotal": 1486292,
+          "errors": 0,
+          "maxDurationUsec": 1337219
+        },
+        "POST /networks/create": {
+          "count": 5,
+          "durationUsecTotal": 14655,
+          "errors": 0,
+          "maxDurationUsec": 3348
+        },
+        "POST /networks/{id}/connect": {
+          "count": 1,
+          "durationUsecTotal": 457,
+          "errors": 0,
+          "maxDurationUsec": 457
+        },
+        "POST /volumes/create": {
+          "count": 2,
+          "durationUsecTotal": 193,
+          "errors": 0,
+          "maxDurationUsec": 115
+        }
+      },
+      "slowRequestsTotal": 43
+    },
+    "reaper": {
+      "activeSessions": 0,
+      "containersReaped": 36,
+      "lastReapUnixSecs": 1795654336,
+      "maxReapDurationUsec": 116147,
+      "networksReaped": 1,
+      "reapDenied": 0,
+      "reapDurationUsecTotal": 3261337,
+      "reapErrors": 0,
+      "requestsTotal": 86,
+      "sessionsClosed": 8,
+      "sessionsStarted": 8,
+      "volumesReaped": 1
+    },
+    "virtiofs": {
+      "requests": 2416,
+      "keep_cache_hits": 0,
+      "ro_cache_hits": 0,
+      "ro_cache_misses": 3,
+      "notify_events": 54,
+      "notify_epoch_resets": 0,
+      "errors": 0
+    },
+    "recent_issues_count": 64,
+    "prometheus_metrics_verified": true,
+    "otlp_metrics_verified": true,
+    "merged_trace_scopes": [
+      "micropod.docker.api",
+      "micropod.vmm"
+    ]
+  }
+}
