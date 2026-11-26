@@ -979,9 +979,15 @@ extension APIHandlers {
         id: String, timeout: Duration, in services: RuntimeServices
     ) async throws -> Micropod_V1_WaitContainerResponse {
         let exitCodes = services.exitCodes
+        // The owning engine, resolved once: a container never changes
+        // engine, and every ownership probe is a guest round trip on hvf, so
+        // resolving per poll doubled each poll's requests.
+        var owner: (any RuntimeEngine)?
+        if let router = services.containers as? RuntimeRouter { owner = await router.owner(id) }
+        let observed: any ContainerServing = owner?.containers ?? services.containers
         var park: (@Sendable (String, Duration) async -> Bool)?
-        if let router = services.containers as? RuntimeRouter {
-            park = { id, timeout in await router.awaitStateChange(id, timeout: timeout) }
+        if let engine = owner {
+            park = { id, timeout in await engine.awaitStateChange(id, timeout: timeout) }
         }
         let outcome = try await ContainerExitWait.wait(
             id: id, timeout: timeout, exitCodes: exitCodes, park: park,
@@ -993,7 +999,7 @@ extension APIHandlers {
                 return await NativeContainerService.acceptsExitCode(id)
             },
             state: { id, exitKnown in
-                let state = await services.containers.state(of: id)
+                let state = await observed.state(of: id)
                 guard state == "unknown", !exitKnown else { return state }
                 if let pending = await pendingNativeState(id, in: services) { return pending }
                 // `state(of:)` answers `unknown` both for a container that is
@@ -1007,7 +1013,7 @@ extension APIHandlers {
         // Non-Apple engines (HVF guest engine, SandboxVM) record their own
         // container exit codes outside Apple's ExitCodeRegistry.
         if outcome.exited, !known {
-            if let router = services.containers as? RuntimeRouter, let code = await router.exitCode(id) {
+            if let owner, let code = await owner.exitCode(id) {
                 known = true
                 exitCode = code
             } else if let code = await sandboxEngine.exitCode(id) {

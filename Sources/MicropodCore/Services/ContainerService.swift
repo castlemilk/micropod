@@ -26,6 +26,11 @@ public protocol ContainerServing: Sendable {
     func prune() async throws -> String
     func export(_ id: String, to outputPath: String) async throws
     func copy(from: String, to: String) async throws
+    /// One container's runtime state (see the default below). A requirement
+    /// so an engine that reads state its own way (hvf's Docker inspect, the
+    /// router's per-engine dispatch) is reached through `any ContainerServing`
+    /// instead of the default's Apple-shaped inspect decode.
+    func state(of id: String) async -> String
 }
 
 /// Result of an exec, including the guest process exit code and stderr —

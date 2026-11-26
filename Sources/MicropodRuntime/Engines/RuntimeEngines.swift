@@ -430,8 +430,10 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         await owner(id).containers.state(of: id)
     }
 
-    /// Engine that owns an existing container id.
-    func owner(_ id: String) async -> any RuntimeEngine {
+    /// Engine that owns an existing container id. Each call probes the
+    /// enabled engines (a guest round trip for hvf); a caller that observes
+    /// one container repeatedly resolves it once.
+    public func owner(_ id: String) async -> any RuntimeEngine {
         for engine in registry.extraEngines() where await engine.owns(id) {
             return engine
         }

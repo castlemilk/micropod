@@ -7,8 +7,9 @@ import XCTest
 @testable import MicropodAPI
 @testable import MicropodRuntime
 
-/// Ping and GetSystem against an hvf machine whose guest Docker API is a
-/// fake on the machine socket: readiness comes from live state.
+/// Ping, GetSystem and WaitContainer against an hvf machine whose guest
+/// Docker API is a fake on the machine socket: readiness comes from live
+/// state, and a wait costs one guest request per poll.
 final class HVFReadinessAPITests: XCTestCase {
     private var root: URL!
     private var held: [HVFFileLock] = []
@@ -135,6 +136,48 @@ final class HVFReadinessAPITests: XCTestCase {
         XCTAssertEqual(ping.defaultRuntime, "hvf")
         XCTAssertEqual(ping.components.first { $0.name == "hvf-machine" }?.state, "missing")
     }
+
+    // MARK: WaitContainer
+
+    func testWaitingOnAnHVFContainerMakesOneGuestRequestPerPoll() async throws {
+        try install()
+        let polls = LockedCounter()
+        let guest = try serve { request in
+            switch request.path {
+            case "/micropod/containers/summary":
+                let row = #"{"id": "c0ffee000001", "name": "job", "image": "alpine", "state": "running"}"#
+                return (200, Data(#"{"containers": [\#(row)]}"#.utf8))
+            case "/containers/job/json":
+                // The ownership probe, two polls that see it running, then the exit.
+                let exited = polls.increment() > 3
+                let state =
+                    exited
+                    ? #"{"Status": "exited", "Running": false, "ExitCode": 3}"#
+                    : #"{"Status": "running", "Running": true, "ExitCode": 0}"#
+                return (200, Data(#"{"Id": "c0ffee000001", "Name": "/job", "State": \#(state)}"#.utf8))
+            default:
+                return (404, Data(#"{"message": "unexpected \#(request.method) \#(request.path)"}"#.utf8))
+            }
+        }
+        let api = handlers(registry())
+        let request = Micropod_V1_WaitContainerRequest.with {
+            $0.id = "job"
+            $0.timeoutSeconds = 10
+        }
+        let wait = try await call(api, "WaitContainer", request, as: Micropod_V1_WaitContainerResponse.self)
+        XCTAssertTrue(wait.exited)
+        XCTAssertTrue(wait.known, "the guest's exit code is the real one")
+        XCTAssertEqual(wait.exitCode, 3)
+        XCTAssertEqual(wait.state, "stopped")
+
+        let paths = guest.requests.map(\.path)
+        XCTAssertEqual(
+            paths.filter { $0 == "/micropod/containers/summary" }.count, 1,
+            "listed once, to refuse unknown ids; polls never list: \(paths)")
+        // One ownership probe, one inspect per poll (three polls), one exit-code read.
+        XCTAssertEqual(paths.filter { $0 == "/containers/job/json" }.count, 5, "\(paths)")
+        XCTAssertEqual(paths.count, 6, "\(paths)")
+    }
 }
 
 // MARK: - Fakes
@@ -157,6 +200,19 @@ private struct NoAppleContainers: ContainerServing {
     func prune() async throws -> String { "" }
     func export(_ id: String, to outputPath: String) async throws { throw refuse(id) }
     func copy(from: String, to: String) async throws { throw refuse(from) }
+}
+
+final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    /// The new count.
+    func increment() -> Int {
+        lock.withLock {
+            count += 1
+            return count
+        }
+    }
 }
 
 /// The guest's Docker Engine API on a unix socket: one request per
