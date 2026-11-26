@@ -180,6 +180,58 @@ final class HVFMachineReadinessTests: XCTestCase {
         XCTAssertEqual(starts.value, 1)
     }
 
+    /// A supervisor that just gave up after its crash budget is reported
+    /// `failed` with its reason, not rebooted by the next read (B24 X14,
+    /// X16): only once `retryAfter` has passed does a read start it. While
+    /// that start runs, the new supervisor's blank `starting` still carries
+    /// why it was started.
+    func testAMachineThatJustGaveUpSaysWhyAndARestartOnDemandKeepsTheReason() async throws {
+        try install()
+        HVFMachineAutostart.reset()
+        defer { HVFMachineAutostart.reset() }
+        let crash = "micropod-vmm exited with status 3: the guest crashed or reset (exit_reason=reboot)"
+        try HVFMachineState(phase: .failed, supervisorPID: 1, restartCount: 4, lastExitReason: crash).save(
+            to: layout.state)
+        let starts = LockedCount()
+        let gate = UpdateFlag(false)
+        let layout = self.layout
+        let lock = LockedLock()
+        let start: @Sendable () async throws -> Void = {
+            starts.increment()
+            // What `ensureRunning` does: a new supervisor takes the lock and
+            // publishes a state of its own, then boots.
+            lock.set(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+            try HVFMachineState(phase: .starting, supervisorPID: getpid()).save(to: layout.state)
+            while !gate.value { try await Task.sleep(for: .milliseconds(5)) }
+        }
+        for _ in 0..<3 {
+            let fresh = await client.readinessStartingWhenDown(start: start)
+            XCTAssertEqual(fresh.status, .failed, fresh.detail)
+            XCTAssertTrue(fresh.detail.contains("crashed"), fresh.detail)
+        }
+        XCTAssertEqual(starts.value, 0, "a crash loop that just gave up is not started by a read")
+
+        // Long enough ago: a read starts it.
+        try HVFMachineState(
+            phase: .failed, supervisorPID: 1, restartCount: 4, lastExitReason: crash,
+            updatedAt: Date(timeIntervalSinceNow: -120)
+        ).save(to: layout.state)
+        let first = await client.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(first.status, .starting)
+        XCTAssertTrue(first.detail.contains("crashed"), first.detail)
+        try await waitUntil { HVFFileLock.isHeld(layout.supervisorLock) }
+        let plain = await client.readiness()
+        XCTAssertEqual(plain.detail, "starting", "the new supervisor's own state has lost the crash")
+        let second = await client.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(second.status, .starting)
+        XCTAssertTrue(second.detail.contains("crashed"), "still says why: \(second.detail)")
+        XCTAssertNotEqual(second.status, .running)
+        gate.value = true
+        try await waitUntil { HVFMachineAutostart.inFlightCause(layout.root.path) == nil }
+        lock.release()
+        XCTAssertEqual(starts.value, 1)
+    }
+
     /// `machine stop` on a machine whose supervisor gave up (or died) keeps
     /// it down: it used to persist nothing, so the next status read started
     /// the crash loop again, once a minute for as long as anything polled.
@@ -461,4 +513,17 @@ private final class LockedCount: @unchecked Sendable {
     private var count = 0
     func increment() { lock.withLock { count += 1 } }
     var value: Int { lock.withLock { count } }
+}
+
+/// A file lock handed out of a start closure.
+private final class LockedLock: @unchecked Sendable {
+    private let mutex = NSLock()
+    private var held: HVFFileLock?
+    func set(_ lock: HVFFileLock?) { mutex.withLock { held = lock } }
+    func release() {
+        mutex.withLock {
+            held?.release()
+            held = nil
+        }
+    }
 }
