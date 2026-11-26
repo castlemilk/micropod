@@ -51,7 +51,20 @@ public struct HVFMachineLayout: Sendable, Equatable {
         if let configured = environment["MICROPOD_HVF_ROOT"], !configured.isEmpty {
             return URL(fileURLWithPath: NSString(string: configured).expandingTildeInPath)
         }
-        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/hvf")
+        return standardRoot(home: FileManager.default.homeDirectoryForCurrentUser)
+    }
+
+    /// The machine a plain `micropod` uses: `<home>/.micropod/hvf`, whatever
+    /// `MICROPOD_HVF_ROOT` says.
+    public static func standardRoot(home: URL) -> URL {
+        home.appendingPathComponent(".micropod/hvf")
+    }
+
+    /// This is the standard machine (`~/.micropod/hvf`, symlinks resolved),
+    /// not a throwaway root that `MICROPOD_HVF_ROOT` names.
+    public func isStandardRoot(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
+        func resolved(_ url: URL) -> String { url.standardizedFileURL.resolvingSymlinksInPath().path }
+        return resolved(root) == resolved(Self.standardRoot(home: home))
     }
 
     /// Immutable payload directories (`HVFPayloadStore`).

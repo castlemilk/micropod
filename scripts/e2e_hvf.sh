@@ -169,6 +169,7 @@ started=$SECONDS
 check "run" "$("$M" run --runtime hvf --name "$NAME" alpine:3.20 -- sh -c 'echo booted-hvf; i=0; while :; do echo tick $i; i=$((i+1)); sleep 1; done')" "$NAME"
 echo "    (cold run incl. machine boot + pull: $((SECONDS - started))s)"
 check "machine running" "$(state "s['phase']")" "running"
+check "an on-demand start links no Docker socket" "$([ -L "$ROOT_DIR/canonical-docker.sock" ] && echo linked || echo none)" "none"
 set +e
 install_err="$("$M" machine install --cpus 2 2>&1 >/dev/null)"
 install_code=$?
@@ -381,6 +382,8 @@ check "every starter succeeded" "$(cat "$TMP"/start-*.log | grep -c '^ok$')" "4"
 check "the racing run succeeded" "$(cat "$TMP/race-run.log")" "e2e-race-$S"
 check "one VMM for the root" "$(pgrep -f "^$ROOT_DIR/micropod-vmm " | wc -l | tr -d ' ')" "1"
 check "no restarts from the race" "$(state "s['restartCount']")" "0"
+check "machine start links the Docker socket its caller named (MICROPOD_DOCKER_SOCK)" \
+    "$(readlink "$ROOT_DIR/canonical-docker.sock")" "$ROOT_DIR/run/docker.sock"
 "$M" rm --force "e2e-race-$S" >/dev/null
 
 echo "== published port"

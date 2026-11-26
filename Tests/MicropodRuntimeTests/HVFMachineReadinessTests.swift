@@ -239,6 +239,99 @@ final class HVFMachineReadinessTests: XCTestCase {
             try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), layout.dockerSocket.path)
     }
 
+    /// `machine start` and `machine restart` link the canonical socket by
+    /// themselves only for the standard machine (`<home>/.micropod/hvf`) or
+    /// when the caller asks; a throwaway root never does, even while nobody
+    /// holds the link.
+    func testOnlyTheStandardRootLinksItselfUnlessAsked() throws {
+        let home = URL(fileURLWithPath: root.path + "-h")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let standard = HVFMachineLayout(root: HVFMachineLayout.standardRoot(home: home))
+        try FileManager.default.createDirectory(at: standard.root, withIntermediateDirectories: true)
+        let alias = home.appendingPathComponent("alias")
+        try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: standard.root.path)
+        let throwaway = HVFMachineLayout(root: root)
+        func links(_ layout: HVFMachineLayout, _ environment: [String: String]) -> Bool {
+            HVFMachineClient.autoLinksCanonicalDockerSocket(layout: layout, environment: environment, home: home)
+        }
+        XCTAssertTrue(standard.isStandardRoot(home: home))
+        XCTAssertTrue(HVFMachineLayout(root: alias).isStandardRoot(home: home), "symlinks resolved")
+        XCTAssertFalse(throwaway.isStandardRoot(home: home))
+
+        XCTAssertTrue(links(standard, [:]))
+        XCTAssertTrue(links(HVFMachineLayout(root: alias), [:]))
+        XCTAssertFalse(links(standard, ["MICROPOD_LINK_DOCKER_SOCK": "0"]), "off for any root")
+        XCTAssertFalse(links(throwaway, [:]), "a throwaway root nobody asked to link")
+        XCTAssertFalse(links(throwaway, ["MICROPOD_HVF_ROOT": root.path]))
+        XCTAssertTrue(links(throwaway, ["MICROPOD_DOCKER_SOCK": root.path + "/canonical.sock"]), "names the link")
+        XCTAssertTrue(links(throwaway, ["MICROPOD_LINK_DOCKER_SOCK": "1"]), "asks for it")
+        XCTAssertFalse(
+            links(
+                throwaway, ["MICROPOD_DOCKER_SOCK": root.path + "/canonical.sock", "MICROPOD_LINK_DOCKER_SOCK": "off"]))
+    }
+
+    /// The link a start makes: skipped on a throwaway root nobody asked to
+    /// link (the canonical path is never even looked at), made where the
+    /// caller named it, and refused over another machine's live socket.
+    func testAThrowawayStartLinksOnlyWhereItsCallerSays() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        guard case .skipped(let note) = client.autoLinkCanonicalDockerSocket() else {
+            return XCTFail("a throwaway root linked the canonical socket without being asked")
+        }
+        XCTAssertTrue(note.contains("is not the standard machine root"), note)
+        XCTAssertTrue(note.contains("micropod machine link-socket"), note)
+
+        let canonical = root.appendingPathComponent("canonical.sock")
+        let asked = HVFMachineClient(layout: layout, environment: ["MICROPOD_DOCKER_SOCK": canonical.path])
+        XCTAssertEqual(asked.autoLinkCanonicalDockerSocket(), .linked(canonical))
+        XCTAssertEqual(
+            try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), layout.dockerSocket.path)
+
+        let other = URL(fileURLWithPath: root.path + "-o")
+        defer { try? FileManager.default.removeItem(at: other) }
+        let otherLayout = HVFMachineLayout(root: other)
+        try FileManager.default.createDirectory(at: otherLayout.runDirectory, withIntermediateDirectories: true)
+        let live = try FakeDockerServer(path: otherLayout.dockerSocket.path) { _ in (200, Data("OK".utf8)) }
+        defer { live.stop() }
+        let otherClient = HVFMachineClient(
+            layout: otherLayout, environment: ["MICROPOD_DOCKER_SOCK": canonical.path])
+        XCTAssertEqual(otherClient.autoLinkCanonicalDockerSocket(), .linked(canonical), "this machine's socket is down")
+        guard case .refused(let why) = asked.autoLinkCanonicalDockerSocket() else {
+            return XCTFail("took the link from a live machine")
+        }
+        XCTAssertTrue(why.contains("already points at"), why)
+        XCTAssertEqual(
+            try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), otherLayout.dockerSocket.path)
+    }
+
+    /// Only `machine start`/`restart` (through the policy above) and an
+    /// explicit link-socket (CLI or API) reach the link: install, payload
+    /// activation, rollback and on-demand starts have no path to it.
+    func testOnlyStartRestartAndLinkSocketReachTheCanonicalLink() throws {
+        let sources = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources")
+        var callers: [String: Int] = [:]
+        let walker = try XCTUnwrap(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+        for case let url as URL in walker where url.pathExtension == "swift" {
+            let text = try String(contentsOf: url, encoding: .utf8)
+            for marker in ["linkCanonicalDockerSocket(", "autoLinkCanonicalDockerSocket("] {
+                let count = text.components(separatedBy: "." + marker).count - 1
+                if count > 0 { callers[url.lastPathComponent + " " + marker, default: 0] += count }
+            }
+        }
+        XCTAssertEqual(
+            callers,
+            [
+                // `machine link-socket`.
+                "MachineCommands.swift linkCanonicalDockerSocket(": 1,
+                // `machine start` and `machine restart`, through autoLink.
+                "MachineCommands.swift autoLinkCanonicalDockerSocket(": 1,
+                // POST /v1/rig/hvf/link-socket.
+                "APIHandlers.swift linkCanonicalDockerSocket(": 1,
+            ])
+    }
+
     func testAHostCacheDiskFileIsNotAMountedCacheDisk() async throws {
         try install()
         XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: Data("x".utf8)))

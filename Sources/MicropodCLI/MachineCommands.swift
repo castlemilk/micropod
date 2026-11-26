@@ -36,6 +36,10 @@ enum MachineCommands {
           micropod machine buildkit-endpoint      unix:// BuildKit socket for a remote buildx builder
                                                   (fails when the tool bundle ships no BuildKit)
           micropod machine link-socket [--force]  link ~/.micropod/docker.sock -> HVF docker.sock
+                                                  (`start` and `restart` link it themselves only for
+                                                  ~/.micropod/hvf, or when MICROPOD_DOCKER_SOCK names
+                                                  the link or MICROPOD_LINK_DOCKER_SOCK=1; never over
+                                                  another machine's live socket without --force)
           micropod machine cache policy [show] [--mode auto|off] [--default-scope S|none]
                                    [--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off]
                                    [--pnpm-legacy-env on|off] [--register-buildx on|off]
@@ -112,7 +116,7 @@ enum MachineCommands {
             case "start":
                 let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--timeout"], commandName: "machine start")
                 try await client.ensureRunning(timeout: .seconds(parsed.intValue("--timeout", default: 180)))
-                _ = try? client.linkCanonicalDockerSocket()
+                autoLink(client)
                 print("hvf machine running — DOCKER_HOST=\(client.layout.dockerEndpoint)")
                 await afterStart(client, environment: environment)
             case "stop":
@@ -123,6 +127,7 @@ enum MachineCommands {
             case "restart":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine restart")
                 try await client.restart()
+                autoLink(client)
                 print("hvf machine running — DOCKER_HOST=\(client.layout.dockerEndpoint)")
             case "status":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine status")
@@ -166,6 +171,18 @@ enum MachineCommands {
         } catch {
             FileHandle.standardError.write(Data("error: \(errorMessage(error))\n".utf8))
             return ExitCode.failure
+        }
+    }
+
+    /// After `machine start` or `machine restart`: points the canonical
+    /// Docker socket at the machine when it is the standard one or the caller
+    /// asked (`HVFMachineClient.autoLinksCanonicalDockerSocket`), and says so
+    /// on stderr when it did not. Never fails the command.
+    static func autoLink(_ client: HVFMachineClient) {
+        switch client.autoLinkCanonicalDockerSocket() {
+        case .linked: break
+        case .skipped(let note), .refused(let note):
+            FileHandle.standardError.write(Data("note: \(note)\n".utf8))
         }
     }
 

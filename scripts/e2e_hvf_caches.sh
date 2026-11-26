@@ -522,8 +522,12 @@ else
     [ -f "$ROOT_DIR/machine.json" ] || { echo "no machine installed at $ROOT_DIR" >&2 && exit 2; }
     ping_engine && WAS_RUNNING=1
 fi
+# A throwaway root never takes the rig's canonical Docker socket link.
+RIG_LINK_BEFORE="$(readlink "$HOME/.micropod/docker.sock" 2>/dev/null || echo absent)"
 "$M" machine start >"$OUT/start.log" 2>&1
 wait_engine 180 || { echo "engine did not answer on $SOCK" >&2 && cat "$OUT/start.log" >&2 && exit 2; }
+check engine "machine start on this throwaway root left ~/.micropod/docker.sock alone" \
+    "$(readlink "$HOME/.micropod/docker.sock" 2>/dev/null || echo absent)" "$RIG_LINK_BEFORE"
 WS="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/machine.json')).get('workspace') or '')")"
 [ -n "$WS" ] && [ -d "$WS" ] || { echo "the machine has no workspace share; bind results need one" >&2 && exit 2; }
 QW="$WS/qual-$S"

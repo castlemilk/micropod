@@ -77,6 +77,56 @@ public struct HVFMachineClient: Sendable {
         DockerClient(endpoint: .unix(layout.dockerSocket.path), apiVersion: Self.apiVersion)
     }
 
+    /// Whether `machine start` and `machine restart` point the canonical
+    /// Docker socket at this machine by themselves. The standard machine
+    /// (`~/.micropod/hvf`) does; a throwaway root (`MICROPOD_HVF_ROOT`
+    /// elsewhere: the e2e scripts, an agent's scratch machine) does only when
+    /// its caller asks, by naming the link in `MICROPOD_DOCKER_SOCK` or with
+    /// `MICROPOD_LINK_DOCKER_SOCK=1`, so it never takes `~/.micropod/docker.sock`
+    /// even while the rig's own machine is down. `MICROPOD_LINK_DOCKER_SOCK=0`
+    /// turns it off for any root. Install, payload activation, rollback and
+    /// on-demand starts never link; `machine link-socket` (or the API's
+    /// link-socket) always tries, with the same refusal of a live link.
+    public static func autoLinksCanonicalDockerSocket(
+        layout: HVFMachineLayout, environment: [String: String],
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> Bool {
+        switch environment["MICROPOD_LINK_DOCKER_SOCK"]?.lowercased() {
+        case "0", "off", "false", "no": return false
+        case "1", "on", "true", "yes": return true
+        default: break
+        }
+        if let explicit = environment["MICROPOD_DOCKER_SOCK"], !explicit.isEmpty { return true }
+        return layout.isStandardRoot(home: home)
+    }
+
+    /// What `autoLinkCanonicalDockerSocket` did.
+    public enum CanonicalLinkOutcome: Sendable, Equatable {
+        /// The canonical link points at this machine.
+        case linked(URL)
+        /// Not attempted: a throwaway root nobody asked to link.
+        case skipped(String)
+        /// Attempted and refused (another live daemon holds the link) or failed.
+        case refused(String)
+    }
+
+    /// The link `machine start` and `machine restart` make, under
+    /// `autoLinksCanonicalDockerSocket`. Never throws: the machine runs
+    /// either way.
+    public func autoLinkCanonicalDockerSocket() -> CanonicalLinkOutcome {
+        let canonical = HVFMachineLayout.canonicalDockerSocket(environment: environment)
+        guard Self.autoLinksCanonicalDockerSocket(layout: layout, environment: environment) else {
+            return .skipped(
+                "left \(canonical.path) alone: \(layout.root.path) is not the standard machine root; "
+                    + "`micropod machine link-socket` points it here")
+        }
+        do {
+            return .linked(try linkCanonicalDockerSocket())
+        } catch {
+            return .refused("did not link \(canonical.path): \(error.localizedDescription)")
+        }
+    }
+
     /// Atomically links `canonical` (default `~/.micropod/docker.sock`) to this
     /// machine's `run/docker.sock`, replacing a stale socket or a link to one.
     /// Refuses, unless `force`, while another daemon answers on `canonical`:
