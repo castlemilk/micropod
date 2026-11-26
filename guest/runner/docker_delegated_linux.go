@@ -183,20 +183,15 @@ func delegatedRoute(method, raw string) bool {
 }
 
 // delegatedCreateLocked holds a create through viewer's socket to what the
-// owner may hand its children: networks it sees, volumes it sees (a new one
-// becomes its own; one it sees only because it mounts it is read-only unless
-// it mounts it writable) and binds inside its own (delegatedBinds, whose
-// roots it returns and which it may make read-only in spec). Call with s.mu
-// held, after selectNetwork resolved the networks.
-func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, network string, endpoints []dockerSecondaryEndpoint) (map[string]string, error) {
+// owner may hand its children: volumes it sees (a new one becomes its own;
+// one it sees only because it mounts it is read-only unless it mounts it
+// writable) and binds inside its own (delegatedBinds, whose roots it returns
+// and which it may make read-only in spec). The networks are the ones it
+// sees: selectNetworkFor found no other. Call with s.mu held.
+func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig) (map[string]string, error) {
 	owner := s.containers[viewer]
 	if owner == nil {
 		return nil, fail(http.StatusForbidden, "the container this Docker socket belongs to is gone")
-	}
-	for _, id := range append([]string{network}, endpointNetworks(endpoints)...) {
-		if n := s.namedNetworks[id]; id != "" && (n == nil || !s.seesNetworkLocked(viewer, n)) {
-			return nil, fail(http.StatusNotFound, "no such network")
-		}
 	}
 	roots, err := delegatedBinds(owner, spec)
 	if err != nil {
@@ -256,6 +251,18 @@ func (s *dockerEngine) hostJoinLocked(family string, networks []string, spec *do
 		if v, err := inspectVolume(m.Source); err == nil && v.createdBy != "" && v.createdBy != family {
 			return fail(http.StatusConflict, "the volume "+m.Source+" was created through a container's Docker socket; only what that container created there may mount it")
 		}
+	}
+	return nil
+}
+
+// admitNetworkChangeLocked holds a docker network connect or disconnect of
+// c through the request's socket to the rule for n, which findNetworkFor
+// found among the networks that socket sees: through the host's, c does not
+// join another family's network (hostJoinLocked). Call with s.mu held, both
+// before the change waits for c and again where it commits.
+func (s *dockerEngine) admitNetworkChangeLocked(ctx context.Context, c *dockerContainer, n *workerNetwork, connect bool) error {
+	if connect && viewerOf(ctx) == "" {
+		return s.hostJoinLocked(c.family(), []string{n.ID}, nil)
 	}
 	return nil
 }

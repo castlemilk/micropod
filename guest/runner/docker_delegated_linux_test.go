@@ -289,7 +289,7 @@ func TestDelegatedChildKeepsTheOwnersReadOnlyVolume(t *testing.T) {
 		Mounts: []dockerMount{{Type: "volume", Source: "shared-fixtures", Target: "/m"}},
 	}}
 	s.mu.Lock()
-	_, err := s.delegatedCreateLocked(owner.ID, &spec, "", nil)
+	_, err := s.delegatedCreateLocked(owner.ID, &spec)
 	s.mu.Unlock()
 	if err != nil {
 		t.Fatal(err)
@@ -350,5 +350,39 @@ func TestHostSocketDoesNotAdoptADelegatedSocketsObjects(t *testing.T) {
 	}
 	if err := s.hostJoinLocked(strings.Repeat("9", 64), []string{squat.ID}, nil); err == nil {
 		t.Error("another family joined the owner's network on the host's socket")
+	}
+}
+
+// On a delegated socket another job's network is not there by any key, and
+// it answers exactly as a network that does not exist does, so a create's
+// answer does not tell a job that another job's network has some name.
+func TestDelegatedCreateDoesNotTellAnotherJobsNetworkExists(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, _, other, _ := delegatedFixture(t)
+	imageID := healthConfigDigest([]byte("{}"))
+	s.node = node{images: dockerHealthTestImages{id: imageID}, imageStore: dockerHealthTestImageStore{}}
+	s.healthImages = dockerImageHealthCache{byID: map[string]dockerImageHealth{imageID: {}}}
+	foreign := &workerNetwork{Name: "repo_default", ID: strings.Repeat("3", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.3.0/24"), CreatedBy: other.ID}
+	mine := &workerNetwork{Name: "mine", ID: strings.Repeat("4", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.4.0/24"), CreatedBy: owner.ID}
+	s.namedNetworks[foreign.ID], s.namedNetworks[mine.ID] = foreign, mine
+	ctx := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}), owner.ID)
+	answer := func(spec dockerConfig) string {
+		spec.Image, spec.Labels = "alpine", map[string]string{"io.micropod.cache": "off"}
+		_, err := s.create(ctx, spec, "")
+		var api apiError
+		if !errors.As(err, &api) {
+			t.Fatalf("create %+v: %v", spec.HostConfig, err)
+		}
+		return strconv.Itoa(api.code) + " " + api.message
+	}
+	for _, key := range []string{"repo_default", foreign.ID, foreign.ID[:12]} {
+		got := answer(dockerConfig{HostConfig: dockerHost{NetworkMode: key}})
+		if want := answer(dockerConfig{HostConfig: dockerHost{NetworkMode: "absent" + key[:4]}}); got != strings.Replace(want, "absent"+key[:4], key, 1) {
+			t.Errorf("primary %q: %q, a missing network: %q", key, got, want)
+		}
+		got = answer(dockerConfig{HostConfig: dockerHost{NetworkMode: "mine"}, Endpoints: map[string]dockerEndpointOptions{key: {}}})
+		if want := "404 no such network: " + key; got != want {
+			t.Errorf("endpoint %q: %q, want %q", key, got, want)
+		}
 	}
 }

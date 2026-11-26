@@ -547,3 +547,49 @@ func TestDockerDisconnectEndsTheRelayItAdmitted(t *testing.T) {
 		t.Fatal("a disconnected peer was relayed again")
 	}
 }
+
+// A docker network connect is decided where it commits, on the network its
+// key names then: a delegated owner that checked its own network, held the
+// request on its child's lifecycle lock and removed the network meanwhile
+// finds another job's network under that name not there (404), and the
+// host's socket does not join a delegated family's network that took a free
+// name meanwhile (409).
+func TestDockerNetworkConnectDecidesWhereItCommits(t *testing.T) {
+	f := newDockerEndpointFixture(t)
+	owner := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("e", 64), Name: "job", Phase: "running"}}
+	f.containers[owner.ID] = owner
+	// The name the owner's own network had is the victim's network's now.
+	f.second.Name = "repo_default"
+	f.container.CreatedBy = owner.ID
+	viewer := withViewer(context.Background(), owner.ID)
+	for _, key := range []string{"repo_default", f.second.ID, f.second.ID[:12]} {
+		err := f.connect(viewer, key)
+		if dockerEndpointTestStatus(err) != http.StatusNotFound || err.Error() != "no such network: "+key {
+			t.Errorf("a delegated connect by %q joined another job's network: %v", key, err)
+		}
+	}
+	if len(f.container.SecondaryNetworks) != 0 {
+		t.Fatalf("endpoint recorded on another job's network: %+v", f.container.SecondaryNetworks)
+	}
+	f.second.CreatedBy = owner.ID
+	if err := f.connect(viewer, "repo_default"); err != nil {
+		t.Fatalf("the owner's own network: %v", err)
+	}
+	if err := f.disconnect(viewer, "repo_default"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The host's socket: a host-created container and a name a delegated
+	// family's network took.
+	f.container.CreatedBy = ""
+	if err := f.connect(context.Background(), "repo_default"); dockerEndpointTestStatus(err) != http.StatusConflict {
+		t.Fatalf("the host's connect joined a delegated family's network: %v", err)
+	}
+	if len(f.container.SecondaryNetworks) != 0 {
+		t.Fatalf("endpoint recorded on a delegated family's network: %+v", f.container.SecondaryNetworks)
+	}
+	f.second.CreatedBy = ""
+	if err := f.connect(context.Background(), "repo_default"); err != nil {
+		t.Fatalf("the host's own network: %v", err)
+	}
+}

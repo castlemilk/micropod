@@ -52,25 +52,20 @@ func (s *dockerEngine) mutateDockerNetwork(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
-	if viewer := viewerOf(r.Context()); viewer != "" {
-		s.mu.Lock()
-		n, err := s.findNetwork(key, false)
-		visible := err == nil && n != nil && s.seesNetworkLocked(viewer, n)
-		s.mu.Unlock()
-		if !visible {
-			return fail(http.StatusNotFound, "no such network: "+key)
-		}
-	} else if connect {
-		s.mu.Lock()
-		n, _ := s.findNetwork(key, false)
-		err := error(nil)
-		if n != nil {
-			err = s.hostJoinLocked(c.family(), []string{n.ID}, nil)
-		}
-		s.mu.Unlock()
-		if err != nil {
-			return err
-		}
+	// Refused at once when the network as it stands now is refused; the
+	// change itself decides again where it commits (changeDockerNetwork), as
+	// the network a name resolves to can change while it waits for c.
+	s.mu.Lock()
+	n, err := s.findNetworkFor(viewerOf(r.Context()), key, false)
+	if err == nil && n != nil {
+		err = s.admitNetworkChangeLocked(r.Context(), c, n, connect)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	if n == nil && viewerOf(r.Context()) != "" {
+		return fail(http.StatusNotFound, "no such network: "+key)
 	}
 	release, err := s.lockContainerLifecycle(r.Context(), c)
 	if err != nil {
@@ -103,12 +98,19 @@ func (s *dockerEngine) changeDockerNetwork(ctx context.Context, c *dockerContain
 	if builtinDockerNetwork(key) != "" || !s.namedNetworks[c.NetworkID].secondaryBridge() {
 		return unsupportedDockerSecondaryNetwork()
 	}
-	n, err := s.findNetwork(key, false)
+	// The network key names now, held to the request's rule here, under the
+	// lock the change commits under: a check made before c's lifecycle lock
+	// (mutateDockerNetwork) can be outlived by the network it checked, and
+	// another job's can take its name meanwhile.
+	n, err := s.findNetworkFor(viewerOf(ctx), key, false)
 	if err != nil {
 		return err
 	}
 	if n == nil {
 		return fail(http.StatusNotFound, "no such network: "+key)
+	}
+	if err := s.admitNetworkChangeLocked(ctx, c, n, connect); err != nil {
+		return err
 	}
 	if !n.secondaryBridge() {
 		return unsupportedDockerSecondaryNetwork()

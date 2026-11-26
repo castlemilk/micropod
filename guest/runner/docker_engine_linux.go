@@ -641,7 +641,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
 		}
 	}
-	network, ip, endpoints, err := s.selectNetwork(&spec)
+	network, ip, endpoints, err := s.selectNetworkFor(&spec, viewerOf(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -651,7 +651,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	var bindRoots map[string]string
 	if viewer := viewerOf(ctx); viewer != "" && !privateRootless() {
 		createdBy = viewer
-		if bindRoots, err = s.delegatedCreateLocked(viewer, &spec, network, endpoints); err != nil {
+		if bindRoots, err = s.delegatedCreateLocked(viewer, &spec); err != nil {
 			return nil, err
 		}
 	} else if viewer == "" {

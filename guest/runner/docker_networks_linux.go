@@ -50,13 +50,21 @@ func (n *workerNetwork) dir() string  { return filepath.Join(engineRoot, "networ
 
 // Resolve exact IDs and names before trying a unique ID prefix. Caller holds s.mu.
 func (s *dockerEngine) findNetwork(key string, includeDeleting bool) (*workerNetwork, error) {
-	if n := s.namedNetworks[key]; n != nil && (includeDeleting || !n.deleting) {
+	return s.findNetworkFor("", key, includeDeleting)
+}
+
+// findNetworkFor is findNetwork among the networks viewer may see
+// (seesNetworkLocked; all of them for the host's ""): on a delegated socket
+// another job's network is not there by any key, so a name or ID prefix
+// never resolves to it, nor is ambiguous with it. Caller holds s.mu.
+func (s *dockerEngine) findNetworkFor(viewer, key string, includeDeleting bool) (*workerNetwork, error) {
+	if n := s.namedNetworks[key]; n != nil && (includeDeleting || !n.deleting) && s.seesNetworkLocked(viewer, n) {
 		return n, nil
 	}
 	var match *workerNetwork
 	ambiguous := false
 	for _, n := range s.namedNetworks {
-		if n.deleting && !includeDeleting {
+		if n.deleting && !includeDeleting || !s.seesNetworkLocked(viewer, n) {
 			continue
 		}
 		if n.Name == key {
@@ -390,11 +398,11 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 		if builtin := builtinDockerNetwork(key); builtin != "" {
 			key = builtin
 		} else {
-			n, err := s.findNetwork(key, false)
+			n, err := s.findNetworkFor(viewer, key, false)
 			if err != nil {
 				return err
 			}
-			if n == nil || !s.seesNetworkLocked(viewer, n) {
+			if n == nil {
 				return fail(404, "no such network")
 			}
 			key = n.ID
