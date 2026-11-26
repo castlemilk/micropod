@@ -572,7 +572,8 @@ func stage2Supervise() {
 	_ = syscall.Sethostname([]byte("micropod-hvf"))
 
 	// Mount Virtio-FS shares
-	mustMount("oci-tools", "/opt/micropod-oci", "virtiofs", syscall.MS_RDONLY, "")
+	mustMount("oci-tools", toolsDir, "virtiofs", syscall.MS_RDONLY, "")
+	go prefetchTools(toolsDir, bootTools)
 	if workspace != "" {
 		if err := prepareWorkspaceMount(workspace); err != nil {
 			stage2Fail(fmt.Errorf("prepare workspace mount %q: %w", workspace, err))
