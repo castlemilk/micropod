@@ -141,7 +141,7 @@ final class CacheRoutesTests: XCTestCase {
             (#"{"sharedl0": true}"#, "unknown field 'sharedl0'"),
             (#"{"version": 2}"#, "unknown field 'version'"),
             (#"{"mode": "bogus"}"#, "mode must be auto or off"),
-            (#"{"goProxy": "ftp://proxy"}"#, "goProxy 'ftp://proxy' entries must be"),
+            (#"{"goProxy": "ftp://proxy"}"#, "goProxy 'ftp://proxy' entries (separated by ',' or '|') must be"),
             (#"{"maxBytes": -5}"#, "maxBytes must be a non-negative integer"),
             (#"{"maxAgeDays": "14"}"#, "maxAgeDays must be a non-negative integer"),
             (#"{"tools": ["go", 5]}"#, "tools must be an array of strings"),

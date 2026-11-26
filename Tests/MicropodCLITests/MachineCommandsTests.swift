@@ -86,7 +86,7 @@ final class MachineCommandsTests: XCTestCase {
         XCTAssertEqual(request.cacheScope, "proja")
         XCTAssertEqual(request.arguments, ["go", "version"])
         XCTAssertNoThrow(try ContainerCommands.validateCacheFlags(request))
-        for (cache, scope, runtime) in [("maven", nil, "hvf"), (nil, "Bad", "hvf"), ("go", nil, "apple")]
+        for (cache, scope, runtime) in [("gems", nil, "hvf"), (nil, "Bad", "hvf"), ("go", nil, "apple")]
             as [(String?, String?, String)]
         {
             let bad = ContainerRunRequest(image: "x", runtime: runtime, cache: cache, cacheScope: scope)
