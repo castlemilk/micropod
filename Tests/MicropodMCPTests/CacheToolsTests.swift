@@ -22,11 +22,14 @@ final class CacheToolsTests: XCTestCase {
 
     private var socketPath: String { directory.appendingPathComponent("api.sock").path }
 
-    private func makeServer(tcpPort: Int = 1, socketTimeoutSeconds: Int = 5) -> MCPServer {
+    private func makeServer(tcpPort: Int = 1, socketTimeoutSeconds: Int = 5, longCallSeconds: Int? = nil)
+        -> MCPServer
+    {
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
         let api = LocalAPI(
             socketPath: socketPath, baseURL: URL(string: "http://127.0.0.1:\(tcpPort)")!,
-            socketTimeoutSeconds: socketTimeoutSeconds, httpTimeout: 5)
+            socketTimeoutSeconds: socketTimeoutSeconds, httpTimeout: 5,
+            longCallSeconds: longCallSeconds ?? socketTimeoutSeconds)
         return MCPServer(
             client: client,
             system: SystemService(client: client),
@@ -169,6 +172,28 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertEqual(second["mode"] as? String, "auto")
     }
 
+    /// `""` for a URL or the default scope is the earlier clear, not an
+    /// omission: it is sent, alone or beside another setting.
+    func testPolicySetSendsAnEmptyURLAsAClear() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath)
+        defer { fake.stop() }
+        let server = makeServer()
+        var reply = try await call(server, "cache_policy_set", ["go_proxy": "", "shared_l0": true])
+        XCTAssertFalse(reply.isError, reply.text)
+        reply = try await call(server, "cache_policy_set", ["npm_registry": ""])
+        XCTAssertFalse(reply.isError, reply.text)
+        reply = try await call(server, "cache_policy_set", ["default_scope": "", "go_proxy": NSNull()])
+        XCTAssertFalse(reply.isError, reply.text)
+        let bodies = fake.requests.map(\.json)
+        guard bodies.count == 3 else { return XCTFail("\(bodies.count) requests, want 3") }
+        XCTAssertEqual(bodies[0]["goProxy"] as? String, "")
+        XCTAssertEqual(bodies[0]["sharedL0"] as? Bool, true)
+        XCTAssertEqual(bodies[1].count, 1)
+        XCTAssertEqual(bodies[1]["npmRegistry"] as? String, "")
+        XCTAssertEqual(bodies[2].count, 1, "null still means omitted: \(bodies[2])")
+        XCTAssertEqual(bodies[2]["defaultScope"] as? String, "")
+    }
+
     func testPolicySetNeverTurnsAnOmittedOrMistypedSettingIntoAWrite() async throws {
         let fake = try FakeLocalAPI(unixSocket: socketPath)
         defer { fake.stop() }
@@ -229,7 +254,49 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertEqual(fake.requests.map(\.path), ["/v1/caches/dedupe?buckets=32", "/v1/caches/dedupe?buckets=16"])
     }
 
+    // MARK: update_hvf_rollback
+
+    func testRollbackSendsForceOnlyWhenAskedAndReportsADeferralAsAnError() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath)
+        defer { fake.stop() }
+        let server = makeServer()
+        var reply = try await call(server, "update_hvf_rollback", [:])
+        XCTAssertFalse(reply.isError, reply.text)
+        reply = try await call(server, "update_hvf_rollback", ["force": true])
+        XCTAssertFalse(reply.isError, reply.text)
+        reply = try await call(server, "update_hvf_rollback", ["force": "maybe"])
+        XCTAssertTrue(reply.isError, reply.text)
+        XCTAssertEqual(fake.requests.map(\.json.count), [0, 1])
+        XCTAssertEqual(fake.requests.last?.json["force"] as? Bool, true)
+
+        // The daemon answers a deferral with 409 and its detail as `error`.
+        fake.reply("/v1/rig/hvf/update/rollback", status: 409)
+        reply = try await call(server, "update_hvf_rollback", [:])
+        XCTAssertTrue(reply.isError, "a deferred rollback changed nothing: \(reply.text)")
+    }
+
     // MARK: Transport
+
+    /// Nothing is resent, so a call whose route replies only when the work
+    /// is done waits the long deadline; ordinary calls keep the short one.
+    func testLongCallsWaitForASlowReplyAndShortOnesDoNot() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath, behavior: .respondAfter(seconds: 2))
+        let tcp = try FakeLocalAPI(tcpLoopback: .respond)
+        defer {
+            fake.stop()
+            tcp.stop()
+        }
+        let server = makeServer(tcpPort: tcp.port, socketTimeoutSeconds: 1, longCallSeconds: 6)
+        let pulled = try await call(server, "pull", ["reference": "alpine:3.20", "runtime": "hvf"])
+        XCTAssertFalse(pulled.isError, pulled.text)
+        let pruned = try await call(server, "cache_prune", ["dry_run": true])
+        XCTAssertFalse(pruned.isError, pruned.text)
+        let policy = try await call(server, "cache_policy", [:])
+        XCTAssertTrue(policy.isError, "a 2 s reply to a 1 s call: \(policy.text)")
+        XCTAssertTrue(policy.text.contains("It was not resent"), policy.text)
+        XCTAssertEqual(fake.requests.map(\.path), ["/v1/images/pull", "/v1/caches/prune", "/v1/caches/policy"])
+        XCTAssertEqual(tcp.requests.count, 0)
+    }
 
     /// A daemon that took the request and then went quiet may be applying
     /// it: the server must report that, not resend over TCP.

@@ -14,7 +14,7 @@ on:
       - "buf.gen.docs.yaml"
       - "scripts/gen-api-docs.py"
       - "Sources/MicropodAPI/APIHandlers.swift"
-      - "Sources/MicropodMCP/main.swift"
+      - "Sources/MicropodMCP/**"
       - ".github/workflows/gh-pages.yml"
   workflow_dispatch:
 

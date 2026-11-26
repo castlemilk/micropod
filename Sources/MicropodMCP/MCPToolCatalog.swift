@@ -315,8 +315,9 @@ enum MCPToolCatalog {
             parameters: [
                 .choice("mode", ["auto", "off"], "Attach caches to every container (auto) or none (off)."),
                 .boolean("shared_l0", "Share verified downloads across scopes (fleet L0)."),
-                .string("go_proxy", "GOPROXY for containers, e.g. http://10.43.0.1:5555/go,direct; off clears it."),
-                .string("npm_registry", "npm registry URL for containers; off clears it."),
+                .string(
+                    "go_proxy", "GOPROXY for containers, e.g. http://10.42.0.1:7677/go|direct; off or \"\" clears it."),
+                .string("npm_registry", "npm registry URL for containers; off or \"\" clears it."),
                 .string(
                     "default_scope", "Scope for containers naming none; none attaches only to containers naming one."),
                 .size("max_bytes", "Janitor byte ceiling, e.g. 50g; 0 clears it."),
@@ -338,7 +339,12 @@ enum MCPToolCatalog {
                 "Show active vs staged versioned HVF VMM/kernel/initrd/tools payload status and rollback history."),
         MCPTool(
             name: "update_hvf_rollback",
-            description: "Atomically roll back HVF payload symlink to the previous verified release."),
+            description:
+                "Return the HVF machine to its last known-good payload (probed after the restart). Deferred, as a "
+                + "tool error, while containers run or idleness cannot be confirmed, unless force is true.",
+            parameters: [
+                .boolean("force", "Restart onto known-good even while containers run (interrupts them).")
+            ]),
         MCPTool(
             name: "sandbox_status",
             description: "Show standalone sandbox VM readiness (cached vminitd/kernel without Apple container CLI)."),

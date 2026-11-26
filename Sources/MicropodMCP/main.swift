@@ -379,7 +379,8 @@ actor MCPServer {
                 if let name = args.optionalString("name") { body["name"] = name }
                 if let memory = args.optionalString("memory") { body["memory"] = memory }
                 if let command = args.optionalString("command") { body["arguments"] = ["/bin/sh", "-c", command] }
-                let reply = try await api.call("POST", "/v1/containers", body)
+                // Replies once the image is pulled and the container started.
+                let reply = try await api.call("POST", "/v1/containers", body, timeout: api.longCallSeconds)
                 return toolResult(id, "Started \(reply["id"] as? String ?? "?") on \(args.string("runtime"))")
 
             case "runtimes":
@@ -409,7 +410,8 @@ actor MCPServer {
                 if await api.nonAppleEngine(for: args.string("id")) != nil {
                     let reply = try await api.connect(
                         "ContainerService", "Exec",
-                        ["id": args.string("id"), "arguments": ["/bin/sh", "-c", args.string("command")]])
+                        ["id": args.string("id"), "arguments": ["/bin/sh", "-c", args.string("command")]],
+                        timeout: api.longCallSeconds)
                     let output = (reply["output"] as? String ?? "") + (reply["error"] as? String ?? "")
                     let code = (reply["exitCode"] as? Int) ?? Int(reply["exitCode"] as? String ?? "0") ?? 0
                     return toolResult(
@@ -616,7 +618,8 @@ actor MCPServer {
                 // Other engines' stores are routed by the API daemon.
                 _ = try await api.call(
                     "POST", "/v1/images/pull",
-                    ["reference": args.string("reference"), "runtime": args.string("runtime")])
+                    ["reference": args.string("reference"), "runtime": args.string("runtime")],
+                    timeout: api.longCallSeconds)
                 return toolResult(id, "Pulled \(args.string("reference")) on \(args.string("runtime"))")
 
             case "pull":

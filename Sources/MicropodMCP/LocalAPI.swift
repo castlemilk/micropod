@@ -12,12 +12,18 @@ import MicropodCore
 /// refused the connection, before a byte was written: after that the daemon
 /// may already be pruning caches or rolling back a payload, so a timeout or
 /// a dropped reply is reported as such and never replayed over TCP.
+///
+/// Since nothing is resent, each call waits as long as its route can take:
+/// `socketTimeoutSeconds` for ordinary calls (the same as loopback HTTP),
+/// `longCallSeconds` for those that reply only when the work is done (a
+/// pull, a run that pulls, an exec, a prune, a payload rollback).
 struct LocalAPI: Sendable {
     /// Used when it exists at call time; nil when disabled.
     var socketPath: String?
     var baseURL: URL
-    var socketTimeoutSeconds = 60
+    var socketTimeoutSeconds = 120
     var httpTimeout: TimeInterval = 120
+    var longCallSeconds = 1800
 
     static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> LocalAPI {
         let port = environment["MICROPOD_API_PORT"] ?? "45454"
@@ -38,10 +44,16 @@ struct LocalAPI: Sendable {
 
     // MARK: Requests
 
-    func callRaw(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> String {
+    /// `timeout`: seconds to wait for the reply (default `socketTimeoutSeconds`
+    /// on the socket, `httpTimeout` over loopback HTTP).
+    func callRaw(_ method: String, _ path: String, _ body: [String: Any]? = nil, timeout: Int? = nil) async throws
+        -> String
+    {
         let payload = try body.map { try JSONSerialization.data(withJSONObject: $0, options: [.sortedKeys]) }
         if let socketPath, FileManager.default.fileExists(atPath: socketPath) {
-            switch await Self.exchange(socketPath, method, path, payload, timeoutSeconds: socketTimeoutSeconds) {
+            switch await Self.exchange(
+                socketPath, method, path, payload, timeoutSeconds: timeout ?? socketTimeoutSeconds)
+            {
             case .replied(let status, let data):
                 return try Self.result(status, data)
             case .notSent:
@@ -52,26 +64,32 @@ struct LocalAPI: Sendable {
                         + "the daemon may have applied it, so check its state before calling again.")
             }
         }
-        return try await callHTTP(method, path, payload)
+        return try await callHTTP(method, path, payload, timeout: timeout.map(TimeInterval.init) ?? httpTimeout)
     }
 
-    func call(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> [String: Any] {
-        let raw = try await callRaw(method, path, body)
+    func call(_ method: String, _ path: String, _ body: [String: Any]? = nil, timeout: Int? = nil) async throws
+        -> [String: Any]
+    {
+        let raw = try await callRaw(method, path, body, timeout: timeout)
         return (try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any]) ?? [:]
     }
 
     /// A Connect unary call on the daemon (`/api/micropod.v1.<service>/<method>`).
-    func connect(_ service: String, _ method: String, _ body: [String: Any]) async throws -> [String: Any] {
-        try await call("POST", "/api/micropod.v1.\(service)/\(method)", body)
+    func connect(_ service: String, _ method: String, _ body: [String: Any], timeout: Int? = nil) async throws
+        -> [String: Any]
+    {
+        try await call("POST", "/api/micropod.v1.\(service)/\(method)", body, timeout: timeout)
     }
 
-    private func callHTTP(_ method: String, _ path: String, _ payload: Data?) async throws -> String {
+    private func callHTTP(_ method: String, _ path: String, _ payload: Data?, timeout: TimeInterval) async throws
+        -> String
+    {
         guard let url = URL(string: baseURL.absoluteString + path) else {
             throw MicropodError.message("invalid API path: \(path)")
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = httpTimeout
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = payload
         let data: Data

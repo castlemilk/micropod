@@ -19,7 +19,7 @@ enum CacheTools {
         case "cache_dedupe":
             return try await api.callRaw("GET", "/v1/caches/dedupe?buckets=\(args.integer("buckets") ?? 16)")
         case "cache_prune":
-            return try await api.callRaw("POST", "/v1/caches/prune", try pruneBody(args))
+            return try await api.callRaw("POST", "/v1/caches/prune", try pruneBody(args), timeout: api.longCallSeconds)
         case "cache_policy":
             return try await api.callRaw("GET", "/v1/caches/policy")
         case "cache_policy_set":
@@ -32,7 +32,10 @@ enum CacheTools {
         case "update_hvf_status":
             return try await api.callRaw("GET", "/v1/rig/hvf/update")
         case "update_hvf_rollback":
-            return try await api.callRaw("POST", "/v1/rig/hvf/update/rollback", [:])
+            // Deferred (409) or a failed rollback boot (500) is a tool error.
+            let body: [String: Any] = args.flag("force") ? ["force": true] : [:]
+            return try await api.callRaw(
+                "POST", "/v1/rig/hvf/update/rollback", body, timeout: api.longCallSeconds)
         default:
             throw MicropodError.message("\(name) is not a cache tool")
         }
@@ -77,15 +80,31 @@ enum CacheTools {
 
     /// `PUT /v1/caches/policy`'s body: only the settings the call names. A
     /// call naming none is refused rather than sent as an empty write.
+    ///
+    /// For go_proxy, npm_registry and default_scope an explicit `""` is a
+    /// clear (as REST and earlier releases read it), like "off"/"none" —
+    /// never silently dropped while another setting is written.
     static func policyPatch(_ args: MCPArguments) throws -> [String: Any] {
         /// "off" and "none" clear a URL, as `micropod cache policy` reads them.
         func url(_ raw: String) -> String { ["off", "none"].contains(raw.lowercased()) ? "" : raw }
         var body: [String: Any] = [:]
         if let mode = args.optionalString("mode") { body["mode"] = mode }
         if let shared = args.bool("shared_l0") { body["sharedL0"] = shared }
-        if let goProxy = args.optionalString("go_proxy") { body["goProxy"] = url(goProxy) }
-        if let registry = args.optionalString("npm_registry") { body["npmRegistry"] = url(registry) }
-        if let scope = args.optionalString("default_scope") { body["defaultScope"] = scope == "none" ? "" : scope }
+        if let goProxy = args.optionalString("go_proxy") {
+            body["goProxy"] = url(goProxy)
+        } else if args.isEmptyString("go_proxy") {
+            body["goProxy"] = ""
+        }
+        if let registry = args.optionalString("npm_registry") {
+            body["npmRegistry"] = url(registry)
+        } else if args.isEmptyString("npm_registry") {
+            body["npmRegistry"] = ""
+        }
+        if let scope = args.optionalString("default_scope") {
+            body["defaultScope"] = scope == "none" ? "" : scope
+        } else if args.isEmptyString("default_scope") {
+            body["defaultScope"] = ""
+        }
         if let maxBytes = args.bytes("max_bytes") { body["maxBytes"] = maxBytes }
         if let days = args.integer("max_age_days") { body["maxAgeDays"] = days }
         guard !body.isEmpty else {

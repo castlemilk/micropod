@@ -5,11 +5,13 @@ import MicropodCore
 /// A stand-in for the Micropod API daemon, on a Unix socket or a loopback
 /// TCP port: it records every request and, like the daemon's prune route,
 /// counts an eviction for each prune that is not a dry run. `stall` reads a
-/// request and then never answers, as a daemon busy pruning would.
+/// request and then never answers, as a daemon busy pruning would;
+/// `respondAfter` answers late, as a long pull or exec does.
 final class FakeLocalAPI: @unchecked Sendable {
     enum Behavior: Sendable {
         case respond
         case stall
+        case respondAfter(seconds: Double)
     }
 
     struct Request: Sendable {
@@ -31,6 +33,12 @@ final class FakeLocalAPI: @unchecked Sendable {
     private var seen: [Request] = []
     private var evicted = 0
     private var stopped = false
+    private var statuses: [String: Int] = [:]
+
+    /// Answers `path` with `status` (and the usual body) from now on.
+    func reply(_ path: String, status: Int) {
+        lock.withLock { statuses[path] = status }
+    }
 
     init(unixSocket path: String, behavior: Behavior = .respond) throws {
         self.behavior = behavior
@@ -146,7 +154,11 @@ final class FakeLocalAPI: @unchecked Sendable {
                 var poll = pollfd(fd: client, events: Int16(POLLIN), revents: 0)
                 if Darwin.poll(&poll, 1, 50) > 0 { break }
             }
-        case .respond:
+        case .respond, .respondAfter:
+            if case .respondAfter(let seconds) = behavior {
+                Thread.sleep(forTimeInterval: seconds)
+            }
+            let status = lock.withLock { statuses[request.path] } ?? 200
             let reply: Data
             if request.path == "/v1/caches/prune" {
                 reply = Data(#"{"dryRun":\#(dryRun),"freedBytes":0,"actions":[]}"#.utf8)
@@ -155,7 +167,7 @@ final class FakeLocalAPI: @unchecked Sendable {
             }
             let response =
                 Data(
-                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(reply.count)\r\nConnection: close\r\n\r\n"
+                    "HTTP/1.1 \(status) Fake\r\nContent-Type: application/json\r\nContent-Length: \(reply.count)\r\nConnection: close\r\n\r\n"
                         .utf8) + reply
             _ = response.withUnsafeBytes { write(client, $0.baseAddress, $0.count) }
         }

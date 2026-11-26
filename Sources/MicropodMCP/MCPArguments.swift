@@ -150,6 +150,8 @@ struct MCPArguments: Sendable {
     let tool: String
     private let values: [String: Value]
     private let declared: Set<String>
+    /// Declared arguments given as `""` (which, like null, count as omitted).
+    private let emptyStrings: Set<String>
 
     init(_ raw: [String: JSONValue], for tool: MCPTool) throws {
         let declared = Set(tool.parameters.map(\.name))
@@ -163,6 +165,7 @@ struct MCPArguments: Sendable {
                     + (accepted.isEmpty ? "it takes no arguments" : "it accepts \(accepted.joined(separator: ", "))"))
         }
         var values: [String: Value] = [:]
+        emptyStrings = Set(raw.compactMap { key, value in value == .string("") ? key : nil })
         for parameter in tool.parameters {
             if let raw = raw[parameter.name], let value = try Self.read(raw, as: parameter, tool: tool.name) {
                 values[parameter.name] = value
@@ -176,6 +179,13 @@ struct MCPArguments: Sendable {
     // MARK: Accessors
 
     func has(_ key: String) -> Bool { value(key) != nil }
+
+    /// The call gave `key` as `""`: omitted for every accessor, but a tool
+    /// for which "" means "clear" can tell it from absent.
+    func isEmptyString(_ key: String) -> Bool {
+        assert(declared.contains(key), "\(tool) reads undeclared argument '\(key)'")
+        return emptyStrings.contains(key)
+    }
 
     /// The string, or "" when omitted.
     func string(_ key: String) -> String { optionalString(key) ?? "" }
