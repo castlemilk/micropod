@@ -107,22 +107,40 @@ struct MicropodAPI {
                 : (unixSockEnv?.isEmpty == false
                     ? (unixSockEnv! as NSString).expandingTildeInPath
                     : FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/api.sock").path)
-            if let unixSockPath {
-                try FileManager.default.createDirectory(
-                    at: URL(fileURLWithPath: unixSockPath).deletingLastPathComponent(),
-                    withIntermediateDirectories: true)
-                try? await server.startPrivateSocket(path: unixSockPath)
-            }
-            try await server.run()
+            // Only a socket that is actually serving is advertised.
+            var ownerSocket: String?
+            if let unixSockPath { ownerSocket = await startOwnerSocket(server, path: unixSockPath) }
+            try server.startListening()
             print(
                 "Micropod API listening on http://127.0.0.1:\(port), http://[::1]:\(port)"
-                    + (unixSockPath.map { ", unix://\($0)" } ?? "")
+                    + (ownerSocket.map { ", unix://\($0)" } ?? "")
                     + " (cli: \(client.executableURL.path), backend: \(runtime.kind.rawValue))"
             )
-            await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+            fflush(stdout)
+            // Serve until killed. A continuation that is never resumed would
+            // park this task too, but the runtime reports it as leaked.
+            while true { try await Task.sleep(for: .seconds(86_400)) }
         } catch {
             fputs("API failed to start: \(error)\n", stderr)
             exit(1)
+        }
+    }
+
+    /// Serves the owner's private socket (`~/.micropod/api.sock`, or
+    /// `MICROPOD_API_SOCK`), creating its directory 0700 when it does not
+    /// exist yet. A socket that cannot be bound is logged as the failure it
+    /// is and not served or advertised (nil); the loopback TCP API starts
+    /// regardless, so clients fall back to it.
+    static func startOwnerSocket(
+        _ server: HTTPServer, path: String, log: (String) -> Void = { fputs($0 + "\n", stderr) }
+    ) async -> String? {
+        do {
+            try HTTPServer.createPrivateDirectory(URL(fileURLWithPath: path).deletingLastPathComponent())
+            try await server.startPrivateSocket(path: path, admission: .ownerOnly)
+            return path
+        } catch {
+            log("API private socket unix://\(path) failed, not serving it: \(error.localizedDescription)")
+            return nil
         }
     }
 }
@@ -177,7 +195,28 @@ final class HTTPServer: @unchecked Sendable {
     /// tries first (docs, SDK examples and the explorer use `localhost`).
     static let loopbackAddresses = ["127.0.0.1", "::1"]
 
+    /// Who reaches a listener, and so whether `LocalRequestGuard` runs
+    /// before a handler.
+    enum Admission: Sendable, Equatable {
+        /// Loopback TCP, which any local process and any browser page can
+        /// reach; and the managed runtime's internal socket, whose gateway
+        /// relays other callers' requests: the Host, Content-Type and
+        /// Origin checks apply.
+        case guarded
+        /// The owner's private socket: 0600, verified to be this user's,
+        /// unreachable from a browser, and with no TCP port to name in
+        /// Host. The one listener the guard does not run on.
+        case ownerOnly
+    }
+
+    /// `startListening`, then serves until the process ends.
     func run() async throws {
+        try startListening()
+        try await Task.sleep(for: .seconds(3600 * 24 * 365))
+    }
+
+    /// Starts the loopback TCP listeners and returns.
+    func startListening() throws {
         // Loopback only: the API is unauthenticated and can launch privileged
         // workloads, so it must never be reachable from the network.
         // (`NWListener(using:on:)` alone binds every interface.)
@@ -207,11 +246,22 @@ final class HTTPServer: @unchecked Sendable {
             listener.start(queue: .global(qos: .userInitiated))
             listeners.append(listener)
         }
-        // Serve until killed.
-        try await Task.sleep(for: .seconds(3600 * 24 * 365))
     }
 
-    func startPrivateSocket(path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path) async throws {
+    /// Creates `directory` (and any missing parents) 0700 whatever the
+    /// umask. One that already exists keeps its mode.
+    static func createPrivateDirectory(_ directory: URL) throws {
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    }
+
+    /// Serves `path`, a Unix socket only this user may open (0600, and
+    /// checked to be this user's socket once bound). By default it is the
+    /// managed runtime's internal socket, whose requests stay `guarded`.
+    /// Throws, serving nothing, when the socket cannot be bound or protected.
+    func startPrivateSocket(
+        path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path, admission: Admission = .guarded
+    ) async throws {
         var existing = stat()
         if lstat(path, &existing) == 0 {
             guard existing.st_uid == getuid(), existing.st_mode & S_IFMT == S_IFSOCK, unlink(path) == 0 else {
@@ -229,30 +279,43 @@ final class HTTPServer: @unchecked Sendable {
                 return
             }
             connection.start(queue: .global(qos: .userInitiated))
-            self.startReading(connection, isUnixSocket: true)
+            self.startReading(connection, admission: admission)
         }
         listeners.append(listener)
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let once = PrivateListenerStart(continuation)
-            listener.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    if chmod(path, 0o600) == 0 {
-                        once.finish(.success(()))
-                    } else {
-                        listener.cancel()
-                        once.finish(.failure(MicropodError.message("Could not protect the private API socket")))
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let once = PrivateListenerStart(continuation)
+                listener.stateUpdateHandler = { state in
+                    switch state {
+                    case .ready:
+                        if chmod(path, 0o600) == 0, Self.isOwnPrivateSocket(path) {
+                            once.finish(.success(()))
+                        } else {
+                            once.finish(.failure(MicropodError.message("Could not protect the private API socket")))
+                        }
+                    case .failed(let error): once.finish(.failure(error))
+                    case .cancelled: once.finish(.failure(MicropodError.message("Private API listener was cancelled")))
+                    default: break
                     }
-                case .failed(let error): once.finish(.failure(error))
-                case .cancelled: once.finish(.failure(MicropodError.message("Private API listener was cancelled")))
-                default: break
+                }
+                listener.start(queue: .global(qos: .userInitiated))
+                DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
+                    once.finish(.failure(MicropodError.message("Private API listener readiness timed out")))
                 }
             }
-            listener.start(queue: .global(qos: .userInitiated))
-            DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
-                once.finish(.failure(MicropodError.message("Private API listener readiness timed out")))
-            }
+        } catch {
+            // Never leave a listener behind that may still come up unannounced.
+            listener.cancel()
+            listeners.removeAll { $0 === listener }
+            throw error
         }
+    }
+
+    /// A socket of this user's that nobody else may open.
+    static func isOwnPrivateSocket(_ path: String) -> Bool {
+        var info = stat()
+        return lstat(path, &info) == 0 && info.st_mode & S_IFMT == S_IFSOCK && info.st_uid == getuid()
+            && info.st_mode & 0o077 == 0
     }
 
     private final class PrivateListenerStart: @unchecked Sendable {
@@ -321,7 +384,7 @@ final class HTTPServer: @unchecked Sendable {
         }
     }
 
-    private func startReading(_ connection: NWConnection, isUnixSocket: Bool = false) {
+    private func startReading(_ connection: NWConnection, admission: Admission = .guarded) {
         let pending = PendingRead()
         let queue = DispatchQueue.global(qos: .userInitiated)
         queue.asyncAfter(deadline: .now() + Self.requestDeadline) { [weak self] in
@@ -329,7 +392,7 @@ final class HTTPServer: @unchecked Sendable {
             self?.reject(connection, status: 408, reason: "request not received in time")
         }
         armIdleTimer(connection, pending: pending)
-        readRequest(connection, buffer: Data(), pending: pending, isUnixSocket: isUnixSocket)
+        readRequest(connection, buffer: Data(), pending: pending, admission: admission)
     }
 
     private func armIdleTimer(_ connection: NWConnection, pending: PendingRead) {
@@ -342,7 +405,7 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     private func readRequest(
-        _ connection: NWConnection, buffer: Data, pending: PendingRead, isUnixSocket: Bool = false
+        _ connection: NWConnection, buffer: Data, pending: PendingRead, admission: Admission = .guarded
     ) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
             [weak self] data, _, isComplete, error in
@@ -354,7 +417,7 @@ final class HTTPServer: @unchecked Sendable {
                 switch HTTPParser.parse(newBuffer) {
                 case .request(let request):
                     guard pending.finish() else { return }
-                    self.dispatch(request, connection: connection, isUnixSocket: isUnixSocket)
+                    self.dispatch(request, connection: connection, admission: admission)
                     return
                 case .reject(let status, let reason):
                     guard pending.finish() else { return }
@@ -375,7 +438,7 @@ final class HTTPServer: @unchecked Sendable {
                 }
                 return
             }
-            self.readRequest(connection, buffer: newBuffer, pending: pending, isUnixSocket: isUnixSocket)
+            self.readRequest(connection, buffer: newBuffer, pending: pending, admission: admission)
         }
     }
 
@@ -386,15 +449,15 @@ final class HTTPServer: @unchecked Sendable {
             completion: .contentProcessed { _ in connection.cancel() })
     }
 
-    private func dispatch(_ request: HTTPRequest, connection: NWConnection, isUnixSocket: Bool = false) {
+    private func dispatch(_ request: HTTPRequest, connection: NWConnection, admission: Admission = .guarded) {
         // Browser-facing CORS/PNA headers — computed once per request so
         // normal, streaming, and preflight responses are all covered.
         let cors = CORSPolicy.responseHeaders(for: request)
         // Cross-site / DNS-rebinding defence, before any handler runs (see
         // LocalRequestGuard): loopback Host, a non-simple Content-Type on
-        // mutations, and an allowlisted Origin when one is sent. Local 0600
-        // Unix sockets are unreachable from browsers and carry no TCP port.
-        if !isUnixSocket {
+        // mutations, and an allowlisted Origin when one is sent. Only the
+        // owner's private socket skips it (see `Admission`).
+        if admission == .guarded {
             let verdict = LocalRequestGuard.evaluateAPI(
                 method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
                 port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })

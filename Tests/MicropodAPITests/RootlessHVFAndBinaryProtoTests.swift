@@ -39,7 +39,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         XCTAssertNotEqual(decoded.cloneMode, .unspecified)
     }
 
-    func testUnixSocketAcceptsBinaryProtoWithoutLoopbackPortHost() async throws {
+    func testOwnerSocketAcceptsBinaryProtoWithoutLoopbackPortHost() async throws {
         let dir = URL(fileURLWithPath: "/tmp/mp-sock-\(UUID().uuidString.prefix(8))")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -47,7 +47,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
 
         let api = await makeHandlers()
         let server = HTTPServer(port: 45454, handler: api.handle)
-        try await server.startPrivateSocket(path: sockPath)
+        try await server.startPrivateSocket(path: sockPath, admission: .ownerOnly)
         defer { server.stop() }
 
         let response: Data = try await withCheckedThrowingContinuation { done in
@@ -85,7 +85,9 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         XCTAssertNotEqual(policy.cloneMode, .unspecified)
     }
 
-    func testRootlessHVFPingAndGetSystemAdvertiseHVFWhenDefaultAndInstalled() async throws {
+    /// Installed stub assets and no VMM: hvf is the backend, but nothing
+    /// runs, so neither call may say `running` or advertise live features.
+    func testRootlessHVFPingAndGetSystemReportAnInstalledButStoppedMachineAsStopped() async throws {
         let dir = URL(fileURLWithPath: "/tmp/mp-hvfapi-\(UUID().uuidString.prefix(8))")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -118,12 +120,17 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             return XCTFail("unexpected Ping response: \(String(describing: pingResp))")
         }
         let ping = try Micropod_V1_PingResponse(serializedBytes: pingBytes)
-        XCTAssertEqual(ping.status, "running")
+        XCTAssertEqual(ping.status, "stopped")
         XCTAssertEqual(ping.runtimeBackend, "hvf")
         XCTAssertEqual(ping.defaultRuntime, "hvf")
         XCTAssertTrue(ping.features.contains("hvf"))
         XCTAssertTrue(ping.features.contains("rootless"))
         XCTAssertTrue(ping.features.contains("proto-binary"))
+        XCTAssertFalse(ping.features.contains("buildkit"), "\(ping.features)")
+        XCTAssertFalse(ping.features.contains("caches-v2"), "\(ping.features)")
+        let component = try XCTUnwrap(ping.components.first { $0.name == "hvf-machine" })
+        XCTAssertEqual(component.state, "stopped")
+        XCTAssertTrue(component.detail.hasPrefix("stopped: "), component.detail)
 
         let sysResp = await api.connectRPC(
             method: "GetSystem",
@@ -133,9 +140,10 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             return XCTFail("unexpected GetSystem response: \(String(describing: sysResp))")
         }
         let sys = try Micropod_V1_SystemSnapshot(serializedBytes: sysBytes)
-        XCTAssertEqual(sys.status.status, "running")
+        XCTAssertEqual(sys.status.status, "stopped")
         XCTAssertEqual(sys.status.runtimeBackend, "hvf")
         XCTAssertEqual(sys.status.installRoot, dir.path)
+        XCTAssertEqual(sys.components.first { $0.name == "hvf-machine" }?.state, "stopped")
     }
 
     func testRigAndCacheControlRoutesAndPersistentCacheDisk() async throws {
@@ -202,7 +210,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         // PUT /v1/caches/policy -> updates machine.json + live guest-config/cache-policy.json
         let policyBody = try JSONSerialization.data(withJSONObject: [
             "sharedL0": true,
-            "goProxy": "http://10.43.0.1:7677/go|direct",
+            "goProxy": "http://10.42.0.1:7677/go|direct",
         ])
         let putPolicyResp = await api.handle(
             HTTPRequest(
@@ -213,7 +221,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         }
         let updatedPolicy = try JSONDecoder().decode(HVFMachineCachePolicy.self, from: updatedBytes)
         XCTAssertTrue(updatedPolicy.sharedL0)
-        XCTAssertEqual(updatedPolicy.goProxy, "http://10.43.0.1:7677/go|direct")
+        XCTAssertEqual(updatedPolicy.goProxy, "http://10.42.0.1:7677/go|direct")
         XCTAssertTrue(FileManager.default.fileExists(atPath: layout.cachePolicyFile.path))
     }
 }
