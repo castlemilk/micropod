@@ -200,7 +200,8 @@ check "stats" "$("$M" --json stats | python3 -c "import sys,json; print(any(c['i
 check "restart (stop+start)" "$(ps_field "$NAME" "c.get('state')")" "running"
 check "copy refused (no archive API)" "$("$M" cp "$NAME:/etc/hosts" "$TMP/hosts" 2>&1 | grep -c "runtime 'hvf' does not support copy")" "1"
 "$M" stop --time 1 "$NAME" >/dev/null
-check "stopped" "$(ps_field "$NAME" "c.get('state')")" "exited"
+# The hvf engine reports Docker's exited (and dead) as Micropod's stopped (950d827a).
+check "stopped" "$(ps_field "$NAME" "c.get('state')")" "stopped"
 "$M" rm "$NAME" >/dev/null
 check "deleted" "$(ps_field "$NAME" "c.get('state')")" "absent"
 check "interactive run refused" "$("$M" run --runtime hvf -i alpine:3.20 2>&1 | grep -c 'interactive stdin')" "1"
