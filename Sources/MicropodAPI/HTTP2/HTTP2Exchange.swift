@@ -33,6 +33,14 @@ struct HTTP2ExchangeContext: Sendable {
 /// A handler place held until the handler settles (`HTTP2ConnectionState`).
 protocol HTTP2HandlerSlot: Sendable {
     func release()
+    /// The stream stays open but waits for nothing of the server's (a
+    /// health Watch after its status): it frees its handler place and no
+    /// longer keeps its connection from the idle bound.
+    func park()
+}
+
+extension HTTP2HandlerSlot {
+    func park() { release() }
 }
 
 /// One HTTP/2 request, from its parsed head to the last frame of its

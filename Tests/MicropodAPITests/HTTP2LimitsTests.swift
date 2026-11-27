@@ -379,6 +379,62 @@ final class HTTP2LimitsTests: HTTP2TestCase {
         }
     }
 
+    /// A gRPC health Watch does not keep its connection out of the idle
+    /// bound: one Watch per connection would otherwise hold every HTTP/2
+    /// place of a listener for good, at no cost. The connection gets the
+    /// idle GOAWAY and closes, and its place is free again. A stream that
+    /// is still working on the same connection holds it open as before.
+    func testAHealthWatchDoesNotHoldItsConnectionOpen() async throws {
+        var policy = Self.policy
+        policy.keepAliveIdle = .milliseconds(400)
+        var limits = HTTP2Limits(policy: policy)
+        limits.maxConnections = 2
+        limits.goAwayGrace = .milliseconds(300)
+        let fixture = H2Fixture()
+        let served = try await serve(fixture, policy: policy, limits: limits)
+        let watch =
+            H2Raw.request("/grpc.health.v1.Health/Watch", method: "POST") + [("content-type", "application/grpc")]
+        let outcome = try await offPool { () -> (first: [UInt8], goAway: UInt32?, closed: Bool, refused: Bool) in
+            let watchers = try (0..<2).map { _ in try Self.raw(served) }
+            for raw in watchers {
+                try raw.headers(stream: 1, watch, endStream: false)
+                try raw.data(stream: 1, GRPCWire.message(Data()), endStream: true)
+            }
+            let status = watchers[0].drain(timeout: 2) { type, stream in type == 0x0 && stream == 1 }
+            // Both places are taken while the Watches are young.
+            let refused = try Self.raw(served).drain(timeout: 1).goAway == 0xB
+            let idle = watchers[0].drain(timeout: 3)
+            _ = watchers[1].drain(timeout: 3)
+            return (status.types.filter { $0 == 0x1 || $0 == 0x0 }, idle.goAway, idle.closed, refused)
+        }
+        XCTAssertEqual(outcome.first, [0x1, 0x0], "the Watch got its status")
+        XCTAssertTrue(outcome.refused, "the cap held while both connections were within the idle bound")
+        XCTAssertEqual(outcome.goAway, 0x0, "idle with nothing but a Watch: GOAWAY(NO_ERROR)")
+        XCTAssertTrue(outcome.closed)
+        for _ in 0..<50 where served.server.http2?.connections(.owner) != 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(served.server.http2?.connections(.owner), 0, "both places are free again")
+        let client = try await H2Client.unix(served.socket)
+        defer { client.close() }
+        let answer = try await client.request(path: "/health")
+        XCTAssertEqual(answer.status, 200, "another client is served")
+
+        // A working stream beside the Watch keeps the connection: no GOAWAY
+        // while /block runs, well past the idle bound.
+        let held = try await offPool { () -> (goAway: UInt32?, closed: Bool) in
+            let raw = try Self.raw(served)
+            try raw.headers(stream: 1, watch, endStream: false)
+            try raw.data(stream: 1, GRPCWire.message(Data()), endStream: true)
+            try raw.headers(stream: 3, H2Raw.request("/block"))
+            let drained = raw.drain(timeout: 1.2)
+            return (drained.goAway, drained.closed)
+        }
+        XCTAssertNil(held.goAway, "a stream still working holds the connection")
+        XCTAssertFalse(held.closed)
+        fixture.open()
+    }
+
     /// The soak meter counts what NIO's control-frame bound counts.
     func testTheControlFrameMeterCountsAClientsPings() async throws {
         var limits = HTTP2Limits(policy: Self.policy)

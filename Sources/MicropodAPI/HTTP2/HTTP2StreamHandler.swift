@@ -13,6 +13,9 @@ final class HTTP2ConnectionState: @unchecked Sendable {
     private var handlers = 0
     private var bodyBytes = 0
     private var streams = 0
+    /// Open streams that wait for nothing of the server's (`Slot.park`):
+    /// they do not count against the idle bound.
+    private var parked = 0
     private var opened = false
     private var closing = false
     private var channel: (any Channel)?
@@ -61,32 +64,49 @@ final class HTTP2ConnectionState: @unchecked Sendable {
     /// A stream was ever opened on this connection.
     var everOpened: Bool { lock.withLock { opened } }
 
-    func streamClosed() {
+    /// `slot`: the stream's handler place, when it was given one.
+    func streamClosed(_ slot: Slot? = nil) {
         let (close, quiet) = lock.withLock { () -> ((any Channel)?, Bool) in
             streams -= 1
-            return (closing && streams == 0 ? channel : nil, !closing && streams == 0)
+            if let slot {
+                if slot.parked { parked -= 1 }
+                slot.parked = false
+                slot.streamClosed = true
+            }
+            return (closing && streams == parked ? channel : nil, !closing && streams == parked)
         }
         if let close { Self.closeSoon(close) }
         if quiet { armIdle() }
     }
 
-    /// `connectionIdle` with no stream open: GOAWAY.
+    fileprivate func park(_ slot: Slot) {
+        let (close, quiet) = lock.withLock { () -> ((any Channel)?, Bool) in
+            guard !slot.parked, !slot.streamClosed else { return (nil, false) }
+            slot.parked = true
+            parked += 1
+            return (closing && streams == parked ? channel : nil, !closing && streams == parked)
+        }
+        if let close { Self.closeSoon(close) }
+        if quiet { armIdle() }
+    }
+
+    /// `connectionIdle` with no stream open but parked ones: GOAWAY.
     private func armIdle() {
         lock.withLock {
-            guard let channel, !closing, streams == 0, idle == nil else { return }
+            guard let channel, !closing, streams == parked, idle == nil else { return }
             idle = channel.eventLoop.scheduleTask(in: limits.connectionIdle) { [weak self] in
                 guard let self else { return }
                 let still = self.lock.withLock { () -> Bool in
                     self.idle = nil
-                    return self.streams == 0
+                    return self.streams == self.parked
                 }
                 if still { self.goAway() }
             }
         }
     }
 
-    /// GOAWAY(NO_ERROR) now; the close once no stream is open, or after
-    /// `goAwayGrace` whatever is still open. The server's stop and the idle
+    /// GOAWAY(NO_ERROR) now; the close once no stream is open (parked ones
+    /// aside), or after `goAwayGrace` whatever is still open. The server's stop and the idle
     /// bound both end a connection so. (NIO's own connection manager closes
     /// as the last stream's END_STREAM is written, which can be before its
     /// bytes are flushed: it lost the final DATA of a call in flight.)
@@ -94,7 +114,7 @@ final class HTTP2ConnectionState: @unchecked Sendable {
         let (channel, quiet) = lock.withLock { () -> ((any Channel)?, Bool) in
             guard !closing else { return (nil, false) }
             closing = true
-            return (self.channel, streams == 0)
+            return (self.channel, streams == parked)
         }
         guard let channel else { return }
         let frame = HTTP2Frame(
@@ -136,7 +156,14 @@ final class HTTP2ConnectionState: @unchecked Sendable {
         private let connection: HTTP2ConnectionState
         private let lock = NSLock()
         private var released = false
+        /// Both under the connection's lock.
+        fileprivate var parked = false
+        fileprivate var streamClosed = false
         init(connection: HTTP2ConnectionState) { self.connection = connection }
+        func park() {
+            release()
+            connection.park(self)
+        }
         func release() {
             let first = lock.withLock {
                 defer { released = true }
@@ -206,6 +233,7 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
     private var deadline: Scheduled<Void>?
     private var silence: Scheduled<Void>?
     private var exchange: Task<Void, Never>?
+    private var slot: HTTP2ConnectionState.Slot?
 
     init(connection: HTTP2ConnectionState) { self.connection = connection }
 
@@ -330,7 +358,7 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
         if exchange == nil { releaseBody() }
         stopTimers()
         settled = true
-        connection.streamClosed()
+        connection.streamClosed(slot)
         context.fireChannelInactive()
     }
 
@@ -344,6 +372,7 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
             context.writeAndFlush(wrapOutboundOut(.rstStream(.refusedStream)), promise: nil)
             return
         }
+        self.slot = slot
         let bytes = body.map { Data($0.readableBytesView) } ?? Data()
         body = nil
         let reserved = self.reserved

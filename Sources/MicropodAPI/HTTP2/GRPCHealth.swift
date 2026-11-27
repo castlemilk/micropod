@@ -5,7 +5,11 @@ import Foundation
 /// request guard like every call and shares `/health`'s exemption from
 /// runtime admission. A service name it does not know is NOT_FOUND.
 /// `Watch` sends the current status once and holds the stream until the
-/// client cancels it: it keeps its stream but frees its handler place.
+/// client cancels it. It keeps its stream but frees its handler place, and
+/// it does not keep its connection open: a connection with nothing but
+/// Watches on it is idle, and gets the idle GOAWAY like one with no stream
+/// (a client watches again on its next connection). Otherwise one Watch per
+/// connection would hold every HTTP/2 place of a listener for good.
 struct GRPCHealth<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendable {
     static var service: String { GRPCWire.healthService }
 
@@ -44,7 +48,7 @@ struct GRPCHealth<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendable
         guard await state.begin(contentType: contentType, writer: exchange.writer),
             await state.send(GRPCWire.message(message), writer: exchange.writer)
         else { return }
-        exchange.slot.release()
+        exchange.slot.park()
         while !Task.isCancelled { try? await Task.sleep(for: .seconds(3600)) }
     }
 
