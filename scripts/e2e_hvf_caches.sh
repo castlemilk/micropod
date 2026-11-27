@@ -1074,8 +1074,9 @@ t3() {
     check engine "$n: the image's own GOCACHE and GOMODCACHE are kept, and the scope's stores are bound at those paths" \
         "GOCACHE=$(r $n goenv.GOCACHE) GOMODCACHE=$(r $n goenv.GOMODCACHE) modes=$(mc $n gobuild mode),$(mc $n gomod mode) stores=$(under "$(r $n store.gobuild)" "$(expect gobuild 0 "$sc")" && under "$(r $n store.gomod)" "$(expect gomod 0 "$sc")" && echo scope || echo "$(r $n store.gobuild),$(r $n store.gomod)")" \
         "GOCACHE=/opt/qual/gocache GOMODCACHE=/opt/qual/gomod modes=path,path stores=scope"
-    gcheck "$n: …and Config.Env sets neither variable" \
-        "$(insp $n "sorted(e.split('=')[0] for e in (c.get('Config') or {}).get('Env') or [] if e.split('=')[0] in ('GOCACHE', 'GOMODCACHE'))")" "[]"
+    # inspect lists the image's environment under the container's, as Docker's does.
+    gcheck "$n: …and Config.Env shows the image's own values, never the engine's" \
+        "$(insp $n "sorted(e for e in (c.get('Config') or {}).get('Env') or [] if e.split('=')[0] in ('GOCACHE', 'GOMODCACHE'))")" "['GOCACHE=/opt/qual/gocache', 'GOMODCACHE=/opt/qual/gomod']"
     n=t3-imgenv-warm
     step $n "qual-goenv:$S" 0 "$sc" none go build base -e "$GO_REQ_FLAGS" -e "$GO_NOPROXY"
     check auto "$n: a new container of that image, another checkout, --network none, hits the stores at the image's paths" "$(hits_go $n)" "rc=0 compiles=0 downloads=0"
