@@ -252,6 +252,17 @@ until [ -S /var/lib/micropod/docker.sock ]; do
 done
 "$tools/service" serve &
 service=$!
-# BusyBox ash waits for either critical process. The supervisor observes its exit.
+# Serve until containerd, the engine or the OCI service exits, then exit: guest
+# init reports that and the supervisor relaunches the machine. BusyBox ash
+# cannot wait for the first of several jobs: `wait -n` with IDs waits for
+# every one of them, and without IDs it does not return for a job that a
+# signal killed (the OOM killer, a crash). So an engine that died alone left a
+# machine that looked running and answered nothing. Poll instead: `wait` on the
+# sleep reaps any child that died meanwhile, after which kill -0 fails, and a
+# stop's SIGTERM still interrupts the wait at once.
 step="serving (containerd, the engine or the OCI service exited)"
-wait -n "$engine" "$service" "$api"
+while kill -0 "$engine" 2>/dev/null && kill -0 "$service" 2>/dev/null && kill -0 "$api" 2>/dev/null; do
+    sleep 1 &
+    wait $!
+done
+exit 1
