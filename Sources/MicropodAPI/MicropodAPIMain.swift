@@ -230,11 +230,15 @@ final class HTTPServer: @unchecked Sendable {
     /// The gate a request of the dedicated runtime's API claims before its
     /// handler runs (`admissionClaim`).
     let runtimeAdmission: RuntimeAdmission
+    /// HTTP/2 with prior knowledge on the listeners that keep connections
+    /// (the owner's socket, loopback TCP); nil when `MICROPOD_API_HTTP2=0`.
+    let http2: HTTP2Engine?
 
     init(
         port: UInt16, policy: ConnectionPolicy = .live,
         isolatedRuntime: Bool = getenv("MICROPOD_ISOLATED_RUNTIME").map { String(cString: $0) } == "1",
         runtimeAdmission: RuntimeAdmission = .shared,
+        http2: HTTP2Limits? = nil, http2Enabled: Bool = HTTP2Limits.enabled(),
         handler: @escaping (HTTPRequest) async -> HTTPResponse
     ) {
         self.port = port
@@ -244,6 +248,7 @@ final class HTTPServer: @unchecked Sendable {
         self.runtimeAdmission = runtimeAdmission
         self.kept = KeptConnections(limit: policy.maxKeptConnections)
         self.ownerKept = KeptConnections(limit: policy.maxKeptConnections)
+        self.http2 = http2Enabled ? HTTP2Engine(limits: http2 ?? HTTP2Limits(policy: policy)) : nil
     }
 
     /// Connections the server currently keeps for another request.
@@ -427,6 +432,9 @@ final class HTTPServer: @unchecked Sendable {
     func stop() {
         for listener in listeners { listener.cancel() }
         listeners.removeAll()
+        // HTTP/2 connections get GOAWAY first; each holds a kept place
+        // until it closes.
+        http2?.stop()
         for connection in kept.stop() + ownerKept.stop() { connection.cancel() }
     }
 
@@ -438,6 +446,10 @@ final class HTTPServer: @unchecked Sendable {
         let keepAlive: Bool
         /// Where its listener keeps connections.
         let kept: KeptConnections
+        /// The connection's first bytes may be an HTTP/2 preface: a
+        /// listener that keeps connections, outside the dedicated runtime's
+        /// API (whose internal socket answers one request per connection).
+        let allowsHTTP2: Bool
     }
 
     /// The read state of one request and its one timer: the keep-alive wait
@@ -456,6 +468,9 @@ final class HTTPServer: @unchecked Sendable {
         private let policy: ConnectionPolicy
         private let timer: DispatchSourceTimer
         private var finished = false
+        /// The read of a connection's first request, whose first bytes may
+        /// be an HTTP/2 preface instead.
+        let first: Bool
         /// Waiting for the first byte of a request on a kept connection.
         private var idle: Bool
         private var keepAliveAt: DispatchTime?
@@ -465,9 +480,12 @@ final class HTTPServer: @unchecked Sendable {
         private var due = DispatchTime.distantFuture
         private var onExpire: (@Sendable (Expiry) -> Void)?
 
-        init(policy: ConnectionPolicy, idle: Bool, onExpire: @escaping @Sendable (Expiry) -> Void) {
+        init(
+            policy: ConnectionPolicy, idle: Bool, first: Bool = false, onExpire: @escaping @Sendable (Expiry) -> Void
+        ) {
             self.policy = policy
             self.idle = idle
+            self.first = first
             self.onExpire = onExpire
             timer = DispatchSource.makeTimerSource(queue: .global(qos: .userInitiated))
             let now = DispatchTime.now()
@@ -558,8 +576,8 @@ final class HTTPServer: @unchecked Sendable {
     static let liveReads = LiveCount()
 
     /// A read whose expiry closes `peer` (keep-alive) or answers 408.
-    private func pendingRead(_ peer: Peer, idle: Bool) -> PendingRead {
-        PendingRead(policy: policy, idle: idle) { [weak self] expiry in
+    private func pendingRead(_ peer: Peer, idle: Bool, first: Bool = false) -> PendingRead {
+        PendingRead(policy: policy, idle: idle, first: first) { [weak self] expiry in
             switch expiry {
             case .keepAlive:
                 // No byte of another request came: close without a reply.
@@ -576,8 +594,9 @@ final class HTTPServer: @unchecked Sendable {
     private func startReading(_ connection: NWConnection, admission: Admission = .guarded, keepAlive: Bool) {
         let peer = Peer(
             connection: connection, admission: admission, keepAlive: keepAlive,
-            kept: admission == .ownerOnly ? ownerKept : kept)
-        readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: false))
+            kept: admission == .ownerOnly ? ownerKept : kept, allowsHTTP2: keepAlive && http2 != nil && !isolatedRuntime
+        )
+        readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: false, first: true))
     }
 
     /// After a reply that kept the connection: the request already buffered
@@ -651,6 +670,22 @@ final class HTTPServer: @unchecked Sendable {
     /// settled (handed to `dispatch`, or refused and closing), false to read
     /// more. Bytes after the request are the next one's, kept for it.
     private func handleBuffered(_ peer: Peer, _ buffer: Data, pending: PendingRead) -> Bool {
+        if pending.first, peer.allowsHTTP2, let http2 {
+            switch HTTP2Preface.classify(buffer) {
+            case .partial:
+                // Read on: the request clocks keep running, so a client
+                // that stops mid-preface still gets its 408.
+                return false
+            case .match:
+                guard pending.finish() else { return true }
+                http2.adopt(
+                    peer.connection, initial: buffer, kind: peer.admission == .ownerOnly ? .owner : .tcp,
+                    kept: peer.kept, context: http2Context(peer.admission))
+                return true
+            case .mismatch:
+                break
+            }
+        }
         switch HTTPParser.parse(buffer) {
         case .incomplete:
             return false
@@ -701,6 +736,24 @@ final class HTTPServer: @unchecked Sendable {
     func admissionClaim(_ request: HTTPRequest) throws -> RuntimeAdmissionClaim? {
         isolatedRuntime && !Self.admissionExempt.contains(request.path)
             ? try runtimeAdmission.claim("managed-api:" + request.path) : nil
+    }
+
+    /// What an HTTP/2 stream reaches: this server's own guard, admission
+    /// and handler, with the listener's admission.
+    func http2Context(_ admission: Admission) -> HTTP2ExchangeContext {
+        HTTP2ExchangeContext(
+            admission: admission,
+            guardRejection: { [self] request, admission in guardRejection(request, admission: admission) },
+            admissionClaim: { [self] request in try admissionClaim(request) },
+            handler: { [self] request in await handler(request) },
+            relay: { _ in
+                .json(
+                    503,
+                    [
+                        "code": "unavailable",
+                        "message": "the dedicated runtime is reached over HTTP/1.1 only; retry over HTTP/1.1",
+                    ])
+            })
     }
 
     /// Paths `admissionClaim` never claims for.

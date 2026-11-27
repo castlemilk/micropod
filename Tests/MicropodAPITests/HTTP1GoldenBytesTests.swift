@@ -302,6 +302,13 @@ final class HTTP1GoldenBytesTests: XCTestCase {
 
     func testFramingRefusalAndTimeoutBytes() async throws {
         let path = try await ownerSocket()
+        // With HTTP/2 off (MICROPOD_API_HTTP2=0) a preface gets the HTTP/1.1
+        // answer it always had.
+        let off = HTTPServer(
+            port: 45454, policy: Self.policy, isolatedRuntime: false, http2Enabled: false, handler: Self.handler)
+        servers.append(off)
+        let offPath = dir.appendingPathComponent("off.sock").path
+        _ = await MicropodAPI.startOwnerSocket(off, path: offPath, log: { XCTFail($0) })
         try await blocking {
             func error(_ status: String, _ reason: String) throws -> (String, [String: String], Int) {
                 let object = ["error": reason, "message": reason]
@@ -338,7 +345,7 @@ final class HTTP1GoldenBytesTests: XCTestCase {
             try check(slow, try error("408 Request Timeout", "request not received in time"), "deadline")
 
             // The HTTP/2 connection preface, to a server that speaks only HTTP/1.1.
-            let preface = try GoldenWire.unix(path)
+            let preface = try GoldenWire.unix(offPath)
             try preface.send("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
             try check(
                 preface, try error("505 HTTP Version Not Supported", "unsupported HTTP version HTTP/2.0"), "preface")
