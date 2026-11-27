@@ -139,7 +139,12 @@ engine does two things (`guest/runner/image_unpack_linux.go`):
   entry, so `--platform linux/amd64` finds it.
 
 `docker buildx build --platform linux/amd64,linux/arm64 --push` (or
-`--output type=oci|registry`) builds both platforms.
+`--output type=oci|registry`) builds both platforms. A multi-platform `--load`
+through buildx's docker driver is refused by buildx itself ("docker exporter
+does not currently support exporting manifest lists"): buildx allows it only for
+a daemon that advertises containerd's image store, and the engine does not. The
+engine's handling of a loaded multi-platform index applies to clients that send
+BuildKit's image exporter directly.
 
 ### Caches, trust, limits and families
 

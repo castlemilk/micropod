@@ -44,18 +44,15 @@ type dockerRecord struct {
 	OOMKilled                                    bool
 	CPUGrouped                                   bool `json:",omitempty"`
 	ID, Name, ImageID, Phase, RuntimeID, Failure string
-	// ImagePlatform is the image's platform ("linux/amd64" for an emulated
-	// container); "" for a record an older engine wrote, which is linux/arm64.
-	ImagePlatform              string `json:",omitempty"`
-	Created, Started, Finished time.Time
-	Exit                       int32
-	Exits                      uint64
-	LogOffset                  int64              `json:",omitempty"`
-	LogError                   string             `json:",omitempty"`
-	Health                     *dockerHealthState `json:",omitempty"`
-	Config                     dockerConfig
-	RootFS                     *dockerRootFS        `json:",omitempty"`
-	RootFSBinding              *dockerRootFSBinding `json:",omitempty"`
+	Created, Started, Finished                   time.Time
+	Exit                                         int32
+	Exits                                        uint64
+	LogOffset                                    int64              `json:",omitempty"`
+	LogError                                     string             `json:",omitempty"`
+	Health                                       *dockerHealthState `json:",omitempty"`
+	Config                                       dockerConfig
+	RootFS                                       *dockerRootFS        `json:",omitempty"`
+	RootFSBinding                                *dockerRootFSBinding `json:",omitempty"`
 	// Cache is the attach decision made once at create and replayed on every
 	// start; CacheSkipped lists tools the latest start had to leave out.
 	Cache        *cachePlan        `json:",omitempty"`
@@ -86,6 +83,9 @@ type dockerRecord struct {
 	// delegated socket to its creator's bind source it lies in; every open
 	// of the bind resolves below that root (openMountWithin).
 	BindRoots map[string]string `json:",omitempty"`
+	// ImagePlatform is the image's platform ("linux/amd64" for an emulated
+	// container); "" for a record an older engine wrote, which is linux/arm64.
+	ImagePlatform string `json:",omitempty"`
 }
 type dockerContainer struct {
 	outputBytes int64
