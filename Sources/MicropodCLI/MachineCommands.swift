@@ -274,6 +274,8 @@ enum MachineCommands {
         var dockerBuild: String
         /// Host loopback ports open to the guest now and at the next start.
         var hostPorts: HVFHostPortStatus
+        /// Each disk's flush mode now and at the next start.
+        var diskFlush: HVFDiskFlushStatus
         /// The guest's account of its cache disk and whether shared caches
         /// are on this boot (`unknown` while the machine is not running).
         var cacheDisk: HVFCacheDiskObservation
@@ -291,6 +293,7 @@ enum MachineCommands {
         let cachesLine = cachesLine(capabilities, policy: policy)
         let buildLine = dockerBuildLine(capabilities, fallbackInstalled: fallbackInstalled)
         let hostPorts = HVFHostPortStatus(config: config, state: status.state, supervisorAlive: status.supervisorAlive)
+        let diskFlush = HVFDiskFlushStatus(config: config, state: status.state, supervisorAlive: status.supervisorAlive)
         let cacheDisk = await client.cacheDiskObservation()
         if json {
             let report = StatusReport(
@@ -299,7 +302,7 @@ enum MachineCommands {
                 problem: status.problem, phase: status.phase.rawValue, supervisorAlive: status.supervisorAlive,
                 summary: status.summary, state: status.state, stateError: status.stateError,
                 capabilities: capabilities, cachePolicy: policy, caches: cachesLine, dockerBuild: buildLine,
-                hostPorts: hostPorts, cacheDisk: cacheDisk)
+                hostPorts: hostPorts, diskFlush: diskFlush, cacheDisk: cacheDisk)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
@@ -323,6 +326,7 @@ enum MachineCommands {
             print("docker build: \(buildLine)")
             print("host ports: \(hostPorts.summary)")
             for refusal in hostPorts.refused { print("            \(refusal.message)") }
+            print("disk flush: \(diskFlush.summary)")
         }
         if let state = status.state {
             print("supervisor: pid \(state.supervisorPID)\(status.supervisorAlive ? "" : " (exited)")")
