@@ -564,8 +564,11 @@ public enum HVFVMMCommand {
 
     /// The full micropod-vmm argv (without the executable) for `config`,
     /// booting `payload` (default: `layout.resolvePayload()`, resolved once).
+    /// `osDiskFlushFlag` false leaves `--disk-flush-os` out, for a VMM that
+    /// does not take it (`HVFDiskFlushPlan`).
     public static func arguments(
-        layout: HVFMachineLayout, payload: HVFMachinePayload? = nil, config: HVFMachineConfig, parentPID: Int32
+        layout: HVFMachineLayout, payload: HVFMachinePayload? = nil, config: HVFMachineConfig, parentPID: Int32,
+        osDiskFlushFlag: Bool = true
     ) throws -> [String] {
         try config.validate()
         try layout.validatePaths()
@@ -600,7 +603,9 @@ public enum HVFVMMCommand {
         }
         args += ["--cmdline-append", kernelLogLevelBootArgument]
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
-        if let osDiskFlush = config.osDiskFlush { args += ["--disk-flush-os", osDiskFlush] }
+        if osDiskFlushFlag, let osDiskFlush = config.osDiskFlush {
+            args += [HVFVMMFeatures.osDiskFlushFlag, osDiskFlush]
+        }
         if !config.console { args.append("--quiet") }
         args += [
             "--shutdown-timeout", String(config.shutdownTimeoutSeconds), "--json-summary",
@@ -660,6 +665,9 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
     /// The disk flush modes the current (or last) VMM was launched with; nil
     /// from a supervisor that predates the record.
     public var diskFlush: HVFDiskFlush?
+    /// Why that VMM runs without the configured `osDiskFlush` (its payload
+    /// does not take `--disk-flush-os`); nil when it is in effect or unset.
+    public var diskFlushNotInEffect: String?
     public var updatedAt: Date
 
     public init(
