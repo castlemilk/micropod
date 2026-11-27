@@ -264,8 +264,16 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
                 switch HTTP2RequestAdapter.head(frame.headers) {
                 case .refuse(let status, let reason):
                     settle()
-                    let answered = refuse(
-                        context, status: status, code: status == 405 ? "unimplemented" : "invalid_argument", reason)
+                    // A gRPC client reads a status, not an HTTP 400 (which
+                    // it reports as INTERNAL or UNKNOWN): Trailers-Only, as
+                    // the guard's and admission's refusals are.
+                    let answered: EventLoopFuture<Void>
+                    if let codec = GRPCWire.codec(contentType: frame.headers.first(name: "content-type")) {
+                        answered = refuseGRPC(context, codec: codec, status == 405 ? 12 : 3, reason)
+                    } else {
+                        answered = refuse(
+                            context, status: status, code: status == 405 ? "unimplemented" : "invalid_argument", reason)
+                    }
                     // The answer is complete (RFC 9113 §8.1); a request the
                     // client has not ended is closed after it. Its timers
                     // are stopped, so left open it would hold the connection
@@ -381,17 +389,24 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
         return context.writeAndFlush(wrapOutboundOut(.data(.init(data: .byteBuffer(buffer), endStream: true))))
     }
 
+    /// A gRPC call refused before its exchange: Trailers-Only.
+    private func refuseGRPC(
+        _ context: ChannelHandlerContext, codec: GRPCWire.Codec, _ code: Int, _ reason: String
+    ) -> EventLoopFuture<Void> {
+        var headers = HPACKHeaders()
+        headers.add(name: ":status", value: "200")
+        headers.add(name: "content-type", value: codec == .proto ? "application/grpc" : "application/grpc+json")
+        for (name, value) in GRPCWire.trailers(code, reason) { headers.add(name: name, value: value) }
+        return context.writeAndFlush(wrapOutboundOut(.headers(.init(headers: headers, endStream: true))))
+    }
+
     /// A body over `streamBodyBytes`: 413, or RESOURCE_EXHAUSTED for gRPC;
     /// then the rest of the request is refused (RST_STREAM NO_ERROR).
     private func tooLarge(_ context: ChannelHandlerContext) {
         let reason = "request body exceeds \(limits.streamBodyBytes) bytes"
         let answered: EventLoopFuture<Void>
-        if let head, GRPCWire.codec(contentType: head.headers["content-type"]) != nil {
-            var headers = HPACKHeaders()
-            headers.add(name: ":status", value: "200")
-            headers.add(name: "content-type", value: "application/grpc")
-            for (name, value) in GRPCWire.trailers(8, reason) { headers.add(name: name, value: value) }
-            answered = context.writeAndFlush(wrapOutboundOut(.headers(.init(headers: headers, endStream: true))))
+        if let head, let codec = GRPCWire.codec(contentType: head.headers["content-type"]) {
+            answered = refuseGRPC(context, codec: codec, 8, reason)
         } else {
             answered = refuse(context, status: 413, code: "resource_exhausted", reason)
         }

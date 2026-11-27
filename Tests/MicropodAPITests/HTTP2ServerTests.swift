@@ -338,6 +338,37 @@ final class HTTP2ServerTests: HTTP2TestCase {
         XCTAssertTrue(drained.resets.allSatisfy { $0.code == 0 }, "then RST_STREAM(NO_ERROR)")
     }
 
+    /// A gRPC call whose head is refused before any handler (a repeated
+    /// content-type, a scheme that is not http) gets a gRPC status, as the
+    /// guard's refusals do: not an HTTP 400 with a JSON body.
+    func testAGRPCHeadRefusedEarlyGetsAGRPCStatus() async throws {
+        let fixture = H2Fixture()
+        let served = try await serve(fixture)
+        for (name, client, authority) in try await clients(served) {
+            defer { client.close() }
+            let twice = try await client.grpc(
+                "/micropod.v1.SystemService/Ping", Data(), authority: authority,
+                extra: [("content-type", "application/grpc")])
+            XCTAssertEqual(twice.status, 200, name)
+            XCTAssertEqual(twice.header("content-type"), "application/grpc", name)
+            XCTAssertEqual(twice.grpcStatus, 3, "\(name): INVALID_ARGUMENT")
+            XCTAssertEqual(twice.grpcMessage, "repeated content-type field", name)
+            XCTAssertTrue(twice.body.isEmpty, name)
+            let scheme = try await client.request(
+                method: "POST", path: "/micropod.v1.SystemService/Ping", authority: authority, scheme: "https",
+                headers: [("content-type", "application/grpc+json"), ("te", "trailers")],
+                body: GRPCWire.message(Data("{}".utf8)))
+            XCTAssertEqual(scheme.status, 200, name)
+            XCTAssertEqual(scheme.header("content-type"), "application/grpc+json", name)
+            XCTAssertEqual(scheme.grpcStatus, 3, name)
+            // REST keeps its 400.
+            let rest = try await client.request(path: "/health", authority: authority, scheme: "https")
+            XCTAssertEqual(rest.status, 400, name)
+            XCTAssertEqual(Self.json(rest)?["code"] as? String, "invalid_argument", name)
+        }
+        XCTAssertEqual(fixture.count, 0, "no refused call reached a handler")
+    }
+
     func testGRPCServerStreamsEndInTheirStatus() async throws {
         let fixture = H2Fixture()
         let served = try await serve(fixture)
