@@ -57,7 +57,7 @@ public struct HVFMachineAutostartAgent: Sendable {
     public let launchAgentsDirectory: URL
     let launch: any RigLaunchControlling
     let machine: any HVFAutostartMachine
-    let environment: [String: String]
+    public let environment: [String: String]
     /// True when `launch` is the real launchctl (no `MICROPOD_LAUNCHCTL`).
     let realLaunchd: Bool
 

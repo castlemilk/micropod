@@ -76,7 +76,7 @@ extension APIHandlers {
                     if req.enabled {
                         _ = try await agent.enable(
                             load: true,
-                            program: Self.autostartProgram(environment: ProcessInfo.processInfo.environment),
+                            program: Self.autostartProgram(environment: agent.environment),
                             force: req.force)
                     } else {
                         _ = try await agent.disable(force: req.force)

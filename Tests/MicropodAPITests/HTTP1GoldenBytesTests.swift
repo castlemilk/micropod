@@ -338,8 +338,12 @@ final class HTTP1GoldenBytesTests: XCTestCase {
             // A request trickled byte by byte, never finished: the deadline.
             let slow = try GoldenWire.unix(path)
             try slow.send("GET /health HTTP/1.1\r\n")
-            for _ in 0..<8 {
-                usleep(150_000)
+            // Bytes arrive well inside the idle window (300 ms) until the
+            // deadline (900 ms) has passed, so a slow host cannot let the idle
+            // clock answer first.
+            let trickleEnd = Date().addingTimeInterval(1.2)
+            while Date() < trickleEnd {
+                usleep(40_000)
                 try? slow.send("X")
             }
             try check(slow, try error("408 Request Timeout", "request not received in time"), "deadline")

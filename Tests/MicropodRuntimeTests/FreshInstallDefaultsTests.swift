@@ -47,7 +47,7 @@ final class FreshInstallDefaultsTests: XCTestCase {
                 volumes: VolumeService(
                     client: ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/true"))),
                 api: nil, health: nil, exitCodes: nil),
-            cliInstalled: { true })
+            cliInstalled: { true }, cliPath: "/usr/bin/true")
     }
 
     // MARK: Registry

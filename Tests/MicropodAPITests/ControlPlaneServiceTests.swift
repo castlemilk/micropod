@@ -50,7 +50,7 @@ final class ControlPlaneServiceTests: XCTestCase {
             engineRegistry: registry,
             machineAutostart: { layout in
                 HVFMachineAutostartAgent(
-                    layout: layout, environment: ["PATH": "/usr/bin:/bin"], launch: launch,
+                    layout: layout, environment: ["PATH": "/usr/bin:/bin", "MICROPOD_CLI": "/bin/sh"], launch: launch,
                     launchAgentsDirectory: agents)
             })
     }

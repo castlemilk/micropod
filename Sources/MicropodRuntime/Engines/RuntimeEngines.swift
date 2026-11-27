@@ -452,9 +452,21 @@ public struct AppleEngine: RuntimeEngine {
     public var logs: any LogStreaming { services.logs }
     public var stats: (any StatsSampling)? { services.stats }
 
-    public init(services: RuntimeServices, cliInstalled: @escaping @Sendable () -> Bool = AppleEngine.cliIsInstalled) {
+    /// The `container` CLI a CLI-backed probe looks for; injectable for tests.
+    private let cliPath: String
+
+    public init(
+        services: RuntimeServices, cliInstalled: @escaping @Sendable () -> Bool = AppleEngine.cliIsInstalled,
+        cliPath: String = AppleEngine.defaultCLIPath()
+    ) {
         self.services = services
         self.cliInstalled = cliInstalled
+        self.cliPath = cliPath
+    }
+
+    /// `MICROPOD_CONTAINER_CLI_PATH`, else `/usr/local/bin/container`.
+    public static func defaultCLIPath() -> String {
+        ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"] ?? "/usr/local/bin/container"
     }
 
     /// The `container` CLI the default client would run is on disk.
@@ -473,7 +485,7 @@ public struct AppleEngine: RuntimeEngine {
         if services.kind == .native {
             return EngineProbe(available: true, version: version, endpoint: "xpc:com.apple.container.apiserver")
         }
-        let cli = ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"] ?? "/usr/local/bin/container"
+        let cli = cliPath
         guard FileManager.default.isExecutableFile(atPath: cli) else {
             return EngineProbe(available: false, reason: "container CLI not found at \(cli)", endpoint: cli)
         }
