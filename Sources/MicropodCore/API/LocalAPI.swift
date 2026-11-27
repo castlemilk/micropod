@@ -30,17 +30,17 @@ import SwiftProtobuf
 /// keeps the connection. One it stops reading early (enough log lines, a
 /// deadline) is closed, which ends the stream on the server; the next call
 /// dials again.
-struct LocalAPI: Sendable {
+public struct LocalAPI: Sendable {
     /// Used when it exists at call time; nil when disabled.
-    var socketPath: String?
-    var baseURL: URL
-    var socketTimeoutSeconds: Int
-    var httpTimeout: TimeInterval
-    var longCallSeconds: Int
+    public var socketPath: String?
+    public var baseURL: URL
+    public var socketTimeoutSeconds: Int
+    public var httpTimeout: TimeInterval
+    public var longCallSeconds: Int
     private let socketConnection: APIConnection?
     private let tcpConnection: APIConnection
 
-    init(
+    public init(
         socketPath: String?, baseURL: URL, socketTimeoutSeconds: Int = 120, httpTimeout: TimeInterval = 120,
         longCallSeconds: Int = 1800
     ) {
@@ -53,7 +53,7 @@ struct LocalAPI: Sendable {
         tcpConnection = APIConnection(.tcp(port: baseURL.port ?? 45454))
     }
 
-    static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> LocalAPI {
+    public static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> LocalAPI {
         let port = environment["MICROPOD_API_PORT"] ?? "45454"
         let socket = environment["MICROPOD_API_SOCK"]
         let socketPath: String?
@@ -72,22 +72,27 @@ struct LocalAPI: Sendable {
 
     /// No daemon took the connection, on the socket or over TCP: nothing
     /// was sent. Tools that can run without the daemon do so on this error.
-    struct Unreachable: Error, LocalizedError {
-        let detail: String
-        var errorDescription: String? {
+    public struct Unreachable: Error, LocalizedError {
+        public let detail: String
+        public init(detail: String) { self.detail = detail }
+        public var errorDescription: String? {
             "Micropod API daemon not reachable (\(detail)) — start MicropodAPI or Micropod.app"
         }
     }
 
     /// The daemon answered with a Connect error.
-    struct RemoteError: Error, LocalizedError {
-        let code: String
-        let message: String
-        var errorDescription: String? { message }
+    public struct RemoteError: Error, LocalizedError {
+        public let code: String
+        public let message: String
+        public init(code: String, message: String) {
+            self.code = code
+            self.message = message
+        }
+        public var errorDescription: String? { message }
     }
 
     /// Connections dialed so far (socket, then TCP).
-    var connectionsOpened: (socket: Int, tcp: Int) {
+    public var connectionsOpened: (socket: Int, tcp: Int) {
         (socketConnection?.opened ?? 0, tcpConnection.opened)
     }
 
@@ -95,7 +100,7 @@ struct LocalAPI: Sendable {
 
     /// `micropod.v1.<service>/<method>` in binary protobuf, decoded as `R`.
     /// `timeout`: seconds to wait for the reply (default `socketTimeoutSeconds`).
-    func unary<R: Message>(
+    public func unary<R: Message>(
         _ service: String, _ method: String, _ request: some Message, as: R.Type, timeout: Int? = nil
     ) async throws -> R {
         let path = "/api/micropod.v1.\(service)/\(method)"
@@ -126,7 +131,7 @@ struct LocalAPI: Sendable {
     }
 
     /// A unary call whose reply carries nothing the caller needs.
-    func call(_ service: String, _ method: String, _ request: some Message, timeout: Int? = nil) async throws {
+    public func call(_ service: String, _ method: String, _ request: some Message, timeout: Int? = nil) async throws {
         _ = try await unary(service, method, request, as: Micropod_V1_Empty.self, timeout: timeout)
     }
 
@@ -160,7 +165,7 @@ struct LocalAPI: Sendable {
     /// is then closed, which ends the stream on the server). Stops at the end
     /// of the stream, at `deadline`, or after `quiet` without a message. An
     /// error in the end-of-stream frame is thrown. Nothing is resent.
-    func stream<R: Message>(
+    public func stream<R: Message>(
         _ service: String, _ method: String, _ request: some Message, as: R.Type,
         deadline: Duration, quiet: Duration? = nil, onMessage: @escaping @Sendable (R) -> Bool
     ) async throws {
@@ -202,34 +207,6 @@ struct LocalAPI: Sendable {
         else { return }
         throw RemoteError(
             code: error["code"] as? String ?? "unknown", message: error["message"] as? String ?? "stream failed")
-    }
-
-    // MARK: Paths
-
-    /// `raw` as one percent-encoded path segment. Ids come from the model:
-    /// whitespace, control characters, `/`, `?` or `#` would rewrite the
-    /// request line or the route, so such an id is refused, not encoded.
-    static func pathSegment(_ raw: String, name: String) throws -> String {
-        let refused = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)
-            .union(CharacterSet(charactersIn: "/?#\\"))
-        guard !raw.isEmpty, raw != ".", raw != "..", !raw.unicodeScalars.contains(where: refused.contains) else {
-            throw MCPArgumentError(
-                message: "\(name) \(String(reflecting: raw)) is not a valid id: it must be non-empty and contain "
-                    + "no whitespace, control characters, '/', '\\', '?' or '#'")
-        }
-        let unreserved = CharacterSet(
-            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-        return raw.addingPercentEncoding(withAllowedCharacters: unreserved) ?? raw
-    }
-
-    /// `ListRuntimes` → one line per engine.
-    static func describe(_ response: Micropod_V1_ListRuntimesResponse) -> String {
-        response.runtimes.map { r in
-            let marker = r.default ? "*" : " "
-            let available = r.available ? "available" : "unavailable: \(r.reason)"
-            let enabled = r.enabled ? "enabled" : "disabled"
-            return "\(marker) \(r.name)\t\(r.kind)\t\(available)\t\(enabled)\t\(r.endpoint)"
-        }.joined(separator: "\n")
     }
 }
 
@@ -292,7 +269,7 @@ enum APIEndpoint: Sendable, Equatable {
 }
 
 /// One HTTP/1.1 exchange's outcome.
-enum Exchange: Sendable, Equatable {
+enum APIExchange: Sendable, Equatable {
     case replied(status: Int, contentType: String, body: Data)
     /// The connection failed before any byte was written.
     case notSent(String)
@@ -310,7 +287,7 @@ final class APIConnection: @unchecked Sendable {
     static let idleReconnect: Duration = .seconds(90)
 
     let endpoint: APIEndpoint
-    private let queue = DispatchQueue(label: "micropod.mcp.api-connection")
+    private let queue = DispatchQueue(label: "micropod.local-api.connection")
     private let lock = NSLock()
     // Touched only on `queue`.
     private var fd: Int32 = -1
@@ -326,7 +303,7 @@ final class APIConnection: @unchecked Sendable {
 
     var opened: Int { lock.withLock { dialed } }
 
-    func exchange(_ path: String, contentType: String, body: Data, timeoutSeconds: Int) async -> Exchange {
+    func exchange(_ path: String, contentType: String, body: Data, timeoutSeconds: Int) async -> APIExchange {
         await withCheckedContinuation { done in
             queue.async {
                 done.resume(
@@ -396,7 +373,7 @@ final class APIConnection: @unchecked Sendable {
         return outcome.outcome
     }
 
-    private func exchangeOnQueue(_ path: String, contentType: String, body: Data, timeoutSeconds: Int) -> Exchange {
+    private func exchangeOnQueue(_ path: String, contentType: String, body: Data, timeoutSeconds: Int) -> APIExchange {
         if let refused = ready(timeoutSeconds: timeoutSeconds) { return .notSent(refused) }
         let head =
             "POST \(path) HTTP/1.1\r\nHost: \(endpoint.host)\r\nContent-Type: \(contentType)\r\n"
