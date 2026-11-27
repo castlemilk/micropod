@@ -219,7 +219,12 @@ final class HVFMachineReadinessTests: XCTestCase {
         let first = await client.readinessStartingWhenDown(start: start)
         XCTAssertEqual(first.status, .starting)
         XCTAssertTrue(first.detail.contains("crashed"), first.detail)
-        try await waitUntil { HVFFileLock.isHeld(layout.supervisorLock) }
+        // The new supervisor takes the lock and then publishes its state:
+        // wait for the state, or a slow host reads the old `failed` between the two.
+        try await waitUntil {
+            HVFFileLock.isHeld(layout.supervisorLock)
+                && (try? HVFMachineState.load(from: layout.state))?.phase == .starting
+        }
         let plain = await client.readiness()
         XCTAssertEqual(plain.detail, "starting", "the new supervisor's own state has lost the crash")
         let second = await client.readinessStartingWhenDown(start: start)
