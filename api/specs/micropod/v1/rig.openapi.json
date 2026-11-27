@@ -1,0 +1,1269 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Micropod API \u00b7 RigService",
+    "description": "## micropod.v1.RigService\n\nThe rootless rig: which execution mode new workloads use, the shared hvf\n machine's state and lifecycle, and its versioned payload (VMM, kernel,\n initrd, guest tools). The machine is the one MICROPOD_HVF_ROOT names for\n the API process. The REST routes under /v1/rig answer the same data.",
+    "version": "0.13.12",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
+  },
+  "paths": {
+    "/api/micropod.v1.RigService/ApplyHVFUpdate": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "ApplyHVFUpdate",
+        "description": "Activate the staged payload: restart the machine onto it, probe it, and\n return to known-good if it fails. Deferred (`failed_precondition`, nothing\n stopped) while containers run or idleness cannot be confirmed, unless\n `force`.",
+        "operationId": "micropod.v1.RigService.ApplyHVFUpdate",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.HVFUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.HVFUpdateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/ControlMachine": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "ControlMachine",
+        "description": "Start (returns once the guest answers), stop (a stop on request: Ping and\n GetSystem then say stopped and nothing restarts it on demand) or restart\n the machine; replies with its status afterwards. Stop and restart are\n deferred (`failed_precondition`, nothing stopped) while containers run on\n a serving machine or its idleness cannot be confirmed, unless `force`.",
+        "operationId": "micropod.v1.RigService.ControlMachine",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ControlMachineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.HVFMachineStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/GetHVFUpdateStatus": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "GetHVFUpdateStatus",
+        "description": "Active, staged and known-good payloads (GET /v1/rig/hvf/update).",
+        "operationId": "micropod.v1.RigService.GetHVFUpdateStatus",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.HVFUpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/GetMachineStatus": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "GetMachineStatus",
+        "description": "The machine as every process sees it: assets, supervisor, phase, the\n published state. Never boots anything and never asks the guest.",
+        "operationId": "micropod.v1.RigService.GetMachineStatus",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.HVFMachineStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/GetRigHealth": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "GetRigHealth",
+        "description": "Mode, machine phase, cache disk and policy summary, staged payloads and\n the local dependency proxy (GET /v1/rig/health).",
+        "operationId": "micropod.v1.RigService.GetRigHealth",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.RigHealth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/GetRigMode": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "GetRigMode",
+        "description": "The execution mode in force (GET /v1/rig/mode).",
+        "operationId": "micropod.v1.RigService.GetRigMode",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.RigMode"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/RollbackHVFUpdate": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "RollbackHVFUpdate",
+        "description": "Return to the last known-good payload (POST /v1/rig/hvf/update/rollback),\n deferred like ApplyHVFUpdate.",
+        "operationId": "micropod.v1.RigService.RollbackHVFUpdate",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.HVFUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.HVFUpdateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/SetRigMode": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "SetRigMode",
+        "description": "Switch mode: container (the shared hvf machine) or sandbox (one micro-VM\n per workload). Writes the default runtime (PUT /v1/rig/mode).",
+        "operationId": "micropod.v1.RigService.SetRigMode",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.SetRigModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.RigMode"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.ControlMachineRequest": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "action",
+            "enum": [
+              "start",
+              "stop",
+              "restart"
+            ]
+          },
+          "force": {
+            "type": "boolean",
+            "title": "force",
+            "description": "Stop or restart even while containers run (interrupts them)."
+          }
+        },
+        "title": "ControlMachineRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false,
+        "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.HVFMachineState": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "type": "string",
+            "title": "phase"
+          },
+          "supervisorPid": {
+            "type": "integer",
+            "title": "supervisor_pid",
+            "format": "int32"
+          },
+          "vmmPid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "vmm_pid",
+            "format": "int32"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "started_at",
+            "description": "RFC 3339."
+          },
+          "readyAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "ready_at"
+          },
+          "restartCount": {
+            "type": "integer",
+            "title": "restart_count",
+            "format": "int32"
+          },
+          "lastExitReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "last_exit_reason"
+          },
+          "lastExitCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "last_exit_code",
+            "format": "int32"
+          },
+          "loadedPayloadPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "loaded_payload_path"
+          },
+          "loadedPayloadVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "loaded_payload_version"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "updated_at"
+          }
+        },
+        "title": "HVFMachineState",
+        "additionalProperties": false
+      },
+      "micropod.v1.HVFMachineStatus": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "title": "root"
+          },
+          "socket": {
+            "type": "string",
+            "title": "socket",
+            "description": "The guest Docker socket."
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "missing",
+            "description": "Missing assets by layout name; empty once installed."
+          },
+          "installed": {
+            "type": "boolean",
+            "title": "installed"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "problem",
+            "description": "Why an installed layout still cannot host the machine."
+          },
+          "supervisorAlive": {
+            "type": "boolean",
+            "title": "supervisor_alive"
+          },
+          "phase": {
+            "type": "string",
+            "title": "phase",
+            "description": "The effective phase: stopped (or failed) whenever no supervisor holds\n the lock, whatever a stale state file says."
+          },
+          "state": {
+            "title": "state",
+            "description": "The supervisor's last published state.",
+            "$ref": "#/components/schemas/micropod.v1.HVFMachineState"
+          },
+          "stateError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "state_error",
+            "description": "state.json exists but could not be read."
+          },
+          "updatePending": {
+            "type": "boolean",
+            "title": "update_pending"
+          },
+          "summary": {
+            "type": "string",
+            "title": "summary",
+            "description": "One line, as `micropod machine status` prints it."
+          },
+          "stoppedOnRequest": {
+            "type": "boolean",
+            "title": "stopped_on_request",
+            "description": "The last machine stop was asked for: nothing starts it on demand."
+          }
+        },
+        "title": "HVFMachineStatus",
+        "additionalProperties": false
+      },
+      "micropod.v1.HVFPayloadManifest": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "integer",
+            "title": "schema",
+            "format": "int32"
+          },
+          "version": {
+            "type": "string",
+            "title": "version"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision"
+          },
+          "installedAt": {
+            "type": "string",
+            "title": "installed_at",
+            "description": "RFC 3339."
+          },
+          "digests": {
+            "type": "object",
+            "title": "digests",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          },
+          "origin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "origin",
+            "description": "Unset for a staged release; \"flat\" for an imported flat install."
+          }
+        },
+        "title": "HVFPayloadManifest",
+        "additionalProperties": false,
+        "description": "One payload's manifest."
+      },
+      "micropod.v1.HVFPayloadManifest.DigestsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "DigestsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.HVFUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "title": "force",
+            "description": "Restart even while containers run (interrupts them)."
+          }
+        },
+        "title": "HVFUpdateRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.HVFUpdateResult": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "action",
+            "description": "noop, activated, rolled_back (success); failed_rollback and failed come\n back as errors, deferred as `failed_precondition`."
+          },
+          "fromVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "from_version"
+          },
+          "toVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "to_version"
+          },
+          "activeContainers": {
+            "type": "integer",
+            "title": "active_containers",
+            "format": "int32",
+            "description": "Workloads that held off a restart."
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail"
+          },
+          "targetVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "target_version"
+          },
+          "switchoverMilliseconds": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "switchover_milliseconds",
+            "format": "int64"
+          }
+        },
+        "title": "HVFUpdateResult",
+        "additionalProperties": false
+      },
+      "micropod.v1.HVFUpdateStatus": {
+        "type": "object",
+        "properties": {
+          "currentPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "current_path",
+            "description": "What a newly started supervisor boots (unset: the flat layout)."
+          },
+          "previousPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "previous_path"
+          },
+          "stagedPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "staged_path",
+            "description": "Staged and waiting for ApplyHVFUpdate."
+          },
+          "knownGoodPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "known_good_path",
+            "description": "The last payload that booted and passed the health probes."
+          },
+          "current": {
+            "title": "current",
+            "$ref": "#/components/schemas/micropod.v1.HVFPayloadManifest"
+          },
+          "previous": {
+            "title": "previous",
+            "$ref": "#/components/schemas/micropod.v1.HVFPayloadManifest"
+          },
+          "staged": {
+            "title": "staged",
+            "$ref": "#/components/schemas/micropod.v1.HVFPayloadManifest"
+          },
+          "knownGood": {
+            "title": "known_good",
+            "$ref": "#/components/schemas/micropod.v1.HVFPayloadManifest"
+          },
+          "runningPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "running_path"
+          },
+          "runningVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "running_version"
+          },
+          "runningRevision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "running_revision"
+          },
+          "updatePending": {
+            "type": "boolean",
+            "title": "update_pending",
+            "description": "An activation would change what runs."
+          },
+          "availableVersions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "available_versions"
+          },
+          "lastActivationFailure": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "last_activation_failure",
+            "description": "Why the last apply of the payload still staged failed."
+          }
+        },
+        "title": "HVFUpdateStatus",
+        "additionalProperties": false
+      },
+      "micropod.v1.RigCacheDisk": {
+        "type": "object",
+        "properties": {
+          "mounted": {
+            "type": "boolean",
+            "title": "mounted"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "configured",
+            "description": "The host has caches.ext4, so the VMM attaches it."
+          },
+          "missing": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "missing",
+            "description": "machine.json expects a cache disk that is gone."
+          },
+          "source": {
+            "type": "string",
+            "title": "source",
+            "description": "guest, or unknown when the guest did not answer."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "reason",
+            "description": "Why the state is unknown."
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "state"
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "device"
+          },
+          "mountInfoError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "mount_info_error"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "freeBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "free_bytes",
+            "format": "int64"
+          },
+          "sharedCaches": {
+            "type": "string",
+            "title": "shared_caches",
+            "description": "on, off or unknown."
+          },
+          "unavailable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "unavailable",
+            "description": "Why shared caches are off this boot."
+          },
+          "summary": {
+            "type": "string",
+            "title": "summary"
+          }
+        },
+        "title": "RigCacheDisk",
+        "additionalProperties": false,
+        "description": "The cache disk as rig health reports it: the guest's account when it\n answered, else why it is unknown."
+      },
+      "micropod.v1.RigCachePolicySummary": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "mode"
+          },
+          "sharedL0": {
+            "type": "boolean",
+            "title": "shared_l0"
+          },
+          "defaultTrust": {
+            "type": "string",
+            "title": "default_trust"
+          },
+          "goProxy": {
+            "type": "string",
+            "title": "go_proxy"
+          },
+          "toolCount": {
+            "type": "integer",
+            "title": "tool_count",
+            "format": "int32"
+          }
+        },
+        "title": "RigCachePolicySummary",
+        "additionalProperties": false
+      },
+      "micropod.v1.RigDepproxy": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "url"
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "healthy"
+          }
+        },
+        "title": "RigDepproxy",
+        "additionalProperties": false
+      },
+      "micropod.v1.RigHVFHealth": {
+        "type": "object",
+        "properties": {
+          "installed": {
+            "type": "boolean",
+            "title": "installed"
+          },
+          "phase": {
+            "type": "string",
+            "title": "phase",
+            "description": "starting, running, stopping, stopped or failed."
+          },
+          "summary": {
+            "type": "string",
+            "title": "summary"
+          },
+          "root": {
+            "type": "string",
+            "title": "root"
+          },
+          "dockerEndpoint": {
+            "type": "string",
+            "title": "docker_endpoint"
+          },
+          "cacheDiskPresent": {
+            "type": "boolean",
+            "title": "cache_disk_present"
+          },
+          "cacheDisk": {
+            "title": "cache_disk",
+            "$ref": "#/components/schemas/micropod.v1.RigCacheDisk"
+          },
+          "sharedCaches": {
+            "type": "string",
+            "title": "shared_caches"
+          },
+          "updatePending": {
+            "type": "boolean",
+            "title": "update_pending"
+          },
+          "payloadVersion": {
+            "type": "string",
+            "title": "payload_version"
+          }
+        },
+        "title": "RigHVFHealth",
+        "additionalProperties": false
+      },
+      "micropod.v1.RigHealth": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "mode"
+          },
+          "defaultRuntime": {
+            "type": "string",
+            "title": "default_runtime"
+          },
+          "hvf": {
+            "title": "hvf",
+            "$ref": "#/components/schemas/micropod.v1.RigHVFHealth"
+          },
+          "cachePolicy": {
+            "title": "cache_policy",
+            "$ref": "#/components/schemas/micropod.v1.RigCachePolicySummary"
+          },
+          "depproxy": {
+            "title": "depproxy",
+            "$ref": "#/components/schemas/micropod.v1.RigDepproxy"
+          },
+          "configError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "config_error",
+            "description": "machine.json did not load: the policy summary shows the defaults' values."
+          }
+        },
+        "title": "RigHealth",
+        "additionalProperties": false
+      },
+      "micropod.v1.RigMode": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "mode",
+            "description": "The active mode, or the default runtime's name when it maps to no mode."
+          },
+          "defaultRuntime": {
+            "type": "string",
+            "title": "default_runtime"
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.RigModeOption"
+            },
+            "title": "modes"
+          }
+        },
+        "title": "RigMode",
+        "additionalProperties": false
+      },
+      "micropod.v1.RigModeOption": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "container or sandbox."
+          },
+          "engine": {
+            "type": "string",
+            "title": "engine",
+            "description": "The engine the mode runs on (hvf, sandbox)."
+          },
+          "summary": {
+            "type": "string",
+            "title": "summary"
+          }
+        },
+        "title": "RigModeOption",
+        "additionalProperties": false
+      },
+      "micropod.v1.SetRigModeRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "mode",
+            "minLength": 1,
+            "description": "container or sandbox (an engine name is accepted too)."
+          }
+        },
+        "title": "SetRigModeRequest",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.RigService",
+      "description": "The rootless rig: which execution mode new workloads use, the shared hvf\n machine's state and lifecycle, and its versioned payload (VMM, kernel,\n initrd, guest tools). The machine is the one MICROPOD_HVF_ROOT names for\n the API process. The REST routes under /v1/rig answer the same data."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
+}

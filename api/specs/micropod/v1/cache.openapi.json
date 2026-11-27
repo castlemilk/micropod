@@ -1,0 +1,1847 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Micropod API \u00b7 CacheService",
+    "description": "## micropod.v1.CacheService\n\nThe hvf machine's dependency caches: the units the guest engine keeps per\n scope and tool, the policy it attaches them by, and bounded pruning. Every\n call reads the live guest (its Docker socket) or the machine's own\n machine.json; nothing is cached by the API. The REST routes under\n /v1/caches answer the same data from the same code.\n\n Errors: `failed_precondition` while the machine is not running (no guest\n to ask) or `machine install` runs; `invalid_argument` for a request the\n REST twin would answer 400; `not_found` for an unknown container.",
+    "version": "0.13.12",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
+  },
+  "paths": {
+    "/api/micropod.v1.CacheService/ExplainContainerCache": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "ExplainContainerCache",
+        "description": "Which caches attached to a container, or were skipped and why\n (GET /v1/caches/explain/{id}).",
+        "operationId": "micropod.v1.CacheService.ExplainContainerCache",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ContainerCacheExplain"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.CacheService/GetCachePolicy": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "GetCachePolicy",
+        "description": "The policy in force (GET /v1/caches/policy): machine.json's `cache`\n section with defaults filled in.",
+        "operationId": "micropod.v1.CacheService.GetCachePolicy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.CachePolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.CacheService/GetCacheStatus": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "GetCacheStatus",
+        "description": "The guest's cache inventory (GET /v1/caches): policy and digest, scopes,\n per-unit sizes and lock state, totals, budget, evictions and the cache\n disk.",
+        "operationId": "micropod.v1.CacheService.GetCacheStatus",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.GetCacheStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.CacheStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.CacheService/ListCacheUnits": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "ListCacheUnits",
+        "description": "The cache units, filtered by scope, layer and tool kind.",
+        "operationId": "micropod.v1.CacheService.ListCacheUnits",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ListCacheUnitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListCacheUnitsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.CacheService/PruneCaches": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "PruneCaches",
+        "description": "Lock-safe bounded eviction (POST /v1/caches/prune). A dry run unless\n `apply` is true; an apply that selects nothing also needs `all`.",
+        "operationId": "micropod.v1.CacheService.PruneCaches",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PruneCachesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.PruneCachesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.CacheService/SampleCacheDedupe": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "SampleCacheDedupe",
+        "description": "Sample cross-scope Go build-cache duplication (GET /v1/caches/dedupe).",
+        "operationId": "micropod.v1.CacheService.SampleCacheDedupe",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.SampleCacheDedupeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.CacheDedupeSample"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.CacheService/SetCachePolicy": {
+      "post": {
+        "tags": [
+          "micropod.v1.CacheService"
+        ],
+        "summary": "SetCachePolicy",
+        "description": "Patch the policy and hot-apply it to a running guest\n (PUT /v1/caches/policy). Only the fields set change; a request that\n sets none is `invalid_argument` and writes nothing.",
+        "operationId": "micropod.v1.CacheService.SetCachePolicy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.SetCachePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.SetCachePolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "google.protobuf.ListValue": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/google.protobuf.Value"
+            },
+            "title": "values",
+            "description": "Repeated field of dynamically typed values."
+          }
+        },
+        "title": "ListValue",
+        "additionalProperties": false,
+        "description": "`ListValue` is a wrapper around a repeated field of values.\n\n The JSON representation for `ListValue` is JSON array."
+      },
+      "google.protobuf.NullValue": {
+        "type": "string",
+        "title": "NullValue",
+        "enum": [
+          "NULL_VALUE"
+        ],
+        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n `Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`."
+      },
+      "google.protobuf.Struct": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/google.protobuf.Value"
+        },
+        "description": "`Struct` represents a structured data value, consisting of fields\n which map to dynamically typed values. In some languages, `Struct`\n might be supported by a native representation. For example, in\n scripting languages like JS a struct is represented as an\n object. The details of that representation are described together\n with the proto support for the language.\n\n The JSON representation for `Struct` is JSON object."
+      },
+      "google.protobuf.Struct.FieldsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "title": "value",
+            "$ref": "#/components/schemas/google.protobuf.Value"
+          }
+        },
+        "title": "FieldsEntry",
+        "additionalProperties": false
+      },
+      "google.protobuf.Value": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true
+          }
+        ],
+        "description": "`Value` represents a dynamically typed value which can be either\n null, a number, a string, a boolean, a recursive struct value, or a\n list of values. A producer of value is expected to set one of these\n variants. Absence of any variant indicates an error.\n\n The JSON representation for `Value` is JSON value."
+      },
+      "micropod.v1.CacheBudget": {
+        "type": "object",
+        "properties": {
+          "maxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "max_bytes",
+            "format": "int64"
+          },
+          "minFreeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "min_free_bytes",
+            "format": "int64"
+          },
+          "maxAgeDays": {
+            "type": "integer",
+            "title": "max_age_days",
+            "format": "int32"
+          },
+          "utilizationPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "title": "utilization_pct",
+            "format": "double"
+          }
+        },
+        "title": "CacheBudget",
+        "additionalProperties": false
+      },
+      "micropod.v1.CacheBuildKit": {
+        "type": "object",
+        "properties": {
+          "registerBuildx": {
+            "type": "boolean",
+            "title": "register_buildx"
+          },
+          "extra": {
+            "title": "extra",
+            "description": "Keys this server does not know, passed through unchanged.",
+            "$ref": "#/components/schemas/google.protobuf.Struct"
+          }
+        },
+        "title": "CacheBuildKit",
+        "additionalProperties": false,
+        "description": "BuildKit settings in the cache policy."
+      },
+      "micropod.v1.CacheDedupeSample": {
+        "type": "object",
+        "properties": {
+          "scopesSampled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "scopes_sampled"
+          },
+          "bucketsSampled": {
+            "type": "integer",
+            "title": "buckets_sampled",
+            "format": "int32"
+          },
+          "totalObjects": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_objects",
+            "format": "int64"
+          },
+          "uniqueObjects": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "unique_objects",
+            "format": "int64"
+          },
+          "duplicateObjects": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "duplicate_objects",
+            "format": "int64"
+          },
+          "duplicateBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "duplicate_bytes",
+            "format": "int64"
+          },
+          "estimatedFullDuplicateBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "estimated_full_duplicate_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "CacheDedupeSample",
+        "additionalProperties": false
+      },
+      "micropod.v1.CacheDisk": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "state",
+            "description": "Guest init's outcome: mounted, unavailable or none."
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "device"
+          },
+          "mounted": {
+            "type": "boolean",
+            "title": "mounted"
+          },
+          "mountInfoError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "mount_info_error"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "freeBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "free_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "CacheDisk",
+        "additionalProperties": false,
+        "description": "The persistent cache disk (caches.ext4) as the guest sees it."
+      },
+      "micropod.v1.CacheEvictions": {
+        "type": "object",
+        "properties": {
+          "evictions": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "evictions",
+            "format": "int64"
+          },
+          "evictedUnits": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "evicted_units",
+            "format": "int64"
+          },
+          "evictedFiles": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "evicted_files",
+            "format": "int64"
+          },
+          "evictedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "evicted_bytes",
+            "format": "int64"
+          },
+          "lastSweepUnix": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "last_sweep_unix",
+            "format": "int64"
+          },
+          "lastSweepReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "last_sweep_reason"
+          }
+        },
+        "title": "CacheEvictions",
+        "additionalProperties": false
+      },
+      "micropod.v1.CachePolicy": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "version",
+            "format": "int32"
+          },
+          "mode": {
+            "type": "string",
+            "title": "mode",
+            "description": "auto or off."
+          },
+          "defaultScope": {
+            "type": "string",
+            "title": "default_scope"
+          },
+          "allowedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "allowed_scopes"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "tools",
+            "description": "Kinds or groups (go = gomod + gobuild) as configured."
+          },
+          "goTrimpath": {
+            "type": "boolean",
+            "title": "go_trimpath"
+          },
+          "pnpmLegacyEnv": {
+            "type": "boolean",
+            "title": "pnpm_legacy_env"
+          },
+          "sharedL0": {
+            "type": "boolean",
+            "title": "shared_l0"
+          },
+          "defaultTrust": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "default_trust",
+            "description": "trusted or untrusted; unset is trusted."
+          },
+          "proxyUntrusted": {
+            "type": "boolean",
+            "title": "proxy_untrusted"
+          },
+          "goProxy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "go_proxy"
+          },
+          "npmRegistry": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "npm_registry"
+          },
+          "maxBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "max_bytes",
+            "format": "int64"
+          },
+          "maxAgeDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "max_age_days",
+            "format": "int32"
+          },
+          "minFreeBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "min_free_bytes",
+            "format": "int64"
+          },
+          "buildkit": {
+            "title": "buildkit",
+            "$ref": "#/components/schemas/micropod.v1.CacheBuildKit"
+          },
+          "extra": {
+            "title": "extra",
+            "description": "Keys this server does not know, kept in machine.json and passed to the\n guest unchanged.",
+            "$ref": "#/components/schemas/google.protobuf.Struct"
+          }
+        },
+        "title": "CachePolicy",
+        "additionalProperties": false,
+        "description": "machine.json's `cache` section, as the guest applies it. Fields named\n optional are unset when the setting is off or cleared."
+      },
+      "micropod.v1.CachePruneAction": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "scope"
+          },
+          "unit": {
+            "type": "string",
+            "title": "unit"
+          },
+          "action": {
+            "type": "string",
+            "title": "action"
+          },
+          "files": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "files",
+            "format": "int64"
+          },
+          "bytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "bytes",
+            "format": "int64"
+          }
+        },
+        "title": "CachePruneAction",
+        "additionalProperties": false
+      },
+      "micropod.v1.CacheScopeUnits": {
+        "type": "object",
+        "properties": {
+          "units": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "units"
+          }
+        },
+        "title": "CacheScopeUnits",
+        "additionalProperties": false,
+        "description": "The unit names one scope holds."
+      },
+      "micropod.v1.CacheStatus": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "title": "root"
+          },
+          "mountPoint": {
+            "type": "string",
+            "title": "mount_point"
+          },
+          "mountL0Point": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "mount_l0_point"
+          },
+          "policy": {
+            "title": "policy",
+            "$ref": "#/components/schemas/micropod.v1.CachePolicy"
+          },
+          "policyDigest": {
+            "type": "string",
+            "title": "policy_digest"
+          },
+          "scopes": {
+            "type": "object",
+            "title": "scopes",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/micropod.v1.CacheScopeUnits"
+            }
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.CacheUnit"
+            },
+            "title": "units"
+          },
+          "totals": {
+            "title": "totals",
+            "$ref": "#/components/schemas/micropod.v1.CacheTotals"
+          },
+          "budget": {
+            "title": "budget",
+            "$ref": "#/components/schemas/micropod.v1.CacheBudget"
+          },
+          "evictions": {
+            "title": "evictions",
+            "$ref": "#/components/schemas/micropod.v1.CacheEvictions"
+          },
+          "discardedAtStart": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "discarded_at_start",
+            "description": "Units (scope/unit) moved to trash at the engine's start because an\n unclean stop left them marked dirty."
+          },
+          "keptAtStart": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "kept_at_start",
+            "description": "Marked units kept at the engine's start (their boot stopped cleanly)."
+          },
+          "cacheDisk": {
+            "title": "cache_disk",
+            "$ref": "#/components/schemas/micropod.v1.CacheDisk"
+          },
+          "unavailable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "unavailable",
+            "description": "Why the guest has no shared caches this boot; unset while they work."
+          }
+        },
+        "title": "CacheStatus",
+        "additionalProperties": false
+      },
+      "micropod.v1.CacheStatus.ScopesEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "title": "value",
+            "$ref": "#/components/schemas/micropod.v1.CacheScopeUnits"
+          }
+        },
+        "title": "ScopesEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.CacheStringList": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "values"
+          }
+        },
+        "title": "CacheStringList",
+        "additionalProperties": false,
+        "description": "A list that can be set to empty, which an absent list cannot say."
+      },
+      "micropod.v1.CacheTotals": {
+        "type": "object",
+        "properties": {
+          "totalBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_bytes",
+            "format": "int64"
+          },
+          "logicalBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "logical_bytes",
+            "format": "int64"
+          },
+          "totalFiles": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_files",
+            "format": "int64"
+          },
+          "scopeCount": {
+            "type": "integer",
+            "title": "scope_count",
+            "format": "int32"
+          },
+          "unitCount": {
+            "type": "integer",
+            "title": "unit_count",
+            "format": "int32"
+          },
+          "inUseCount": {
+            "type": "integer",
+            "title": "in_use_count",
+            "format": "int32"
+          },
+          "l0Bytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "l0_bytes",
+            "format": "int64"
+          },
+          "l1Bytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "l1_bytes",
+            "format": "int64"
+          },
+          "dirtyCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "dirty_count",
+            "format": "int32"
+          }
+        },
+        "title": "CacheTotals",
+        "additionalProperties": false
+      },
+      "micropod.v1.CacheUnit": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "scope"
+          },
+          "kind": {
+            "type": "string",
+            "title": "kind",
+            "description": "The tool kind (gomod, gobuild, npm, ...)."
+          },
+          "unit": {
+            "type": "string",
+            "title": "unit"
+          },
+          "uid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "uid"
+          },
+          "layer": {
+            "type": "string",
+            "title": "layer",
+            "description": "L0 (fleet-shareable) or L1 (per-project build caches)."
+          },
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "bytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "bytes",
+            "format": "int64",
+            "description": "Bytes on disk."
+          },
+          "logicalBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "logical_bytes",
+            "format": "int64",
+            "description": "Bytes before sharing (hard links, reflinks)."
+          },
+          "files": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "files",
+            "format": "int64"
+          },
+          "lastUsedUnix": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "last_used_unix",
+            "format": "int64"
+          },
+          "inUse": {
+            "type": "boolean",
+            "title": "in_use",
+            "description": "A container holds the unit's lock."
+          },
+          "dirty": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "dirty",
+            "description": "The crash fence has the unit marked dirty: prune and the janitor leave\n it alone. Absent from guests that predate the fence."
+          }
+        },
+        "title": "CacheUnit",
+        "additionalProperties": false,
+        "description": "One unit: a tool's store in one scope."
+      },
+      "micropod.v1.ContainerCacheExplain": {
+        "type": "object",
+        "properties": {
+          "containerId": {
+            "type": "string",
+            "title": "container_id"
+          },
+          "containerName": {
+            "type": "string",
+            "title": "container_name"
+          },
+          "image": {
+            "type": "string",
+            "title": "image"
+          },
+          "state": {
+            "type": "string",
+            "title": "state"
+          },
+          "cache": {
+            "title": "cache",
+            "description": "Absent when the guest recorded no plan.",
+            "$ref": "#/components/schemas/micropod.v1.ContainerCachePlan"
+          }
+        },
+        "title": "ContainerCacheExplain",
+        "additionalProperties": false,
+        "description": "Explain: the cache plan the guest recorded when it created the container."
+      },
+      "micropod.v1.ContainerCachePlan": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "scope"
+          },
+          "uid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "uid"
+          },
+          "gid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "gid"
+          },
+          "home": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "home"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "reason"
+          },
+          "policyDigest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "policy_digest"
+          },
+          "tools": {
+            "type": "object",
+            "title": "tools",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/micropod.v1.ContainerCacheTool"
+            }
+          },
+          "trust": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "trust",
+            "description": "untrusted or readonly; unset is trusted."
+          },
+          "trustFrom": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "trust_from"
+          },
+          "proxy": {
+            "type": "object",
+            "title": "proxy",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            },
+            "description": "The dependency proxy decision per tool kind."
+          },
+          "toolsReported": {
+            "type": "boolean",
+            "title": "tools_reported",
+            "description": "True when the guest sent a `tools` map (possibly empty)."
+          },
+          "proxyReported": {
+            "type": "boolean",
+            "title": "proxy_reported",
+            "description": "True when the guest sent a `proxy` map (possibly empty)."
+          }
+        },
+        "title": "ContainerCachePlan",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerCachePlan.ProxyEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "ProxyEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerCachePlan.ToolsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "title": "value",
+            "$ref": "#/components/schemas/micropod.v1.ContainerCacheTool"
+          }
+        },
+        "title": "ToolsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerCacheTool": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "mode",
+            "description": "attached, env, skipped, ..."
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "path"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "reason"
+          },
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "layer"
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "scope"
+          },
+          "access": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "access",
+            "description": "copy-on-write or read-only; unset is the store itself."
+          }
+        },
+        "title": "ContainerCacheTool",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "web"
+            ],
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID \u2014 `container` uses the user-assigned name as the ID."
+          }
+        },
+        "title": "ContainerRef",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "description": "Reference to an existing container (or the ID returned by run/create)."
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false,
+        "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.GetCacheStatusRequest": {
+        "type": "object",
+        "properties": {
+          "includeStats": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "include_stats",
+            "description": "Per-unit sizes, totals and budget utilisation. Absent means true (what\n GET /v1/caches does); false is `?stats=0`, a cheaper read."
+          }
+        },
+        "title": "GetCacheStatusRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListCacheUnitsRequest": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "scope",
+            "description": "Only this scope (exact)."
+          },
+          "layer": {
+            "type": "string",
+            "title": "layer",
+            "enum": [
+              "",
+              "L0",
+              "L1"
+            ],
+            "description": "Only this layer (L0 or L1)."
+          },
+          "tool": {
+            "type": "string",
+            "title": "tool",
+            "description": "Only this tool: a kind (gomod, npm, ...) or a group (go)."
+          }
+        },
+        "title": "ListCacheUnitsRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListCacheUnitsResponse": {
+        "type": "object",
+        "properties": {
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.CacheUnit"
+            },
+            "title": "units"
+          },
+          "policyDigest": {
+            "type": "string",
+            "title": "policy_digest",
+            "description": "The digest of the policy the guest attached them by."
+          }
+        },
+        "title": "ListCacheUnitsResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.PruneCachesRequest": {
+        "type": "object",
+        "properties": {
+          "apply": {
+            "type": "boolean",
+            "title": "apply",
+            "description": "Evict for real. The default (false) is a dry run that reports what would\n be freed; there is deliberately no `dry_run` field whose default evicts."
+          },
+          "all": {
+            "type": "boolean",
+            "title": "all",
+            "description": "Confirm an apply that names no scope, tool, max_bytes or\n older_than_secs: every idle unit in every scope."
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "scope"
+          },
+          "tool": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "tool"
+          },
+          "olderThanSecs": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "older_than_secs",
+            "format": "int64",
+            "description": "Evict units idle longer than this; must be positive."
+          },
+          "maxBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "max_bytes",
+            "format": "int64",
+            "description": "Evict least recently used units until the total is at most this; must\n be positive."
+          },
+          "partialGoBuild": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "partial_go_build",
+            "description": "Evict old Go build-cache files instead of whole units."
+          },
+          "safetyCutoffSecs": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "safety_cutoff_secs",
+            "format": "int64"
+          },
+          "maxUnits": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "max_units",
+            "format": "int64"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "reason",
+            "description": "Recorded with the sweep; default \"api\"."
+          }
+        },
+        "title": "PruneCachesRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.PruneCachesResponse": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "title": "dry_run"
+          },
+          "reason": {
+            "type": "string",
+            "title": "reason"
+          },
+          "freedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "freed_bytes",
+            "format": "int64"
+          },
+          "freedFiles": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "freed_files",
+            "format": "int64"
+          },
+          "evictedUnits": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "evicted_units",
+            "format": "int64"
+          },
+          "skippedInUse": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "skipped_in_use",
+            "format": "int64"
+          },
+          "beforeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "before_bytes",
+            "format": "int64"
+          },
+          "afterBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "after_bytes",
+            "format": "int64"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.CachePruneAction"
+            },
+            "title": "actions"
+          },
+          "skippedDirty": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "skipped_dirty",
+            "format": "int64"
+          }
+        },
+        "title": "PruneCachesResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.SampleCacheDedupeRequest": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "integer",
+            "title": "buckets",
+            "maximum": 256,
+            "description": "Buckets to sample, 1-256; 0 is 16."
+          }
+        },
+        "title": "SampleCacheDedupeRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.SetCachePolicyRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "mode"
+          },
+          "defaultScope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "default_scope"
+          },
+          "allowedScopes": {
+            "title": "allowed_scopes",
+            "$ref": "#/components/schemas/micropod.v1.CacheStringList"
+          },
+          "tools": {
+            "title": "tools",
+            "$ref": "#/components/schemas/micropod.v1.CacheStringList"
+          },
+          "goTrimpath": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "go_trimpath"
+          },
+          "pnpmLegacyEnv": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "pnpm_legacy_env"
+          },
+          "sharedL0": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "shared_l0"
+          },
+          "defaultTrust": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "default_trust"
+          },
+          "proxyUntrusted": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "proxy_untrusted"
+          },
+          "goProxy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "go_proxy"
+          },
+          "npmRegistry": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "npm_registry"
+          },
+          "maxBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "max_bytes",
+            "format": "int64"
+          },
+          "maxAgeDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "max_age_days",
+            "maximum": 36500
+          },
+          "minFreeBytes": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "title": "min_free_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "SetCachePolicyRequest",
+        "additionalProperties": false,
+        "description": "Every field is a change when set. \"\" clears go_proxy and npm_registry; 0\n clears max_bytes, max_age_days and min_free_bytes (as null does in PUT\n /v1/caches/policy)."
+      },
+      "micropod.v1.SetCachePolicyResponse": {
+        "type": "object",
+        "properties": {
+          "policy": {
+            "title": "policy",
+            "description": "The saved policy.",
+            "$ref": "#/components/schemas/micropod.v1.CachePolicy"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "warnings",
+            "description": "A policy URL opens no host port, or names one the running machine has\n not opened (it takes effect at the next start)."
+          }
+        },
+        "title": "SetCachePolicyResponse",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.CacheService",
+      "description": "The hvf machine's dependency caches: the units the guest engine keeps per\n scope and tool, the policy it attaches them by, and bounded pruning. Every\n call reads the live guest (its Docker socket) or the machine's own\n machine.json; nothing is cached by the API. The REST routes under\n /v1/caches answer the same data from the same code.\n\n Errors: `failed_precondition` while the machine is not running (no guest\n to ask) or `machine install` runs; `invalid_argument` for a request the\n REST twin would answer 400; `not_found` for an unknown container."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
+}

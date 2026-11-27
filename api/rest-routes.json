@@ -36,6 +36,66 @@
   },
   {
     "method": "GET",
+    "path": "/v1/caches",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/caches",
+    "description": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/caches",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/caches",
+    "description": ""
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/caches",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/caches/explain/{arg}",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "GET",
     "path": "/v1/usage",
     "description": "Disk usage report (containers, images, volumes)."
   },

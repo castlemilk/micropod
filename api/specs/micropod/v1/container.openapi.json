@@ -2181,6 +2181,11 @@
             "minimum": 0,
             "format": "int64",
             "description": "Number of lines to drop from the start of the stream (after `tail` is\n applied). Lets a client re-open a stream after a transport error\n without replaying lines it already delivered."
+          },
+          "noFollow": {
+            "type": "boolean",
+            "title": "no_follow",
+            "description": "Send the tail (`tail` lines; every line when 0), then end the stream\n instead of following the container. A client on a kept connection\n reads it to the end and reuses the connection."
           }
         },
         "title": "StreamLogsRequest",

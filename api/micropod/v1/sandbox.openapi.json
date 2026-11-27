@@ -250,6 +250,65 @@
         }
       }
     },
+    "/api/micropod.v1.SandboxService/GetSandboxStatus": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "GetSandboxStatus",
+        "description": "Whether sandboxes can boot with nothing from com.apple.container: the\n kernel and OCI store they use and where each came from (what\n `micropod sandbox status --json` prints).",
+        "operationId": "micropod.v1.SandboxService.GetSandboxStatus",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.SandboxStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.SandboxService/ListCheckpoints": {
       "post": {
         "tags": [
@@ -1938,6 +1997,26 @@
         "title": "SandboxCheckpoint",
         "additionalProperties": false
       },
+      "micropod.v1.SandboxKernelSource": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "string",
+            "title": "origin",
+            "description": "hvf or explicit."
+          },
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "sha256"
+          }
+        },
+        "title": "SandboxKernelSource",
+        "additionalProperties": false
+      },
       "micropod.v1.SandboxMount": {
         "type": "object",
         "properties": {
@@ -2161,6 +2240,59 @@
         ],
         "additionalProperties": false,
         "description": "One secret: its current value and the hosts that may receive it. The API\n never runs programs on the host: to use a minted, expiring credential\n (`gcloud auth print-access-token`, a GitHub App token), mint it on the\n caller's side \u2014 the SDKs do this for `command` secrets \u2014 and push each\n new value with SandboxService.UpdateSandboxSecret."
+      },
+      "micropod.v1.SandboxStatus": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "title": "root"
+          },
+          "kernelOrigin": {
+            "type": "string",
+            "title": "kernel_origin",
+            "description": "env, standalone, hvf, apple_container or missing."
+          },
+          "kernelPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "kernel_path"
+          },
+          "kernelSource": {
+            "title": "kernel_source",
+            "description": "What `sandbox setup` staged a standalone kernel from.",
+            "$ref": "#/components/schemas/micropod.v1.SandboxKernelSource"
+          },
+          "vminit": {
+            "type": "string",
+            "title": "vminit",
+            "description": "The digest-pinned vminit sandboxes boot."
+          },
+          "contentOrigin": {
+            "type": "string",
+            "title": "content_origin"
+          },
+          "contentPath": {
+            "type": "string",
+            "title": "content_path"
+          },
+          "initfsPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "initfs_paths"
+          },
+          "standaloneReady": {
+            "type": "boolean",
+            "title": "standalone_ready"
+          }
+        },
+        "title": "SandboxStatus",
+        "additionalProperties": false,
+        "description": "The sandbox engine's assets under its root (MICROPOD_SANDBOX_ROOT)."
       },
       "micropod.v1.SignalProcessRequest": {
         "type": "object",

@@ -485,6 +485,14 @@
             },
             "title": "variants",
             "description": "Per-platform variants of this image."
+          },
+          "runtime": {
+            "type": "string",
+            "examples": [
+              "hvf"
+            ],
+            "title": "runtime",
+            "description": "The engine that keeps this image when it is not Apple's (docker, ci,\n hvf); empty for Apple's runtime. Set by ListImages, which merges every\n enabled engine."
           }
         },
         "title": "Image",
@@ -605,6 +613,17 @@
             ],
             "title": "platform",
             "description": "Platform to pull, e.g. \"linux/arm64\". Defaults to the host platform."
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "hvf"
+            ],
+            "title": "runtime",
+            "description": "The engine to pull into (apple, docker, ci, hvf). Unset pulls into the\n default runtime."
           }
         },
         "title": "PullImageRequest",

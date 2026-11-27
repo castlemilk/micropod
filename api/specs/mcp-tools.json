@@ -1,35 +1,241 @@
 [
   {
-    "description": "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root).",
+    "description": "Content-addressed build contexts: entries, bytes, shared bytes, cap.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Cache root (default the standard one).",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "build_cache_stats"
   },
   {
-    "description": "Tear down a compose stack by its compose name. Arguments: name.",
+    "description": "Sample cross-scope Go build-cache duplication to quantify reclaimable bytes.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "buckets": {
+          "description": "Buckets to sample (default 16).",
+          "maximum": 256,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "name": "cache_dedupe"
+  },
+  {
+    "description": "Explain which caches attached or skipped (and why) for a container.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "cache_explain"
+  },
+  {
+    "description": "Show the active HVF machine dependency cache policy (sharedL0, goProxy, npmRegistry, tools, budget).",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "cache_policy"
+  },
+  {
+    "description": "Update HVF cache policy live. Only the settings given change; a call naming none writes nothing.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "default_scope": {
+          "description": "Scope for containers naming none; none attaches only to containers naming one.",
+          "type": "string"
+        },
+        "go_proxy": {
+          "description": "GOPROXY for containers, e.g. http://10.42.0.1:7677/go|direct; off or \"\" clears it.",
+          "type": "string"
+        },
+        "max_age_days": {
+          "description": "Janitor idle-age cap in days; 0 clears it.",
+          "maximum": 36500,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_bytes": {
+          "description": "Janitor byte ceiling, e.g. 50g; 0 clears it.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "mode": {
+          "description": "Attach caches to every container (auto) or none (off).",
+          "enum": [
+            "auto",
+            "off"
+          ],
+          "type": "string"
+        },
+        "npm_registry": {
+          "description": "npm registry URL for containers; off or \"\" clears it.",
+          "type": "string"
+        },
+        "shared_l0": {
+          "description": "Share verified downloads across scopes (fleet L0).",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "name": "cache_policy_set"
+  },
+  {
+    "description": "Lock-safe bounded LRU / partial Go-build cache eviction (never touches in-use stores). A dry run that reports what would be freed unless apply is true; an apply that names no scope, tool, max_bytes or older_than_secs evicts every idle unit and also needs all: true.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "description": "Confirm an apply with no selector: evict every idle unit in every scope.",
+          "type": "boolean"
+        },
+        "apply": {
+          "description": "Evict for real (default false: a dry run).",
+          "type": "boolean"
+        },
+        "dry_run": {
+          "description": "Report only (the default); contradicts apply: true.",
+          "type": "boolean"
+        },
+        "max_bytes": {
+          "description": "Evict least recently used units until the total is at most this size.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "older_than_secs": {
+          "description": "Evict units idle for longer than this (seconds, or e.g. 14d).",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "partial_go_build": {
+          "description": "Evict old Go build-cache files instead of whole units.",
+          "type": "boolean"
+        },
+        "scope": {
+          "description": "Only this cache scope.",
+          "type": "string"
+        },
+        "tool": {
+          "description": "Only this tool's caches (e.g. go, gobuild, npm).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "cache_prune"
+  },
+  {
+    "description": "Live HVF guest dependency cache inventory: total/L0/L1 usage, per-unit sizes, lock state, budget & eviction counts.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "cache_status"
+  },
+  {
+    "description": "Tear down a compose stack by its compose name.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Compose project name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
       "type": "object"
     },
     "name": "compose_down"
   },
   {
-    "description": "List containers belonging to a compose stack. Arguments: name.",
+    "description": "List containers belonging to a compose stack.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Compose project name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
       "type": "object"
     },
     "name": "compose_ps"
   },
   {
-    "description": "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list).",
+    "description": "Parse + run a docker-compose.yml.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Path to the compose file.",
+          "type": "string"
+        },
+        "profiles": {
+          "description": "Profiles to enable.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        }
+      },
+      "required": [
+        "path"
+      ],
       "type": "object"
     },
     "name": "compose_up"
   },
   {
-    "description": "Force-delete a container. Arguments: id.",
+    "description": "Force-delete a container.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "delete"
@@ -37,20 +243,47 @@
   {
     "description": "Disk usage: containers/images/volumes sizes + reclaimable bytes.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "df"
   },
   {
-    "description": "Run a command in a running container. Arguments: id (required), command (required).",
+    "description": "Run a command in a running container.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "description": "Shell command, run by /bin/sh -c.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "command"
+      ],
       "type": "object"
     },
     "name": "exec"
   },
   {
-    "description": "Pretty-printed container inspect JSON. Arguments: id.",
+    "description": "Pretty-printed container inspect JSON.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "inspect"
@@ -58,6 +291,8 @@
   {
     "description": "Disable the Kubernetes engine (a running cluster is left up).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "k8s_disable"
@@ -65,13 +300,46 @@
   {
     "description": "Remove the cluster VM and its state.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "k8s_down"
   },
   {
-    "description": "Enable the lightweight Kubernetes engine (opt-in). Optional args: image, memory, cpus, metallb (true|false), ingress (true|false), lb_pool (a.b.c.d-e.f.g.h), name.",
+    "description": "Enable the lightweight Kubernetes engine (opt-in).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "cpus": {
+          "description": "Cluster VM CPUs.",
+          "type": "number"
+        },
+        "image": {
+          "description": "k3s image.",
+          "type": "string"
+        },
+        "ingress": {
+          "description": "Install the ingress controller.",
+          "type": "boolean"
+        },
+        "lb_pool": {
+          "description": "MetalLB address pool, a.b.c.d-e.f.g.h.",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Cluster VM memory, e.g. 4G.",
+          "type": "string"
+        },
+        "metallb": {
+          "description": "Install MetalLB.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Cluster name.",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "k8s_enable"
@@ -79,6 +347,8 @@
   {
     "description": "List image refs present in the cluster's containerd (k8s.io namespace).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "k8s_images"
@@ -86,13 +356,26 @@
   {
     "description": "Return the host kubeconfig contents for the cluster.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "k8s_kubeconfig"
   },
   {
-    "description": "Push an image into the cluster's containerd via the host puller \u2014 bypasses the guest's slow NAT registry path. Args: `ref` (registry ref; uses the local image store first, pulls on miss) or `path` (local image-save tarball, no registry at all).",
+    "description": "Push an image into the cluster's containerd via the host puller \u2014 bypasses the guest's slow NAT registry path. Give `ref` or `path`.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Local image-save tarball (no registry at all).",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Registry ref; uses the local image store first, pulls on miss.",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "k8s_load_image"
@@ -100,20 +383,63 @@
   {
     "description": "Kubernetes engine state: enabled, cluster VM state, node Ready, kubeconfig path.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "k8s_status"
   },
   {
-    "description": "Create or resume the k3s cluster VM and wait for Ready. Streams progress; writes ~/.micropod/k8s/kubeconfig. Accepts the same optional args as k8s_enable.",
+    "description": "Create or resume the k3s cluster VM and wait for Ready. Streams progress; writes ~/.micropod/k8s/kubeconfig.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "cpus": {
+          "description": "Cluster VM CPUs.",
+          "type": "number"
+        },
+        "image": {
+          "description": "k3s image.",
+          "type": "string"
+        },
+        "ingress": {
+          "description": "Install the ingress controller.",
+          "type": "boolean"
+        },
+        "lb_pool": {
+          "description": "MetalLB address pool, a.b.c.d-e.f.g.h.",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Cluster VM memory, e.g. 4G.",
+          "type": "string"
+        },
+        "metallb": {
+          "description": "Install MetalLB.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Cluster name.",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "k8s_up"
   },
   {
-    "description": "Kill a container. Arguments: id.",
+    "description": "Kill a container.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "kill"
@@ -121,13 +447,17 @@
   {
     "description": "List all containers (id, state, image, IP) as tab-separated lines.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "list_containers"
   },
   {
-    "description": "List local images (name, id, size, variants).",
+    "description": "List local images (name, size, id). Images on other enabled engines (docker, the hvf machine) follow, tagged [runtime], when the Micropod API daemon runs.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "list_images"
@@ -135,6 +465,8 @@
   {
     "description": "List container machines \u2014 persistent VMs (e.g. keep-alive CI): id, state, IP, CPUs, memory.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "list_machines"
@@ -142,104 +474,449 @@
   {
     "description": "List networks (name, mode, subnet).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "list_networks"
   },
   {
-    "description": "List volumes (name, size, driver).",
+    "description": "List volumes (name, size, driver). Volumes on other enabled engines follow, tagged [runtime], when the Micropod API daemon runs.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "list_volumes"
   },
   {
-    "description": "Last 100 log lines of a container. Arguments: id.",
+    "description": "The last log lines of a container.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        },
+        "lines": {
+          "description": "How many lines (default 100).",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "logs"
   },
   {
-    "description": "Tail a machine's stdio log. Arguments: id (required), lines (optional, default 100), boot (true for the vminitd/kernel boot log).",
+    "description": "Tail a machine's stdio log.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "boot": {
+          "description": "The vminitd/kernel boot log instead.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "Machine name.",
+          "type": "string"
+        },
+        "lines": {
+          "description": "How many lines (default 100).",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "machine_logs"
   },
   {
-    "description": "Resource usage for running machines (CPU % of one core, memory, net, block I/O, pids) from each machine's backing container \u2014 never execs in the guest. Arguments: id (optional; default all running).",
+    "description": "Resource usage for running machines (CPU % of one core, memory, net, block I/O, pids) from each machine's backing container \u2014 never execs in the guest.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Machine name (default all running).",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "machine_stats"
   },
   {
-    "description": "Resource usage over time, as recorded by the Micropod app (10 s points for 3 h, 1 min for 48 h, 15 min for 30 days): per metric the peak, average and latest value plus a sparkline. Arguments: id (container id or machine name; empty for all containers), kind (system|container|machine; default container when id is set), range (e.g. 15m, 1h, 24h, 7d; default 1h).",
+    "description": "Resource usage over time, as recorded by the Micropod app (10 s points for 3 h, 1 min for 48 h, 15 min for 30 days): per metric the peak, average and latest value plus a sparkline.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or machine name; empty for all containers.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "What id names (default container when id is set).",
+          "enum": [
+            "system",
+            "container",
+            "machine"
+          ],
+          "type": "string"
+        },
+        "range": {
+          "description": "e.g. 15m, 1h, 24h, 7d (default 1h).",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "metrics_history"
   },
   {
-    "description": "Pull an image. Arguments: reference.",
+    "description": "Pull an image.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "description": "Image reference.",
+          "type": "string"
+        },
+        "runtime": {
+          "description": "apple | docker | ci | hvf; a non-apple runtime pulls through the Micropod API daemon.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference"
+      ],
       "type": "object"
     },
     "name": "pull"
   },
   {
-    "description": "Push an image. Arguments: reference.",
+    "description": "Push an image.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "description": "Image reference.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference"
+      ],
       "type": "object"
     },
     "name": "push"
   },
   {
-    "description": "Restart a container (stop then start). Arguments: id.",
+    "description": "Restart a container (stop then start).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "restart"
   },
   {
-    "description": "Run a container. Arguments: image (required), name (optional), memory (optional), command (optional, run by /bin/sh -c instead of the image's default command \u2014 e.g. `sleep infinity` keeps a sandbox up for exec), runtime (optional: apple | docker | sandbox; default is the configured engine).",
+    "description": "Combined rootless rig health: active mode, HVF machine status, cache disk & policy, staged payload updates, and local depproxy health.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "rig_health"
+  },
+  {
+    "description": "Run a container (detached).",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "description": "Run by /bin/sh -c instead of the image's default command \u2014 e.g. `sleep infinity` keeps a sandbox up for exec.",
+          "type": "string"
+        },
+        "image": {
+          "description": "Image reference.",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Memory limit, e.g. 512M.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Container name.",
+          "type": "string"
+        },
+        "runtime": {
+          "description": "apple | docker | sandbox | ci | hvf; ci is this account's persistent Linux CI worker (`micropod ci start`), hvf is the shared Linux machine, started on first run once installed with `micropod machine install`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "image"
+      ],
       "type": "object"
     },
     "name": "run"
   },
   {
-    "description": "Set the default engine for new containers. Arguments: name (apple|docker|sandbox).",
+    "description": "Manage Apple's dedicated runtime through Micropod's approved helper. Reports durable progress; disruptive actions require idle workloads and qualified rig coordination.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "description": "What to do.",
+          "enum": [
+            "install",
+            "repair",
+            "start",
+            "stop",
+            "restart",
+            "operation",
+            "cancel",
+            "recover"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    "name": "runtime_manage"
+  },
+  {
+    "description": "Show or switch Micropod execution mode: 'container' (fast shared HVF microVM) vs 'sandbox' (isolated 1-microVM-per-workload).",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "Switch to this mode (omit to show).",
+          "enum": [
+            "container",
+            "sandbox"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "runtime_mode"
+  },
+  {
+    "description": "Set the default engine for new containers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "apple | docker | sandbox | ci | hvf.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
       "type": "object"
     },
     "name": "runtime_set_default"
   },
   {
-    "description": "Enable/disable an engine or change its endpoint. Arguments: name (required), enabled (optional bool), endpoint (optional, docker only: unix:///path or tcp://host:port).",
+    "description": "Apple container dependency state, detected CLI version and setup/recovery action. Read-only; native readiness is unconfirmed without the native API probe.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "runtime_status"
+  },
+  {
+    "description": "Enable/disable an engine or change its endpoint.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "description": "Enable or disable the engine.",
+          "type": "boolean"
+        },
+        "endpoint": {
+          "description": "Docker only: unix:///path or tcp://host:port.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Engine name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
       "type": "object"
     },
     "name": "runtime_update"
   },
   {
-    "description": "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs): availability, enabled, default, capabilities. Needs the Micropod API daemon.",
+    "description": "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs, the CI worker, the shared hvf machine): availability, enabled, default, capabilities. Needs the Micropod API daemon.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "runtimes"
   },
   {
-    "description": "Run a setup command in a sandbox and keep its disk as a named checkpoint (only if it exits 0). Arguments: name (required), command (required), image or from, allow_net, timeout.",
+    "description": "Run a setup command in a sandbox and keep its disk as a named checkpoint (only if it exits 0).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_host_writes": {
+          "description": "Let :rw mounts write through to the host.",
+          "type": "boolean"
+        },
+        "allow_hosts": {
+          "description": "Hosts the guest may reach; restricts egress to them.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "allow_net": {
+          "description": "Give the guest network access (offline by default).",
+          "type": "boolean"
+        },
+        "command": {
+          "description": "Setup command, run by /bin/sh -c.",
+          "type": "string"
+        },
+        "cpus": {
+          "description": "Virtual CPUs.",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "env": {
+          "description": "KEY=VAL environment entries.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "expose_host": {
+          "description": "Host loopback ports the guest reaches as host.micropod.internal:PORT.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "from": {
+          "description": "A checkpoint to boot from instead of an image.",
+          "type": "string"
+        },
+        "image": {
+          "description": "Image to boot (default alpine).",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Memory in MiB.",
+          "maximum": 1048576,
+          "minimum": 64,
+          "type": "integer"
+        },
+        "mounts": {
+          "description": "host:/guest mounts (guest writes are discarded; host:/guest:rw needs allow_host_writes).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "name": {
+          "description": "Checkpoint name.",
+          "type": "string"
+        },
+        "ports": {
+          "description": "host:guest ports to publish.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "secrets": {
+          "description": "NAME=HOST_ENV@host: the guest sees a placeholder, the host proxy injects the real value on HTTPS to host.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "timeout": {
+          "description": "Kill the guest after this long (seconds, or e.g. 10m); it then exits 124.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "workdir": {
+          "description": "Working directory in the guest.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "command"
+      ],
       "type": "object"
     },
     "name": "sandbox_checkpoint_create"
   },
   {
-    "description": "Delete a sandbox checkpoint. Arguments: name.",
+    "description": "Delete a sandbox checkpoint.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Checkpoint name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
       "type": "object"
     },
     "name": "sandbox_checkpoint_delete"
@@ -247,20 +924,143 @@
   {
     "description": "List sandbox checkpoints (saved disks to boot from).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "sandbox_checkpoints"
   },
   {
-    "description": "Run a command in a fresh, disposable micro-VM (rootfs discarded on exit) and return its output and exit code. Offline unless allow_net. Arguments: command (required, run by /bin/sh -c), image (default alpine) or from (a checkpoint), cpus, memory (MiB), timeout (seconds), mounts (comma list host:/guest \u2014 guest writes are discarded; host:/guest:rw needs allow_host_writes), allow_net, allow_hosts (comma list; restricts egress), secrets (comma list NAME=HOST_ENV@host \u2014 the guest sees a placeholder, the host proxy injects the real value on HTTPS to host), env (comma list KEY=VAL), workdir, expose_host (comma list of host loopback ports the guest reaches as host.micropod.internal:PORT), ports (comma list host:guest to publish).",
+    "description": "Run a command in a fresh, disposable micro-VM (rootfs discarded on exit) and return its output and exit code. Offline unless allow_net.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_host_writes": {
+          "description": "Let :rw mounts write through to the host.",
+          "type": "boolean"
+        },
+        "allow_hosts": {
+          "description": "Hosts the guest may reach; restricts egress to them.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "allow_net": {
+          "description": "Give the guest network access (offline by default).",
+          "type": "boolean"
+        },
+        "command": {
+          "description": "Shell command, run by /bin/sh -c.",
+          "type": "string"
+        },
+        "cpus": {
+          "description": "Virtual CPUs.",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "env": {
+          "description": "KEY=VAL environment entries.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "expose_host": {
+          "description": "Host loopback ports the guest reaches as host.micropod.internal:PORT.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "from": {
+          "description": "A checkpoint to boot from instead of an image.",
+          "type": "string"
+        },
+        "image": {
+          "description": "Image to boot (default alpine).",
+          "type": "string"
+        },
+        "memory": {
+          "description": "Memory in MiB.",
+          "maximum": 1048576,
+          "minimum": 64,
+          "type": "integer"
+        },
+        "mounts": {
+          "description": "host:/guest mounts (guest writes are discarded; host:/guest:rw needs allow_host_writes).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "ports": {
+          "description": "host:guest ports to publish.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "secrets": {
+          "description": "NAME=HOST_ENV@host: the guest sees a placeholder, the host proxy injects the real value on HTTPS to host.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "timeout": {
+          "description": "Kill the guest after this long (seconds, or e.g. 10m); it then exits 124.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "workdir": {
+          "description": "Working directory in the guest.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "command"
+      ],
       "type": "object"
     },
     "name": "sandbox_run"
   },
   {
+    "description": "Show standalone sandbox VM readiness (cached vminitd/kernel without Apple container CLI).",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "sandbox_status"
+  },
+  {
     "description": "Remove unreferenced chunks from the shared cache.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "share_gc"
@@ -268,34 +1068,88 @@
   {
     "description": "List active synchronized file shares.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "share_list"
   },
   {
-    "description": "Expose a host directory as a synchronized file share. Arguments: src (required), readonly (optional), shared (optional live view).",
+    "description": "Expose a host directory as a synchronized file share.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "readonly": {
+          "description": "Read-only share.",
+          "type": "boolean"
+        },
+        "ro": {
+          "description": "Alias of readonly.",
+          "type": "boolean"
+        },
+        "shared": {
+          "description": "A live shared view instead of a copy.",
+          "type": "boolean"
+        },
+        "src": {
+          "description": "Host directory.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "src"
+      ],
       "type": "object"
     },
     "name": "share_mount"
   },
   {
-    "description": "Flush a shared view's writes back to its source. Arguments: id.",
+    "description": "Flush a shared view's writes back to its source.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Share id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "share_sync"
   },
   {
-    "description": "Remove a shared view. Arguments: id.",
+    "description": "Remove a shared view.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Share id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "share_unmount"
   },
   {
-    "description": "Start a container. Arguments: id.",
+    "description": "Start a container.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "start"
@@ -303,6 +1157,8 @@
   {
     "description": "Resource usage for all running containers (memory/CPU/net).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "stats"
@@ -310,13 +1166,25 @@
   {
     "description": "Runtime status: running/stopped + CLI + apiserver versions.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "status"
   },
   {
-    "description": "Stop a container. Arguments: id.",
+    "description": "Stop a container.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Container id or name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
       "type": "object"
     },
     "name": "stop"
@@ -324,6 +1192,8 @@
   {
     "description": "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "update_apply"
@@ -331,13 +1201,40 @@
   {
     "description": "Trigger a background app update check (Sparkle) via the Micropod app.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "update_check"
   },
   {
+    "description": "Return the HVF machine to its last known-good payload (probed after the restart). Deferred, as a tool error, while containers run or idleness cannot be confirmed, unless force is true.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "force": {
+          "description": "Restart onto known-good even while containers run (interrupts them).",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "name": "update_hvf_rollback"
+  },
+  {
+    "description": "Show active vs staged versioned HVF VMM/kernel/initrd/tools payload status and rollback history.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "update_hvf_status"
+  },
+  {
     "description": "Last-known app update state (checking/upToDate/updateAvailable/installing).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "update_status"
@@ -345,13 +1242,60 @@
   {
     "description": "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes).",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
       "type": "object"
     },
     "name": "volume_policy"
   },
   {
-    "description": "Update the volume-mount policy. Arguments: mode (labels|goldens|all), goldens (comma list), jobsOnly (true|false), sync (full|fsync|nosync|default), cache (on|off|auto). Only provided fields change.",
+    "description": "Update the volume-mount policy. Only provided fields change.",
     "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "cache": {
+          "description": "Volume cache mode.",
+          "enum": [
+            "on",
+            "off",
+            "auto"
+          ],
+          "type": "string"
+        },
+        "goldens": {
+          "description": "Golden volume names.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "string"
+          ]
+        },
+        "jobsOnly": {
+          "description": "Clone only for CI job containers.",
+          "type": "boolean"
+        },
+        "mode": {
+          "description": "Which volumes are cloned per container.",
+          "enum": [
+            "labels",
+            "goldens",
+            "all"
+          ],
+          "type": "string"
+        },
+        "sync": {
+          "description": "Volume sync mode.",
+          "enum": [
+            "full",
+            "fsync",
+            "nosync",
+            "default"
+          ],
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "name": "volume_policy_set"

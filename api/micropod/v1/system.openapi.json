@@ -132,6 +132,65 @@
         }
       }
     },
+    "/api/micropod.v1.SystemService/GetDiskUsage": {
+      "post": {
+        "tags": [
+          "micropod.v1.SystemService"
+        ],
+        "summary": "GetDiskUsage",
+        "description": "Apple's runtime disk usage (`container system df`): containers, images\n and volumes with reclaimable bytes. `unavailable` while it is stopped.",
+        "operationId": "micropod.v1.SystemService.GetDiskUsage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.DiskUsage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.SystemService/GetMetricsHistory": {
       "post": {
         "tags": [
@@ -184,6 +243,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/micropod.v1.MetricsHistory"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SystemService/GetRuntimeDependency": {
+      "post": {
+        "tags": [
+          "micropod.v1.SystemService"
+        ],
+        "summary": "GetRuntimeDependency",
+        "description": "Apple's container runtime as a dependency (GET /v1/system/dependency):\n whether the CLI is installed and qualified, whether its service runs,\n whether the native API answers, and what to do next. Never starts it.",
+        "operationId": "micropod.v1.SystemService.GetRuntimeDependency",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.RuntimeDependency"
                 }
               }
             }
@@ -1196,6 +1314,14 @@
             },
             "title": "variants",
             "description": "Per-platform variants of this image."
+          },
+          "runtime": {
+            "type": "string",
+            "examples": [
+              "hvf"
+            ],
+            "title": "runtime",
+            "description": "The engine that keeps this image when it is not Apple's (docker, ci,\n hvf); empty for Apple's runtime. Set by ListImages, which merges every\n enabled engine."
           }
         },
         "title": "Image",
@@ -1342,6 +1468,27 @@
           "blockWriteBytesPerSecond": {
             "type": "number",
             "title": "block_write_bytes_per_second",
+            "format": "double"
+          },
+          "networkRxBytesPerSecondMax": {
+            "type": "number",
+            "title": "network_rx_bytes_per_second_max",
+            "format": "double",
+            "description": "The same rates' highest sample within the point."
+          },
+          "networkTxBytesPerSecondMax": {
+            "type": "number",
+            "title": "network_tx_bytes_per_second_max",
+            "format": "double"
+          },
+          "blockReadBytesPerSecondMax": {
+            "type": "number",
+            "title": "block_read_bytes_per_second_max",
+            "format": "double"
+          },
+          "blockWriteBytesPerSecondMax": {
+            "type": "number",
+            "title": "block_write_bytes_per_second_max",
             "format": "double"
           }
         },
@@ -1539,6 +1686,64 @@
         "title": "RegistryLogin",
         "additionalProperties": false,
         "description": "A registry login, mapped from `container registry list`."
+      },
+      "micropod.v1.RuntimeDependency": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "state",
+            "description": "checking, unsupportedHost, missingCLI, stopped, starting, stopping,\n nativeReady, cliFallback, unsupportedVersion, apiUnavailable or degraded."
+          },
+          "cliPath": {
+            "type": "string",
+            "title": "cli_path"
+          },
+          "cliVersion": {
+            "type": "string",
+            "title": "cli_version"
+          },
+          "cliVersionSupported": {
+            "type": "boolean",
+            "title": "cli_version_supported"
+          },
+          "apiServerVersion": {
+            "type": "string",
+            "title": "api_server_version"
+          },
+          "backend": {
+            "type": "string",
+            "title": "backend",
+            "description": "The backend the API uses for Apple's runtime (native or cli)."
+          },
+          "runtimeInstallRoot": {
+            "type": "string",
+            "title": "runtime_install_root"
+          },
+          "maintenanceBlocked": {
+            "type": "boolean",
+            "title": "maintenance_blocked"
+          },
+          "message": {
+            "type": "string",
+            "title": "message"
+          },
+          "nextAction": {
+            "type": "string",
+            "title": "next_action"
+          },
+          "installerUrl": {
+            "type": "string",
+            "title": "installer_url"
+          },
+          "status": {
+            "title": "status",
+            "description": "The service status the CLI reported; unset when it could not be read.",
+            "$ref": "#/components/schemas/micropod.v1.SystemStatus"
+          }
+        },
+        "title": "RuntimeDependency",
+        "additionalProperties": false
       },
       "micropod.v1.RuntimeInfo": {
         "type": "object",
