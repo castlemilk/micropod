@@ -94,8 +94,10 @@ export MICROPOD_HVF_ROOT="$ROOT"
 export MICROPOD_RUNTIMES_CONFIG="$TMP/runtimes.json"
 export MICROPOD_INSTALL_ORIGIN=fresh
 export MICROPOD_CLI="$M"
+# The canonical link lives in the throwaway directory, so linking it is
+# allowed and safe (setup's start links it as `machine start` does).
 export MICROPOD_DOCKER_SOCK="$BASE/canonical-docker.sock"
-export MICROPOD_LINK_DOCKER_SOCK=0
+unset MICROPOD_LINK_DOCKER_SOCK
 export MICROPOD_API_SOCK=off
 # Nothing listens here: a `micropod status` never reaches the user's API.
 export MICROPOD_API_PORT=$((API_PORT + 9))
@@ -231,6 +233,8 @@ contains "[4/5] the machine started" "$SETUP" "[4/5] start           running (en
 contains "[5/5] hvf is the default" "$SETUP" "[5/5] default runtime hvf"
 contains "next: the docker context and autostart" "$SETUP" "next: micropod docker install --use    micropod machine autostart on"
 check "nothing was downloaded" "$(grep -c 'pulling' "$TMP/setup.log" || true)" "0"
+check "the start linked the canonical socket, as machine start does" \
+    "$(readlink "$MICROPOD_DOCKER_SOCK" 2>/dev/null || echo none)" "$ROOT/run/docker.sock"
 "$M" run --name mpfr-hello "$IMAGE" echo first-run-ok >/dev/null 2>"$TMP/run.err" || cat "$TMP/run.err"
 for _ in $(seq 1 40); do
     [ "$("$M" logs mpfr-hello 2>/dev/null)" = first-run-ok ] && break
@@ -288,6 +292,8 @@ check "SetupMachine steps" "$(field '[s["id"] + "=" + s["state"] for s in d["ste
     "['runtime-files=done', 'disk=done', 'cache-disk=done', 'start=done', 'default-runtime=done']"
 check "the API's machine runs" "$(field 'd["machine"]["readiness"]')" "running"
 check "the API's machine is the second root" "$(field 'd["machine"]["root"]')" "$ROOT2"
+check "SetupMachine's start linked the canonical socket (the first machine is stopped)" \
+    "$(readlink "$MICROPOD_DOCKER_SOCK" 2>/dev/null || echo none)" "$ROOT2/run/docker.sock"
 REPLY=$(curl -s -m 60 --unix-socket "$BASE/api.sock" -H 'Content-Type: application/json' \
     -d "{\"payloadPath\": \"$PKG\"}" "http://x/api/micropod.v1.RigService/SetupMachine")
 check "a second SetupMachine keeps it" "$(field '[s["state"] for s in d["steps"]][:4]')" "['kept', 'kept', 'kept', 'kept']"

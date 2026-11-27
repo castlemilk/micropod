@@ -399,8 +399,10 @@ final class HVFMachineReadinessTests: XCTestCase {
     }
 
     /// Only `machine start`/`restart` and the explicit starts like them (the
-    /// API's ControlMachine start, `machine serve --link-socket`, which the
-    /// autostart LaunchAgent runs), through the policy above, and an explicit
+    /// API's ControlMachine start and SetupMachine's start step, `micropod
+    /// setup`'s start step through `MachineCommands.autoLink`, `machine serve
+    /// --link-socket`, which the autostart LaunchAgent runs), through the
+    /// policy above, and an explicit
     /// link-socket (CLI or API) reach the link: install, payload activation,
     /// rollback and on-demand starts have no path to it.
     func testOnlyStartRestartAndLinkSocketReachTheCanonicalLink() throws {
@@ -424,8 +426,10 @@ final class HVFMachineReadinessTests: XCTestCase {
                 // `machine start` and `machine restart`, through autoLink, and
                 // `machine serve --link-socket` once the machine is ready.
                 "MachineCommands.swift autoLinkCanonicalDockerSocket(": 2,
-                // ControlMachine start (the app's Start button).
-                "RigMount.swift autoLinkCanonicalDockerSocket(": 1,
+                // ControlMachine start (the app's Start button), and
+                // SetupMachine when its start step booted the machine (the
+                // app's "Set Up Machine").
+                "RigMount.swift autoLinkCanonicalDockerSocket(": 2,
                 // POST /v1/rig/hvf/link-socket.
                 "APIHandlers.swift linkCanonicalDockerSocket(": 1,
             ])

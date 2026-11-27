@@ -169,6 +169,11 @@ enum SetupCommands {
             case .finished(let step): out(line(step, total: total))
             }
         }
+        if steps.contains(where: { $0.id == .start && $0.state == .done }) {
+            // An explicit start, as `machine start`: the canonical socket
+            // follows it under the same rules (a note says when it does not).
+            MachineCommands.autoLink(HVFMachineClient(layout: bootstrap.layout, environment: environment))
+        }
         var failed = steps.first { $0.state == .failed }
         var extra: [Extra] = []
         if failed == nil {
