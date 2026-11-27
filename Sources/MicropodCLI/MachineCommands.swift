@@ -293,7 +293,10 @@ enum MachineCommands {
         let cachesLine = cachesLine(capabilities, policy: policy)
         let buildLine = dockerBuildLine(capabilities, fallbackInstalled: fallbackInstalled)
         let hostPorts = HVFHostPortStatus(config: config, state: status.state, supervisorAlive: status.supervisorAlive)
-        let diskFlush = HVFDiskFlushStatus(config: config, state: status.state, supervisorAlive: status.supervisorAlive)
+        // machine.json read on its own: a file that does not load refuses
+        // the next start, and the line says so instead of the defaults.
+        let diskFlush = HVFDiskFlushStatus.current(
+            layout: client.layout, state: status.state, supervisorAlive: status.supervisorAlive)
         let cacheDisk = await client.cacheDiskObservation()
         if json {
             let report = StatusReport(

@@ -147,6 +147,8 @@ public actor HVFMachineSupervisor {
     let launcher: any HVFVMMLaunching
     let inspector: any HVFProcessInspecting
     let readiness: @Sendable (URL) async -> Bool
+    /// Whether the VMM binary takes `--disk-flush-os` (`HVFVMMFeatures`).
+    let osDiskFlushSupport: @Sendable (URL) -> HVFVMMFlagSupport
     let log: @Sendable (String) -> Void
     let pid: Int32
 
@@ -188,8 +190,9 @@ public actor HVFMachineSupervisor {
     public init(
         layout: HVFMachineLayout, config: HVFMachineConfig, policy: HVFSupervisorPolicy = HVFSupervisorPolicy(),
         launcher: any HVFVMMLaunching, inspector: any HVFProcessInspecting = HVFDarwinProcessInspector(),
-        readiness: @escaping @Sendable (URL) async -> Bool, log: @escaping @Sendable (String) -> Void,
-        pid: Int32 = getpid()
+        readiness: @escaping @Sendable (URL) async -> Bool,
+        osDiskFlushSupport: @escaping @Sendable (URL) -> HVFVMMFlagSupport = { HVFVMMFeatures.osDiskFlush(vmm: $0) },
+        log: @escaping @Sendable (String) -> Void, pid: Int32 = getpid()
     ) {
         self.layout = layout
         self.config = config
@@ -197,6 +200,7 @@ public actor HVFMachineSupervisor {
         self.launcher = launcher
         self.inspector = inspector
         self.readiness = readiness
+        self.osDiskFlushSupport = osDiskFlushSupport
         self.log = log
         self.pid = pid
         let (events, continuation) = AsyncStream.makeStream(of: Event.self)
@@ -391,15 +395,25 @@ public actor HVFMachineSupervisor {
             // changed it since this supervisor started).
             let policy = try HVFMachineCachePolicy.writeGuestFile(layout: layout, fallback: config)
             log("cache policy: \(policy.summary) (\(layout.cachePolicyFile.path))")
-            let command = try Self.launchCommand(layout: layout, payload: payload, config: config, parentPID: pid)
+            // Asked before every launch (the answer is kept per binary): a
+            // VMM that predates --disk-flush-os exits 2 on it, and a first
+            // launch that fails on its command line is not relaunched.
+            let diskFlush = HVFDiskFlushPlan(
+                config: config,
+                support: config.osDiskFlush == nil ? .supported : osDiskFlushSupport(payload.vmm),
+                payload: payload.id)
+            let command = try Self.launchCommand(
+                layout: layout, payload: payload, config: config, parentPID: pid,
+                osDiskFlushFlag: diskFlush.passesOSDiskFlag)
             let hostPorts = HVFHostPortAllowlist(config: config)
             log("host ports open to the guest: \(hostPorts.description)")
             for refusal in hostPorts.refused { log(refusal.message) }
-            let diskFlush = HVFDiskFlush(config: config)
-            if diskFlush != HVFDiskFlush() { log("disk flush: \(diskFlush.description)") }
+            if let notInEffect = diskFlush.notInEffect { log("WARNING: \(notInEffect)") }
+            if diskFlush.flush != HVFDiskFlush() { log("disk flush: \(diskFlush.flush.description)") }
             process = try launcher.launch(executable: command.executable, arguments: command.arguments)
             state.allowHostPorts = hostPorts.ports
-            state.diskFlush = diskFlush
+            state.diskFlush = diskFlush.flush
+            state.diskFlushNotInEffect = diskFlush.notInEffect
         } catch {
             continuation.yield(.exited(generation: g, HVFVMMExit(launchError: error.localizedDescription)))
             return
@@ -443,11 +457,14 @@ public actor HVFMachineSupervisor {
 
     /// The executable and argv of one launch: every asset from `payload`.
     static func launchCommand(
-        layout: HVFMachineLayout, payload: HVFMachinePayload, config: HVFMachineConfig, parentPID: Int32
+        layout: HVFMachineLayout, payload: HVFMachinePayload, config: HVFMachineConfig, parentPID: Int32,
+        osDiskFlushFlag: Bool = true
     ) throws -> (executable: URL, arguments: [String]) {
         (
             payload.vmm,
-            try HVFVMMCommand.arguments(layout: layout, payload: payload, config: config, parentPID: parentPID)
+            try HVFVMMCommand.arguments(
+                layout: layout, payload: payload, config: config, parentPID: parentPID,
+                osDiskFlushFlag: osDiskFlushFlag)
         )
     }
 

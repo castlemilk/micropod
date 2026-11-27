@@ -450,6 +450,15 @@ it buys, measured on an 8 vCPU machine (create+start of `alpine true`, p50 of 40
 the modes (`disk flush:`, `diskFlush` in `--json`): what the running VMM was launched with and, after an edit, what
 the next start uses.
 
+`machine.json` outlives a payload, and a micropod-vmm built before `--disk-flush-os` exits 2 on it. So before each
+launch the supervisor asks the payload's own binary (`micropod-vmm --help`, which names every flag; the answer is kept
+per file). A VMM that does not name the flag, after `micropod update hvf rollback` to an older payload say, or one
+that does not answer, is started without it: the OS disk keeps the ordering both disks have (barrier unless
+`extraArguments` carry `--disk-flush`), the supervisor log has a `WARNING: osDiskFlush fsync is not in effect: …`
+line, and `machine status` says the same after the modes (`notInEffect` in `--json`, beside `configured`, what
+`machine.json` asks for). An `osDiskFlush` that is not a mode refuses the next start, and the line says that instead
+(`nextStartRefused`; `nextStart` is then absent).
+
 Stock `docker build` with `DOCKER_HOST=$(micropod machine docker-endpoint)` works when the engine serves BuildKit on
 its Docker socket (`machine status` says `docker build: ready (docker socket)`). For an older engine,
 `micropod machine builder install` adds a docker context `micropod` on the machine's Docker socket and a remote
