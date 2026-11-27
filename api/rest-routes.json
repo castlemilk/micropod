@@ -96,6 +96,11 @@
   },
   {
     "method": "GET",
+    "path": "/v1/rig",
+    "description": ""
+  },
+  {
+    "method": "GET",
     "path": "/v1/usage",
     "description": "Disk usage report (containers, images, volumes)."
   },

@@ -191,6 +191,65 @@
         }
       }
     },
+    "/api/micropod.v1.RigService/GetMachineCapacity": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "GetMachineCapacity",
+        "description": "What the hvf machine has, what is in use, how hard it is being pushed\n and how many more containers it can take now: the figures a scheduler\n admits work by. One request to the guest engine, which answers from its\n own counters and a once-a-second sample of the kernel's (no subprocess,\n no listing); the Mac's memory pressure is read in this process. Never\n boots anything: unavailable while the machine does not serve.",
+        "operationId": "micropod.v1.RigService.GetMachineCapacity",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.MachineCapacity"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.RigService/GetMachineStatus": {
       "post": {
         "tags": [
@@ -1228,6 +1287,486 @@
         "title": "HVFUpdateStatus",
         "additionalProperties": false
       },
+      "micropod.v1.MachineCapacity": {
+        "type": "object",
+        "properties": {
+          "sampledUnixMs": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "sampled_unix_ms",
+            "format": "int64",
+            "description": "When the guest sampled its kernel figures (Unix milliseconds). The\n container counts and the engine's own counters are of the request."
+          },
+          "cpus": {
+            "type": "integer",
+            "title": "cpus",
+            "description": "What the machine has."
+          },
+          "memoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "pidMax": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "pid_max",
+            "format": "int64",
+            "description": "The most tasks (processes and threads) the guest kernel runs at once."
+          },
+          "maxContainers": {
+            "type": "integer",
+            "title": "max_containers",
+            "description": "The most containers running at once the headroom is counted against."
+          },
+          "familyContainersMax": {
+            "type": "integer",
+            "title": "family_containers_max",
+            "description": "The most containers one delegated Docker socket may hold at once."
+          },
+          "relayConnectionsMax": {
+            "type": "integer",
+            "title": "relay_connections_max",
+            "description": "The most gateway relay connections (published ports reached from\n containers) the engine holds at once."
+          },
+          "usage": {
+            "title": "usage",
+            "$ref": "#/components/schemas/micropod.v1.MachineUsage"
+          },
+          "containers": {
+            "title": "containers",
+            "$ref": "#/components/schemas/micropod.v1.MachineContainers"
+          },
+          "engine": {
+            "title": "engine",
+            "$ref": "#/components/schemas/micropod.v1.MachineEngineLoad"
+          },
+          "pressure": {
+            "title": "pressure",
+            "$ref": "#/components/schemas/micropod.v1.MachinePressure"
+          },
+          "osDisk": {
+            "title": "os_disk",
+            "$ref": "#/components/schemas/micropod.v1.MachineDisk"
+          },
+          "cacheDisk": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/micropod.v1.MachineDisk"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "cache_disk",
+            "description": "Unset when the machine has no cache disk."
+          },
+          "headroom": {
+            "title": "headroom",
+            "$ref": "#/components/schemas/micropod.v1.MachineHeadroom"
+          },
+          "host": {
+            "title": "host",
+            "$ref": "#/components/schemas/micropod.v1.MachineHost"
+          }
+        },
+        "title": "MachineCapacity",
+        "additionalProperties": false,
+        "description": "The hvf machine's capacity, load and headroom (GetMachineCapacity)."
+      },
+      "micropod.v1.MachineContainers": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "total"
+          },
+          "running": {
+            "type": "integer",
+            "title": "running"
+          },
+          "starting": {
+            "type": "integer",
+            "title": "starting"
+          },
+          "created": {
+            "type": "integer",
+            "title": "created"
+          },
+          "exited": {
+            "type": "integer",
+            "title": "exited"
+          },
+          "requestedMilliCpu": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "requested_milli_cpu",
+            "format": "int64",
+            "description": "The CPU limits (thousandths of a CPU) and memory limits of the running\n and starting containers, summed; without_cpu_limit counts those with no\n CPU limit, which the sum leaves out, as it does a memory limit of the\n whole machine."
+          },
+          "requestedMemoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "requested_memory_bytes",
+            "format": "int64"
+          },
+          "withoutCpuLimit": {
+            "type": "integer",
+            "title": "without_cpu_limit"
+          },
+          "families": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.MachineFamily"
+            },
+            "title": "families",
+            "description": "By family, the largest first, at most 64 rows (the rest summed as\n \"(other)\"). A family is a delegated Docker socket's owner and what it\n created, named by the owner's io.micropod.family label or its name; or\n every container the host created with the same io.micropod.family\n label; \"\" is what the host created without one."
+          }
+        },
+        "title": "MachineContainers",
+        "additionalProperties": false
+      },
+      "micropod.v1.MachineDisk": {
+        "type": "object",
+        "properties": {
+          "totalBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_bytes",
+            "format": "int64"
+          },
+          "freeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "free_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "MachineDisk",
+        "additionalProperties": false
+      },
+      "micropod.v1.MachineEngineLoad": {
+        "type": "object",
+        "properties": {
+          "createsInFlight": {
+            "type": "integer",
+            "title": "creates_in_flight"
+          },
+          "startsInFlight": {
+            "type": "integer",
+            "title": "starts_in_flight"
+          },
+          "startP50Ms": {
+            "type": "integer",
+            "title": "start_p50_ms",
+            "description": "Over the latest starts_sampled starts (256 at most): from the start\n request to the container's process running, in milliseconds."
+          },
+          "startP95Ms": {
+            "type": "integer",
+            "title": "start_p95_ms"
+          },
+          "startsSampled": {
+            "type": "integer",
+            "title": "starts_sampled"
+          }
+        },
+        "title": "MachineEngineLoad",
+        "additionalProperties": false
+      },
+      "micropod.v1.MachineFamily": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "running": {
+            "type": "integer",
+            "title": "running"
+          },
+          "total": {
+            "type": "integer",
+            "title": "total"
+          },
+          "requestedMilliCpu": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "requested_milli_cpu",
+            "format": "int64"
+          },
+          "requestedMemoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "requested_memory_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "MachineFamily",
+        "additionalProperties": false
+      },
+      "micropod.v1.MachineHeadroom": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "type": "integer",
+            "title": "containers"
+          },
+          "underPressure": {
+            "type": "boolean",
+            "title": "under_pressure"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "reasons",
+            "description": "Why it is under pressure; empty when it is not."
+          },
+          "limitedBy": {
+            "type": "string",
+            "title": "limited_by",
+            "description": "The resource containers is the smallest for: cpu, memory, tasks,\n containers, os-disk, cache-disk, pressure or host-memory."
+          },
+          "unitCpu": {
+            "type": "number",
+            "title": "unit_cpu",
+            "format": "double"
+          },
+          "unitMemoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "unit_memory_bytes",
+            "format": "int64"
+          },
+          "byCpu": {
+            "type": "integer",
+            "title": "by_cpu"
+          },
+          "byMemory": {
+            "type": "integer",
+            "title": "by_memory"
+          },
+          "byTasks": {
+            "type": "integer",
+            "title": "by_tasks"
+          },
+          "byContainers": {
+            "type": "integer",
+            "title": "by_containers"
+          }
+        },
+        "title": "MachineHeadroom",
+        "additionalProperties": false,
+        "description": "How many more typical containers the machine can take now.\n\n The unit is one typical container: what the running ones use on average\n (busy CPUs / running, used memory / running), held to 0.25..2 CPUs and\n 256 MiB..4 GiB; 0.5 CPU and 512 MiB when nothing runs.\n\n   by_cpu        = (cpus * 0.90 - busy CPUs) / unit_cpu\n   by_memory     = (memory available - max(5% of memory, 1 GiB)) / unit_memory_bytes\n   by_tasks      = (pid_max * 0.80 - tasks) / 64\n   by_containers = max_containers - containers running or starting\n   containers    = max(0, the smallest of the four)\n\n and 0 under pressure: memory PSI some avg10 >= 10 or full avg10 >= 2, CPU\n PSI some avg10 >= 80, IO PSI full avg10 >= 25, less memory available than\n the reserve, a disk with less than max(5%, 2 GiB) free, a start-latency\n p95 of 10 s or more, or the Mac itself under memory pressure (warning or\n critical). CPU and memory are counted on what is used, not on the limits\n containers were given: a limit is a ceiling, and the pressure terms catch\n a machine whose promised memory is being used after all."
+      },
+      "micropod.v1.MachineHost": {
+        "type": "object",
+        "properties": {
+          "cpus": {
+            "type": "integer",
+            "title": "cpus"
+          },
+          "memoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "memoryAvailableBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_available_bytes",
+            "format": "int64",
+            "description": "Free, inactive, speculative and purgeable memory."
+          },
+          "memoryPressure": {
+            "type": "string",
+            "title": "memory_pressure",
+            "description": "normal, warning or critical (the kernel's memory pressure level); empty\n when it could not be read."
+          },
+          "load1": {
+            "type": "number",
+            "title": "load1",
+            "format": "double"
+          }
+        },
+        "title": "MachineHost",
+        "additionalProperties": false,
+        "description": "The Mac the machine runs on, read by the API process."
+      },
+      "micropod.v1.MachinePressure": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "available"
+          },
+          "cpu": {
+            "title": "cpu",
+            "$ref": "#/components/schemas/micropod.v1.PressureResource"
+          },
+          "memory": {
+            "title": "memory",
+            "$ref": "#/components/schemas/micropod.v1.PressureResource"
+          },
+          "io": {
+            "title": "io",
+            "$ref": "#/components/schemas/micropod.v1.PressureResource"
+          }
+        },
+        "title": "MachinePressure",
+        "additionalProperties": false,
+        "description": "The guest kernel's pressure stall information: the percentage of the last\n 10, 60 and 300 seconds in which some, or all, tasks were stalled on a\n resource. available is false on a kernel without it."
+      },
+      "micropod.v1.MachineUsage": {
+        "type": "object",
+        "properties": {
+          "cpuBusyFraction": {
+            "type": "number",
+            "title": "cpu_busy_fraction",
+            "format": "double",
+            "description": "The share of all CPUs busy over the second before the sample (0..1),\n and the same as a number of CPUs."
+          },
+          "cpuBusyCpus": {
+            "type": "number",
+            "title": "cpu_busy_cpus",
+            "format": "double"
+          },
+          "load1": {
+            "type": "number",
+            "title": "load1",
+            "format": "double"
+          },
+          "load5": {
+            "type": "number",
+            "title": "load5",
+            "format": "double"
+          },
+          "load15": {
+            "type": "number",
+            "title": "load15",
+            "format": "double"
+          },
+          "runnable": {
+            "type": "integer",
+            "title": "runnable",
+            "description": "Tasks runnable now, and all tasks."
+          },
+          "tasks": {
+            "type": "integer",
+            "title": "tasks"
+          },
+          "memoryAvailableBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_available_bytes",
+            "format": "int64"
+          },
+          "memoryUsedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_used_bytes",
+            "format": "int64"
+          },
+          "swapUsedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "swap_used_bytes",
+            "format": "int64"
+          },
+          "openFiles": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "open_files",
+            "format": "int64"
+          },
+          "conntrackEntries": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "conntrack_entries",
+            "format": "int64"
+          },
+          "relayConnections": {
+            "type": "integer",
+            "title": "relay_connections"
+          }
+        },
+        "title": "MachineUsage",
+        "additionalProperties": false
+      },
+      "micropod.v1.PressureAverages": {
+        "type": "object",
+        "properties": {
+          "avg10": {
+            "type": "number",
+            "title": "avg10",
+            "format": "double"
+          },
+          "avg60": {
+            "type": "number",
+            "title": "avg60",
+            "format": "double"
+          },
+          "avg300": {
+            "type": "number",
+            "title": "avg300",
+            "format": "double"
+          }
+        },
+        "title": "PressureAverages",
+        "additionalProperties": false
+      },
+      "micropod.v1.PressureResource": {
+        "type": "object",
+        "properties": {
+          "some": {
+            "title": "some",
+            "$ref": "#/components/schemas/micropod.v1.PressureAverages"
+          },
+          "full": {
+            "title": "full",
+            "$ref": "#/components/schemas/micropod.v1.PressureAverages"
+          }
+        },
+        "title": "PressureResource",
+        "additionalProperties": false
+      },
       "micropod.v1.RigCacheDisk": {
         "type": "object",
         "properties": {
@@ -1345,6 +1884,16 @@
             "type": "integer",
             "title": "tool_count",
             "format": "int32"
+          },
+          "dockerSocket": {
+            "type": "string",
+            "title": "docker_socket",
+            "description": "trusted or any: which containers may be given a Docker socket\n (CachePolicy.docker_socket as the guest applies it)."
+          },
+          "defaultLimits": {
+            "type": "string",
+            "title": "default_limits",
+            "description": "job or none: what a container naming no limit gets\n (CachePolicy.default_limits as the guest applies it)."
           }
         },
         "title": "RigCachePolicySummary",

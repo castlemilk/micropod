@@ -912,6 +912,22 @@
             "title": "extra",
             "description": "Keys this server does not know, kept in machine.json and passed to the\n guest unchanged.",
             "$ref": "#/components/schemas/google.protobuf.Struct"
+          },
+          "dockerSocket": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "docker_socket",
+            "description": "Which containers may be given the machine's Docker API by binding\n /var/run/docker.sock: trusted (only a trusted container) or any (a\n container of any tier; a shared-engine rig). Unset is trusted."
+          },
+          "defaultLimits": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "default_limits",
+            "description": "What a container that names no CPU, memory or process limit gets: job\n (1 CPU, 1 GiB, 512 processes) or none (no CPU quota, the machine's\n memory, 65536 processes). Unset is job."
           }
         },
         "title": "CachePolicy",
@@ -1799,6 +1815,30 @@
             ],
             "title": "min_free_bytes",
             "format": "int64"
+          },
+          "dockerSocket": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "docker_socket",
+            "enum": [
+              "trusted",
+              "any"
+            ],
+            "description": "trusted or any. Changed only on the owner's private socket: a call over\n loopback TCP that names it is refused (permission_denied)."
+          },
+          "defaultLimits": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "default_limits",
+            "enum": [
+              "job",
+              "none"
+            ],
+            "description": "job or none. Changed only on the owner's private socket, like\n docker_socket."
           }
         },
         "title": "SetCachePolicyRequest",

@@ -1196,6 +1196,50 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.MachineCapacity"><span class="badge">M</span>MachineCapacity</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineContainers"><span class="badge">M</span>MachineContainers</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineDisk"><span class="badge">M</span>MachineDisk</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineEngineLoad"><span class="badge">M</span>MachineEngineLoad</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineFamily"><span class="badge">M</span>MachineFamily</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineHeadroom"><span class="badge">M</span>MachineHeadroom</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineHost"><span class="badge">M</span>MachineHost</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachinePressure"><span class="badge">M</span>MachinePressure</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineUsage"><span class="badge">M</span>MachineUsage</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.PressureAverages"><span class="badge">M</span>PressureAverages</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.PressureResource"><span class="badge">M</span>PressureResource</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.RigCacheDisk"><span class="badge">M</span>RigCacheDisk</a>
                 </li>
               
@@ -8549,6 +8593,24 @@ Fails with `not_found` when no container has that ID.</p></td>
 guest unchanged. </p></td>
                 </tr>
               
+                <tr>
+                  <td>docker_socket</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Which containers may be given the machine&#39;s Docker API by binding
+/var/run/docker.sock: trusted (only a trusted container) or any (a
+container of any tier; a shared-engine rig). Unset is trusted. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>default_limits</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>What a container that names no CPU, memory or process limit gets: job
+(1 CPU, 1 GiB, 512 processes) or none (no CPU quota, the machine&#39;s
+memory, 65536 processes). Unset is job. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
@@ -9660,6 +9722,22 @@ be positive. </p></td>
                   <td><a href="#uint64">uint64</a></td>
                   <td>optional</td>
                   <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>docker_socket</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>trusted or any. Changed only on the owner&#39;s private socket: a call over
+loopback TCP that names it is refused (permission_denied). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>default_limits</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>job or none. Changed only on the owner&#39;s private socket, like
+docker_socket. </p></td>
                 </tr>
               
             </tbody>
@@ -12340,6 +12418,717 @@ back as errors, deferred as `failed_precondition`. </p></td>
 
         
       
+        <h3 id="micropod.v1.MachineCapacity">MachineCapacity</h3>
+        <p>The hvf machine's capacity, load and headroom (GetMachineCapacity).</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>sampled_unix_ms</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>When the guest sampled its kernel figures (Unix milliseconds). The
+container counts and the engine&#39;s own counters are of the request. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>What the machine has. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pid_max</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>The most tasks (processes and threads) the guest kernel runs at once. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>max_containers</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>The most containers running at once the headroom is counted against. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>family_containers_max</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>The most containers one delegated Docker socket may hold at once. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>relay_connections_max</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>The most gateway relay connections (published ports reached from
+containers) the engine holds at once. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>usage</td>
+                  <td><a href="#micropod.v1.MachineUsage">MachineUsage</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containers</td>
+                  <td><a href="#micropod.v1.MachineContainers">MachineContainers</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>engine</td>
+                  <td><a href="#micropod.v1.MachineEngineLoad">MachineEngineLoad</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pressure</td>
+                  <td><a href="#micropod.v1.MachinePressure">MachinePressure</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>os_disk</td>
+                  <td><a href="#micropod.v1.MachineDisk">MachineDisk</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cache_disk</td>
+                  <td><a href="#micropod.v1.MachineDisk">MachineDisk</a></td>
+                  <td>optional</td>
+                  <td><p>Unset when the machine has no cache disk. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>headroom</td>
+                  <td><a href="#micropod.v1.MachineHeadroom">MachineHeadroom</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>host</td>
+                  <td><a href="#micropod.v1.MachineHost">MachineHost</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineContainers">MachineContainers</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>total</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>running</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>starting</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exited</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>requested_milli_cpu</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>The CPU limits (thousandths of a CPU) and memory limits of the running
+and starting containers, summed; without_cpu_limit counts those with no
+CPU limit, which the sum leaves out, as it does a memory limit of the
+whole machine. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>requested_memory_bytes</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>without_cpu_limit</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>families</td>
+                  <td><a href="#micropod.v1.MachineFamily">MachineFamily</a></td>
+                  <td>repeated</td>
+                  <td><p>By family, the largest first, at most 64 rows (the rest summed as
+&#34;(other)&#34;). A family is a delegated Docker socket&#39;s owner and what it
+created, named by the owner&#39;s io.micropod.family label or its name; or
+every container the host created with the same io.micropod.family
+label; &#34;&#34; is what the host created without one. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineDisk">MachineDisk</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>total_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>free_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineEngineLoad">MachineEngineLoad</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>creates_in_flight</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>starts_in_flight</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>start_p50_ms</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Over the latest starts_sampled starts (256 at most): from the start
+request to the container&#39;s process running, in milliseconds. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>start_p95_ms</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>starts_sampled</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineFamily">MachineFamily</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>running</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>total</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>requested_milli_cpu</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>requested_memory_bytes</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineHeadroom">MachineHeadroom</h3>
+        <p>How many more typical containers the machine can take now.</p><p>The unit is one typical container: what the running ones use on average</p><p>(busy CPUs / running, used memory / running), held to 0.25..2 CPUs and</p><p>256 MiB..4 GiB; 0.5 CPU and 512 MiB when nothing runs.</p><p>by_cpu        = (cpus * 0.90 - busy CPUs) / unit_cpu</p><p>by_memory     = (memory available - max(5% of memory, 1 GiB)) / unit_memory_bytes</p><p>by_tasks      = (pid_max * 0.80 - tasks) / 64</p><p>by_containers = max_containers - containers running or starting</p><p>containers    = max(0, the smallest of the four)</p><p>and 0 under pressure: memory PSI some avg10 >= 10 or full avg10 >= 2, CPU</p><p>PSI some avg10 >= 80, IO PSI full avg10 >= 25, less memory available than</p><p>the reserve, a disk with less than max(5%, 2 GiB) free, a start-latency</p><p>p95 of 10 s or more, or the Mac itself under memory pressure (warning or</p><p>critical). CPU and memory are counted on what is used, not on the limits</p><p>containers were given: a limit is a ceiling, and the pressure terms catch</p><p>a machine whose promised memory is being used after all.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>containers</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>under_pressure</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>reasons</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Why it is under pressure; empty when it is not. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>limited_by</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The resource containers is the smallest for: cpu, memory, tasks,
+containers, os-disk, cache-disk, pressure or host-memory. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>unit_cpu</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>unit_memory_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>by_cpu</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>by_memory</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>by_tasks</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>by_containers</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineHost">MachineHost</h3>
+        <p>The Mac the machine runs on, read by the API process.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_available_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Free, inactive, speculative and purgeable memory. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_pressure</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>normal, warning or critical (the kernel&#39;s memory pressure level); empty
+when it could not be read. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>load1</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachinePressure">MachinePressure</h3>
+        <p>The guest kernel's pressure stall information: the percentage of the last</p><p>10, 60 and 300 seconds in which some, or all, tasks were stalled on a</p><p>resource. available is false on a kernel without it.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>available</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu</td>
+                  <td><a href="#micropod.v1.PressureResource">PressureResource</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#micropod.v1.PressureResource">PressureResource</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>io</td>
+                  <td><a href="#micropod.v1.PressureResource">PressureResource</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineUsage">MachineUsage</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>cpu_busy_fraction</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>The share of all CPUs busy over the second before the sample (0..1),
+and the same as a number of CPUs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu_busy_cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>load1</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>load5</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>load15</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>runnable</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Tasks runnable now, and all tasks. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tasks</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_available_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_used_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>swap_used_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>open_files</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>conntrack_entries</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>relay_connections</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.PressureAverages">PressureAverages</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>avg10</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>avg60</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>avg300</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.PressureResource">PressureResource</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>some</td>
+                  <td><a href="#micropod.v1.PressureAverages">PressureAverages</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>full</td>
+                  <td><a href="#micropod.v1.PressureAverages">PressureAverages</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.RigCacheDisk">RigCacheDisk</h3>
         <p>The cache disk as rig health reports it: the guest's account when it</p><p>answered, else why it is unknown.</p>
 
@@ -12491,6 +13280,22 @@ back as errors, deferred as `failed_precondition`. </p></td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
                   <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>docker_socket</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>trusted or any: which containers may be given a Docker socket
+(CachePolicy.docker_socket as the guest applies it). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>default_limits</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>job or none: what a container naming no limit gets
+(CachePolicy.default_limits as the guest applies it). </p></td>
                 </tr>
               
             </tbody>
@@ -13010,6 +13815,18 @@ deferred like ApplyHVFUpdate.</p></td>
 published state, and its autostart LaunchAgent. Never boots anything;
 while it runs, the guest is asked for its engine version, its
 containers and its cache disk (one second each).</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetMachineCapacity</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.MachineCapacity">MachineCapacity</a></td>
+                <td><p>What the hvf machine has, what is in use, how hard it is being pushed
+and how many more containers it can take now: the figures a scheduler
+admits work by. One request to the guest engine, which answers from its
+own counters and a once-a-second sample of the kernel&#39;s (no subprocess,
+no listing); the Mac&#39;s memory pressure is read in this process. Never
+boots anything: unavailable while the machine does not serve.</p></td>
               </tr>
             
               <tr>
