@@ -145,8 +145,8 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 	case path == "volumes" || strings.HasPrefix(path, "volumes/"):
 		return s.volumes(w, r, strings.TrimPrefix(path, "volumes"))
 	case path == "containers/create" && method == "POST":
-		if p := r.URL.Query().Get("platform"); p != "" && p != "linux/arm64" && p != "linux/arm64/v8" {
-			return fail(400, "only linux/arm64 images are supported")
+		if err := checkEnginePlatform(r.URL.Query().Get("platform")); err != nil {
+			return err
 		}
 		b, err := readBody(w, r)
 		if err != nil {
@@ -596,8 +596,8 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		if ref == "" {
 			return fail(400, "fromImage is required")
 		}
-		if p := q.Get("platform"); p != "" && p != "linux/arm64" && p != "linux/arm64/v8" {
-			return fail(400, "unsupported platform")
+		if err := checkEnginePlatform(q.Get("platform")); err != nil {
+			return err
 		}
 		if tag != "" {
 			if strings.HasPrefix(tag, "sha256:") {
@@ -615,7 +615,7 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		defer s.imageMu.RUnlock()
 		_, err = s.node.images.PullImage(r.Context(), &cri.PullImageRequest{Image: &cri.ImageSpec{Image: ref}, Auth: auth})
 		if err != nil {
-			return err
+			return pullPlatformError(ref, err)
 		}
 		// The unpacked files are on the disk before the pull answers
 		// (image_durability_linux.go).
