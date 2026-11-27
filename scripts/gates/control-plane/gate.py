@@ -461,9 +461,11 @@ def bench(case, mode, args, env=None, timeout=3600):
 
 
 def unary(case, rpc, transport, codec, *, containers=None, n=None, warmup=20, conc=1, id_=None,
-          expect_prefix=None, expect_count=None, env=None, target_us=None, source=None, table=True):
+          expect_prefix=None, expect_count=None, env=None, target_us=None, source=None, table=True, http="1"):
     args = ["-target", target(transport), "-codec", codec, "-rpc", rpc, "-n", str(n or SAMPLES),
             "-warmup", str(warmup), "-concurrency", str(conc)]
+    if http != "1":
+        args += ["-http", http]
     if id_:
         args += ["-id", id_]
     if expect_prefix:
@@ -473,7 +475,7 @@ def unary(case, rpc, transport, codec, *, containers=None, n=None, warmup=20, co
     if table:
         st = res.get("stats") or {}
         TABLE.append({
-            "case": case, "rpc": rpc, "containers": containers, "transport": transport, "codec": codec,
+            "case": case, "rpc": rpc, "containers": containers, "transport": transport, "codec": codec, "http": http,
             "codecUsed": res.get("codecUsed"), "concurrency": conc, "n": st.get("n", 0), "errors": res.get("errors"),
             "p50Us": st.get("p50Us"), "p95Us": st.get("p95Us"), "p99Us": st.get("p99Us"), "maxUs": st.get("maxUs"),
             "firstCallUs": res.get("firstCallUs"), "callsPerSecond": res.get("callsPerSecond"),
@@ -878,6 +880,21 @@ def section_L_at8(prefix):
            "http1": probe.get("httpVersion"), "connectionHeader": probe.get("connectionHeader")},
           "a PingResponse", ok=bool((probe.get("grpcH2c") or {}).get("status")), ev="bench/probe-unix.json",
           source=SRC_H2)
+    # The same gate RPCs over HTTP/2: Connect (binary) over h2c and gRPC, on
+    # both transports, 8 containers listed. Metrics only (latency.tsv and
+    # result.json "http2"): the plan sets no HTTP/2 target.
+    h2 = {}
+    for transport in ("unix", "tcp"):
+        for http, codec, label in (("2", "proto", "h2-connect"), ("2", "grpc", "grpc")):
+            for rpc in ("Ping", "ListContainers", "GetCacheStatus"):
+                case = f"{label}-{transport}-{rpc}"
+                listing = rpc == "ListContainers"
+                r = unary(case, rpc, transport, codec, containers=8, http=http,
+                          expect_prefix=prefix if listing else None, expect_count=8 if listing else None)
+                h2[case] = {"stats": r.get("stats"), "errors": r.get("errors"), "dials": r.get("dials"),
+                            "contentTypes": r.get("contentTypes"), "error": r.get("error"),
+                            "everySampleMatched": r.get("everySampleMatched") if listing else None}
+    METRICS["http2"] = h2
 
     # The cold first call: one fresh API per RPC, the call right after it accepts.
     cold = {}
@@ -1850,7 +1867,7 @@ def attribute_children():
 def write_table():
     attribute_children()
     cols = ["case", "rpc", "containers", "transport", "codec", "concurrency", "n", "errors", "p50Us", "p95Us", "p99Us",
-            "maxUs", "firstCallUs", "dials", "requests", "apiChildrenPerCall", "targetP95Us"]
+            "maxUs", "firstCallUs", "dials", "requests", "apiChildrenPerCall", "targetP95Us", "http"]
     with open(RECEIPT / "latency.tsv", "w") as f:
         f.write("\t".join(cols) + "\n")
         for r in TABLE:
