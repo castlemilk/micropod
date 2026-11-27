@@ -110,6 +110,10 @@ A runner that runs as a macOS process uses the machine's own socket (`DOCKER_HOS
 
 `cache-to`/`cache-from` `type=gha` and `type=registry` are BuildKit's own and reach their service from the machine, not from the job's network. They are not exercised by the gate.
 
+### linux/amd64 jobs
+
+A job pinned to `linux/amd64`, which is how the control plane sends GitHub-compatibility Linux jobs, runs through x86-64 emulation when the payload's tool bundle ships `runner/emulators/qemu-x86_64` ([amd64-emulation.md](amd64-emulation.md)). `docker pull --platform linux/amd64` and `docker create --platform linux/amd64` then work for the job image, and its steps' own `docker` commands with no platform still get linux/arm64 images. The engine's `/version` lists `platform-linux-amd64` among `MicropodCapabilities` while emulation is on. A scheduler can gate a job kind that asks for linux/amd64 (Cuttlefish's `docker-in-vm`) on that capability. Expect such a job's CPU-bound steps to take 5 to 15 times as long as on the job's linux/arm64 form. `micropod machine install --amd64 off` turns emulation off at the next boot, and the capability goes with it.
+
 ## Limits that scale with the machine
 
 The guest raises these at boot, since each one stops containers well before CPU or memory does:
