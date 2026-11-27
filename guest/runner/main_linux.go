@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -360,6 +361,9 @@ func (n node) removeOwnedPod(ctx context.Context, id, sandboxID string) error {
 		}
 	}
 	dir := filepath.Join(dataRoot, "jobs", id)
+	if _, err := os.Lstat(dir); errors.Is(err, os.ErrNotExist) {
+		return nil // nothing is mounted there (a pod removeOrphanPods found)
+	}
 	if err := syscall.Unmount(dir, 0); err != nil && !errors.Is(err, syscall.EINVAL) && !errors.Is(err, syscall.ENOENT) {
 		return err
 	}
@@ -376,10 +380,7 @@ func (n node) recover(ctx context.Context) error {
 		return err
 	}
 	dirs, err := os.ReadDir(filepath.Join(dataRoot, "jobs"))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	for _, d := range dirs {
@@ -389,7 +390,37 @@ func (n node) recover(ctx context.Context) error {
 			}
 		}
 	}
+	if err := n.removeOrphanPods(ctx); err != nil {
+		return err
+	}
 	return os.RemoveAll(readyDir)
+}
+
+// removeOrphanPods retires the scheduler's pods that have no job directory.
+// newPod makes the directory, the pod's ownership record, without a sync, and
+// CRI's commit of the pod can reach the disk before it: a crash then left a
+// sandbox no recovery found. Recovery retires every owned pod anyway, so one
+// is recognised by what newPod gives it alone (its owner label naming a job
+// ID that is also its UID, in the scheduler's namespace); any other CRI
+// client's pod is left alone.
+func (n node) removeOrphanPods(ctx context.Context) error {
+	pods, err := n.runtime.ListPodSandbox(ctx, &cri.ListPodSandboxRequest{})
+	if err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for _, p := range pods.GetItems() {
+		id := p.GetLabels()[owner]
+		if !jobID.MatchString(id) || p.GetMetadata().GetUid() != id || p.GetMetadata().GetNamespace() != "micropod-ci" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		log.Printf("recovery: removing pod %s of job %s, which has no job directory", p.GetId(), id)
+		if err := n.remove(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func kataPrerequisites() error {
