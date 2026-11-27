@@ -273,7 +273,7 @@ func runHostControlLoop(poweroffCh chan<- struct{}) {
 		}
 		backoff = 10 * time.Millisecond
 		_ = processCtrlStream(fdRW{fd: vfd}, ctrlHandlers{
-			clock: setRealtimeClock,
+			clock: syncRealtimeClock,
 			poweroff: func() {
 				select {
 				case poweroffCh <- struct{}{}:

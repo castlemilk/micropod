@@ -1,6 +1,34 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+// A host clock reading behind the guest's by less than maxBackwardSlew is
+// slewed, never stepped: the guest's realtime clock does not go back in
+// ordinary running. Forward corrections and real backward changes step.
+func TestBackwardSlew(t *testing.T) {
+	const now = 1_800_000_000 * int64(time.Second)
+	for _, test := range []struct {
+		name   string
+		target int64
+		back   time.Duration
+		slew   bool
+	}{
+		{"host ahead: step forward", now + int64(450*time.Microsecond), 0, false},
+		{"host far ahead (a wake from sleep): step forward", now + int64(time.Hour), 0, false},
+		{"equal: nothing to lose", now, 0, true},
+		{"guest 450 us ahead: slew", now - int64(450*time.Microsecond), 450 * time.Microsecond, true},
+		{"guest 499 ms ahead: slew", now - int64(499*time.Millisecond), 499 * time.Millisecond, true},
+		{"the host's clock was set back 500 ms: step", now - int64(500*time.Millisecond), 0, false},
+		{"the host's clock was set back an hour: step", now - int64(time.Hour), 0, false},
+	} {
+		if back, slew := backwardSlew(now, test.target); back != test.back || slew != test.slew {
+			t.Errorf("%s: backwardSlew = %v, %v; want %v, %v", test.name, back, slew, test.back, test.slew)
+		}
+	}
+}
 
 func TestParseBootRealtime(t *testing.T) {
 	const stamp = 1_770_000_000_123_456_789
