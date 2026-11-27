@@ -120,11 +120,24 @@ final class ContainerExecutableLocatorTests: XCTestCase {
         XCTAssertEqual(explicit.path, "/opt/explicit/container", "the live environment, not a snapshot")
         XCTAssertNil(LiveEnvironment.value("MICROPOD_CONTAINER_CLI_PATH"))
 
-        let clock = ContinuousClock()
-        let started = clock.now
-        for _ in 0..<2000 { _ = ContainerExecutableLocator.resolve() }
-        let elapsed = clock.now - started
-        // ~60 ms with the dictionary, a few ms without it.
-        XCTAssertLessThan(elapsed, .milliseconds(25), "2000 resolutions took \(elapsed)")
+        // Cost is compared with the dictionary it replaced, in this process,
+        // rather than with a wall-clock bound: an unqualified `resolve()`
+        // also walks PATH and reads the rig configuration when no CLI is
+        // installed (a hosted CI runner), which no bound for this Mac fits.
+        // With an explicit path both sides return before any of that, so
+        // the difference is the environment alone.
+        setenv("MICROPOD_CONTAINER_CLI_PATH", "/opt/explicit/container", 1)
+        defer { unsetenv("MICROPOD_CONTAINER_CLI_PATH") }
+        func fastest(_ body: () -> URL) -> Duration {
+            let clock = ContinuousClock()
+            return (0..<7).map { _ in
+                clock.measure { for _ in 0..<500 { XCTAssertEqual(body().path, "/opt/explicit/container") } }
+            }.min()!
+        }
+        let dictionary = fastest {
+            ContainerExecutableLocator.resolve(environment: ProcessInfo.processInfo.environment)
+        }
+        let live = fastest { ContainerExecutableLocator.resolve() }
+        XCTAssertLessThan(live * 2, dictionary, "500 live resolutions took \(live), \(dictionary) with the dictionary")
     }
 }
