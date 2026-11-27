@@ -97,9 +97,12 @@ service unpacks an image of any Linux architecture. So
   registry. Registry host configuration is read from the same directory CRI uses
   (`/etc/containerd/certs.d`).
 - **The tag.** A tag that already names a native image keeps it, so `docker run
-  TAG` and `docker pull TAG` still mean linux/arm64. A tag that names nothing yet
-  is pointed at the amd64 image, as Docker does when amd64 is the only platform
-  present. A tag that names an earlier amd64 image moves to the new one.
+  TAG` and `docker pull TAG` still mean linux/arm64. A native image here means an
+  index whose arm64 manifest is in the store, or an arm64 manifest. A tag that
+  names nothing yet is pointed at the amd64 image, as Docker does when amd64 is
+  the only platform present. So is a tag that names an earlier amd64 image, or
+  an index with no arm64 image here: a failed no-platform pull of an amd64-only
+  image leaves such a record, and CRI cannot resolve it.
 - `docker create`/`run --platform linux/amd64 REF` looks up the amd64 image for
   REF: the image last pulled by that tag for linux/amd64, the amd64 entry of the
   index the tag names, or the image pulled from that index digest. A reference
