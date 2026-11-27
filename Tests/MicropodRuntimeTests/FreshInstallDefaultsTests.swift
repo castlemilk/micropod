@@ -104,6 +104,19 @@ final class FreshInstallDefaultsTests: XCTestCase {
         XCTAssertEqual(registry(["MICROPOD_LEGACY_APPLE": "1"]).defaultName, "hvf", "enabled, not the default")
     }
 
+    func testMakingHvfTheDefaultWithNoMachineNamesSetup() async throws {
+        try write(.existing)
+        let reg = registry()
+        do {
+            try await reg.setDefault("hvf", apple: apple())
+            XCTFail("no machine")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "failed_precondition")
+            XCTAssertTrue(error.localizedDescription.contains("run `micropod setup`"), "\(error)")
+        }
+        XCTAssertEqual(reg.defaultName, "apple", "nothing changed")
+    }
+
     func testTheEnvironmentDefaultStillWins() throws {
         try write(.fresh)
         let reg = registry(["MICROPOD_DEFAULT_RUNTIME": "apple"])

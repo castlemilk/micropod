@@ -81,15 +81,20 @@ Example tools/call (JSON-RPC over stdin/stdout):
 ## Runtimes (execution engines)
 
 Five engines sit behind the same API: `apple` (micro-VM per container, the
-default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
+default of an existing install; opt-in on a fresh one, where `hvf` is the
+default: `micropod runtime ls` says which, `micropod runtime enable apple`
+turns it on), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
 in-process micro-VM; fastest boot; tcp ports and bind mounts, no named
 volumes, not restartable), `ci` (opt-in: this account's one persistent Linux
 CI worker for trusted jobs — `micropod ci start|endpoint|status|stop` — whose
 Docker engine, BuildKit and named volumes stay warm between jobs), and `hvf`
 (opt-in: one shared Linux machine on micropod's Hypervisor.framework VMM,
 OrbStack-style — containerd + crun behind a Docker API; named volumes, retained containers and logs survive a
-machine restart). `hvf` is `available` once `micropod machine install` has
-put its assets in `MICROPOD_HVF_ROOT` (default `~/.micropod/hvf`); the first
+machine restart). `hvf` is `available` once `micropod setup` (runtime files
+and base disk from the app bundle or `--payload`, the disk from `--disk-from`;
+only `--disk-image` downloads; `--dry-run` shows the steps) or `micropod
+machine install` has put its assets in `MICROPOD_HVF_ROOT` (default
+`~/.micropod/hvf`); a run with no machine says to run `micropod setup`; the first
 `run`/`create`/`start` boots the machine (~2 s), reads never do (a stopped
 machine lists no containers). While it is stopped its containers still route
 to `hvf`: `start`/`restart` of one boots the machine, any other call on one
