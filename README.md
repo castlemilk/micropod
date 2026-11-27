@@ -703,10 +703,14 @@ is the `Host` the guard reads (a `host` field that disagrees is a `400`), and
 appear once. gRPC statuses are the Connect error codes the handlers return
 (`not_found` → `NOT_FOUND`, …), refusals included: a foreign `:authority` is
 `PERMISSION_DENIED`, a closed runtime admission `UNAVAILABLE`, a method no
-service declares `UNIMPLEMENTED` (answered from the headers alone). Bounds
+service declares `UNIMPLEMENTED` (answered from the headers alone), a gRPC
+head the server refuses outright (a repeated `content-type`, a scheme that is
+not `http`) `INVALID_ARGUMENT`. Bounds
 (`Sources/MicropodAPI/HTTP2/HTTP2Limits.swift`): 100 concurrent streams and
-100 handlers in flight per connection (a stream the client resets still holds
-its handler until it settles; mutations are never cut half way), 64 KiB of
+100 handlers in flight per connection, 256 per listener (a stream the client
+resets still holds its handler until it returns; mutations are never cut half
+way; a handler that has answered holds no place while a slow client takes the
+answer, up to 4 MiB of unsent answers per connection), 64 KiB of
 headers (once the client acknowledged the server's SETTINGS), 64 MiB per
 request body, 128 MiB buffered per connection, NIO's flood limits
 (CONTINUATION, RST_STREAM rapid reset, empty DATA, PING/SETTINGS at 6000 per
@@ -714,6 +718,10 @@ request body, 128 MiB buffered per connection, NIO's flood limits
 (RST_STREAM CANCEL), a 120 s write-stall deadline, GOAWAY after
 `MICROPOD_API_KEEPALIVE_IDLE_MS` without a stream, and at most 64 HTTP/2
 connections per listener, each holding one of the 256 kept-connection places.
+A health `Watch` does not count as a stream there: a connection with nothing
+but Watches on it gets the idle GOAWAY, and the client watches again on its
+next connection. A client that ends its side after its requests (`nc -N`) is
+answered, then gets GOAWAY and the close.
 
 ```bash
 # REST and Connect over h2c
