@@ -53,6 +53,14 @@ func (b *buildkitService) setLifetime(ctx context.Context) {
 	b.mu.Unlock()
 }
 
+// running reports whether this engine has started buildkitd and it has not
+// exited.
+func (b *buildkitService) running() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.cmd != nil
+}
+
 // dial starts buildkitd if it is not running and connects to its socket. ctx
 // bounds only the wait for the socket; buildkitd itself outlives it.
 func (b *buildkitService) dial(ctx context.Context) (*net.UnixConn, error) {

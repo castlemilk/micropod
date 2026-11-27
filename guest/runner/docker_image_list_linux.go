@@ -6,12 +6,15 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	images "github.com/containerd/containerd/api/services/images/v1"
 	"github.com/containerd/containerd/api/types"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
@@ -72,6 +75,32 @@ func dockerImageLabelFilters(raw string) ([]string, error) {
 type dockerImageLabelResult struct {
 	labels  map[string]string
 	present bool
+	// config is what the same read says of the image's creation and layers.
+	config dockerImageConfig
+}
+
+// dockerImageConfigSpec is the part of CRI's verbose image status (the
+// image's OCI config, as `docker image inspect` decodes it) that listings use.
+type dockerImageConfigSpec struct {
+	ImageSpec *struct {
+		Created *time.Time `json:"created"`
+		Config  *struct{ Labels map[string]string }
+		RootFS  ocispec.RootFS `json:"rootfs"`
+	} `json:"imageSpec"`
+}
+
+func (spec dockerImageConfigSpec) config() dockerImageConfig {
+	var c dockerImageConfig
+	if spec.ImageSpec == nil {
+		return c
+	}
+	if created := spec.ImageSpec.Created; created != nil && !created.IsZero() && created.Unix() > 0 {
+		c.created = created.Unix()
+	}
+	for _, chain := range identity.ChainIDs(slices.Clone(spec.ImageSpec.RootFS.DiffIDs)) {
+		c.chains = append(c.chains, chain.String())
+	}
+	return c
 }
 
 func (n node) dockerImageListLabels(ctx context.Context, id string) (dockerImageLabelResult, error) {
@@ -82,19 +111,85 @@ func (n node) dockerImageListLabels(ctx context.Context, id string) (dockerImage
 	if err != nil || status.GetImage() == nil {
 		return dockerImageLabelResult{}, err
 	}
-	var details struct {
-		ImageSpec *struct {
-			Config *struct{ Labels map[string]string }
-		}
-	}
+	var details dockerImageConfigSpec
 	if json.Unmarshal([]byte(status.GetInfo()["info"]), &details) != nil ||
 		details.ImageSpec == nil {
 		return dockerImageLabelResult{}, fail(http.StatusServiceUnavailable, "runtime image labels could not be verified")
 	}
-	if details.ImageSpec.Config == nil {
-		return dockerImageLabelResult{present: true}, nil
+	result := dockerImageLabelResult{present: true, config: details.config()}
+	if details.ImageSpec.Config != nil {
+		result.labels = details.ImageSpec.Config.Labels
 	}
-	return dockerImageLabelResult{labels: details.ImageSpec.Config.Labels, present: true}, nil
+	return result, nil
+}
+
+// dockerImageConfig is what an image's config says of its creation time and
+// layers. An image ID is the digest of that config, so neither ever changes
+// for an ID.
+type dockerImageConfig struct {
+	created int64    // Unix seconds; 0 when the config records no time
+	chains  []string // the layers' chain IDs (their snapshot keys), base first
+}
+
+// dockerImageConfigCache keeps dockerImageConfig per image ID, so a listing
+// reads only the configs of images it has not seen before (one verbose CRI
+// status each) and the steady state costs no runtime call per image.
+type dockerImageConfigCache struct {
+	mu      sync.Mutex
+	configs map[string]dockerImageConfig
+}
+
+func (c *dockerImageConfigCache) store(id string, config dockerImageConfig) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.configs == nil {
+		c.configs = make(map[string]dockerImageConfig)
+	}
+	c.configs[id] = config
+}
+
+// dockerImageConfigs returns the config facts of every image in ids, reading
+// the ones not yet known, and forgets IDs no longer listed (ids is a whole
+// listing). An image whose config cannot be read now is left out, not
+// remembered: the next listing tries again.
+func (s *dockerEngine) dockerImageConfigs(ctx context.Context, ids []string) map[string]dockerImageConfig {
+	out := make(map[string]dockerImageConfig, len(ids))
+	listed := make(map[string]bool, len(ids))
+	var missing []string
+	s.imageConfigs.mu.Lock()
+	for _, id := range ids {
+		if listed[id] {
+			continue
+		}
+		listed[id] = true
+		if config, ok := s.imageConfigs.configs[id]; ok {
+			out[id] = config
+		} else {
+			missing = append(missing, id)
+		}
+	}
+	for id := range s.imageConfigs.configs {
+		if !listed[id] {
+			delete(s.imageConfigs.configs, id)
+		}
+	}
+	s.imageConfigs.mu.Unlock()
+	for _, id := range missing {
+		if !fullDockerImageID(id) {
+			continue
+		}
+		status, err := s.node.dockerConfigImageStatus(ctx, id, true)
+		if err != nil || status.GetImage() == nil {
+			continue
+		}
+		var details dockerImageConfigSpec
+		if json.Unmarshal([]byte(status.GetInfo()["info"]), &details) != nil || details.ImageSpec == nil {
+			continue
+		}
+		out[id] = details.config()
+		s.imageConfigs.store(id, out[id])
+	}
+	return out
 }
 
 func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, summary func(*cri.Image) map[string]any) error {
@@ -119,8 +214,18 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 	}
 	list := make([]map[string]any, 0, len(rows))
 	if len(predicates) == 0 {
+		// Created is the config's time, as Docker reports it: what an
+		// age-based groom (`docker image prune --filter until=…`, a
+		// runner's own sweep) sorts by. 0 when the config records none.
+		ids := make([]string, 0, len(rows))
 		for _, image := range rows {
-			list = append(list, summary(image))
+			ids = append(ids, image.GetId())
+		}
+		configs := s.dockerImageConfigs(ctx, ids)
+		for _, image := range rows {
+			row := summary(image)
+			row["Created"] = configs[image.GetId()].created
+			list = append(list, row)
 		}
 		writeJSON(w, http.StatusOK, list)
 		return nil
@@ -138,10 +243,12 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 				return err
 			}
 			checked[id] = result
+			s.imageConfigs.store(id, result.config)
 		}
 		if result.present && matchesLabels(result.labels, predicates) {
 			row := summary(image)
 			row["Labels"] = result.labels
+			row["Created"] = result.config.created
 			list = append(list, row)
 		}
 	}

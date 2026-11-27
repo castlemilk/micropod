@@ -259,6 +259,19 @@ type dockerContainerListRow struct {
 	created         time.Time
 }
 
+// containerListRowLocked is c's row in GET /containers/json (and, with its
+// sizes, in /system/df). Call with s.mu held.
+func (s *dockerEngine) containerListRowLocked(c *dockerContainer) dockerContainerListRow {
+	status := c.dockerStatus()
+	return dockerContainerListRow{
+		ID: c.ID, Names: []string{"/" + c.Name}, Image: c.Config.Image, ImageID: c.ImageID,
+		Command: strings.Join(append(append([]string{}, c.Config.Entrypoint...), c.Config.Cmd...), " "),
+		Created: c.Created.Unix(), State: status, Status: status, Labels: c.Config.Labels,
+		Ports: c.effectivePorts().summary(), Mounts: []any{}, created: c.Created,
+		NetworkSettings: dockerNetworkSettings{Networks: s.dockerContainerNetworks(c)},
+	}
+}
+
 func (s *dockerEngine) list(w http.ResponseWriter, r *http.Request) error {
 	q := r.URL.Query()
 	filters, err := dockerFilterValues(q.Get("filters"), []string{"name", "ancestor", "network"},
@@ -306,14 +319,7 @@ func (s *dockerEngine) list(w http.ResponseWriter, r *http.Request) error {
 			match = match && anyMatch
 		}
 		if match {
-			status := c.dockerStatus()
-			list = append(list, dockerContainerListRow{
-				ID: c.ID, Names: []string{"/" + c.Name}, Image: c.Config.Image, ImageID: c.ImageID,
-				Command: strings.Join(append(append([]string{}, c.Config.Entrypoint...), c.Config.Cmd...), " "),
-				Created: c.Created.Unix(), State: status, Status: status, Labels: c.Config.Labels,
-				Ports: c.effectivePorts().summary(), Mounts: []any{}, created: c.Created,
-				NetworkSettings: dockerNetworkSettings{Networks: s.dockerContainerNetworks(c)},
-			})
+			list = append(list, s.containerListRowLocked(c))
 		}
 	}
 	s.mu.Unlock()

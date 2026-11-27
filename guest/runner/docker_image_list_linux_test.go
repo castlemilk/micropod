@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -152,10 +153,9 @@ func TestDockerImageListV147LabelFilters(t *testing.T) {
 					t.Fatalf("bad summary fields: %+v", row)
 				}
 			}
+			// Each config is read once: for its labels, or (unfiltered) for
+			// its creation time, which later listings remember.
 			statusCalls := len(cri.list)
-			if tc.fast {
-				statusCalls = 0
-			}
 			if !slices.Equal(tags, tc.tags) || cri.lists != 1 || cri.catalog.lists != 1 || len(cri.requests) != statusCalls {
 				t.Fatalf("rows %v, want %v; %d CRI lists, %d catalog lists and %v status calls",
 					tags, tc.tags, cri.lists, cri.catalog.lists, cri.requests)
@@ -322,8 +322,9 @@ func TestDockerImageListReconcilesRuntimeAndLiveCatalog(t *testing.T) {
 		cri.catalog.rows["ci:alpha"].Target = imageBlobDescriptor(manifest)
 		engine.node.content = store
 		response := listImagesV147(engine, "")
+		// The only CRI reads are the creation times, one per listed config.
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "ci:alpha") ||
-			len(store.reads) != 1 || len(cri.requests) != 0 {
+			len(store.reads) != 1 || len(cri.requests) != len(cri.list) {
 			t.Fatalf("verified legacy tag = %d %s; content reads %v", response.Code, response.Body, store.reads)
 		}
 		delete(store.blobs, manifest.Digest.String())
@@ -342,4 +343,64 @@ func TestDockerImageListReconcilesRuntimeAndLiveCatalog(t *testing.T) {
 			t.Fatalf("unavailable catalog = %d %s", response.Code, response.Body)
 		}
 	})
+}
+
+// Created is each image's config time (Unix seconds), as Docker lists it, and
+// 0 for a config that records none. A config is read once: later listings of
+// the same ID make no runtime call, and an ID no longer listed is forgotten.
+func TestDockerImageListReportsConfigCreated(t *testing.T) {
+	engine, runtime := imageListLabelFixture(t)
+	created := map[string]string{
+		runtime.list[0].GetId(): `"2026-04-16T23:53:24.896953537Z"`,
+		runtime.list[1].GetId(): `"1970-01-01T00:00:00Z"`,
+		runtime.list[2].GetId(): `null`,
+	}
+	for id, at := range created {
+		runtime.status[id].Info["info"] = `{"imageSpec":{"created":` + at +
+			`,"config":{"Labels":{"team":"ci"}},"rootfs":{"type":"layers","diff_ids":[]}}}`
+	}
+	want := map[string]int64{
+		runtime.list[0].GetId(): 1776383604, runtime.list[1].GetId(): 0, runtime.list[2].GetId(): 0, runtime.list[3].GetId(): 0,
+	}
+	read := func(filter string) map[string]int64 {
+		t.Helper()
+		response := listImagesV147(engine, filter)
+		var rows []struct {
+			ID      string `json:"Id"`
+			Created *int64
+		}
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &rows) != nil {
+			t.Fatalf("image list = %d %s", response.Code, response.Body)
+		}
+		got := map[string]int64{}
+		for _, row := range rows {
+			if row.Created == nil {
+				t.Fatalf("row %s has no Created: %s", row.ID, response.Body)
+			}
+			got[row.ID] = *row.Created
+		}
+		return got
+	}
+	if got := read(""); !maps.Equal(got, want) || len(runtime.requests) != len(runtime.list) {
+		t.Fatalf("first listing Created = %v after %d status calls, want %v after %d", got, len(runtime.requests), want, len(runtime.list))
+	}
+	if got := read(""); !maps.Equal(got, want) || len(runtime.requests) != len(runtime.list) {
+		t.Fatalf("second listing Created = %v after %d status calls; want the remembered times and no new call", got, len(runtime.requests))
+	}
+	// A filtered listing reports the same times from the labels' read.
+	labeled := read(`{"label":["team=ci"]}`)
+	if labeled[runtime.list[0].GetId()] != 1776383604 || len(labeled) != 3 {
+		t.Fatalf("filtered listing Created = %v", labeled)
+	}
+	gone := runtime.list[0].GetId()
+	runtime.list = runtime.list[1:]
+	delete(runtime.catalog.rows, gone)
+	delete(runtime.catalog.rows, "ci:alpha")
+	read("")
+	engine.imageConfigs.mu.Lock()
+	_, kept := engine.imageConfigs.configs[gone]
+	engine.imageConfigs.mu.Unlock()
+	if kept {
+		t.Fatal("a removed image's config is still remembered")
+	}
 }

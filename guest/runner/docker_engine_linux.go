@@ -120,7 +120,10 @@ type dockerEngine struct {
 	node          node
 	imageMu       sync.RWMutex
 	healthImages  dockerImageHealthCache
-	workspace     string
+	// imageConfigs remembers each listed image's config creation time and
+	// layer chain (docker_image_list_linux.go).
+	imageConfigs dockerImageConfigCache
+	workspace    string
 	// machineDir guards the machine's own directory inside the workspace
 	// (docker_private_linux.go); nil when it is outside or unknown.
 	machineDir *privateRoot
