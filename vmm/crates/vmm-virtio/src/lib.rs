@@ -1827,7 +1827,10 @@ mod tests {
         let mem = unsafe { GuestMemory::new(backing.as_mut_ptr(), 0x4000_0000, backing.len()) };
         assert_eq!(mem.reclaim(0x4000_0000, 4096), Reclaimed::default());
         assert_eq!(mem.reclaim(0x3000_0000, 32768), Reclaimed::default());
-        assert_eq!(mem.reclaim(0x4000_0000 + 48 * 1024, 32768), Reclaimed::default());
+        assert_eq!(
+            mem.reclaim(0x4000_0000 + 48 * 1024, 32768),
+            Reclaimed::default()
+        );
     }
 
     #[test]

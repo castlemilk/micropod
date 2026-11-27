@@ -954,7 +954,8 @@ pub fn run_vm_with_parent(
             .map_err(|e| e.to_string())?;
         }
 
-        let mem = Arc::new(unsafe { GuestMemory::new_guest_ram(ram_ptr.cast(), RAM_BASE, ram_size) });
+        let mem =
+            Arc::new(unsafe { GuestMemory::new_guest_ram(ram_ptr.cast(), RAM_BASE, ram_size) });
 
         // 4. Cold-boot only: load kernel Image + optional initrd
         let (kernel_ipa, initrd_range, mut next_ipa) = if restore_snap.is_none() {
