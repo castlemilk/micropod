@@ -277,11 +277,35 @@ container's `runtime`, and id-based calls route to the engine that owns it.
 
 | engine | kind | what it is | notes |
 |---|---|---|---|
-| `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
+| `hvf` | microvm | containerd and crun in a shared Hypervisor.framework machine | **the default on a fresh install**; set it up with `micropod setup`; enabled once installed |
+| `apple` | vm | Apple container runtime — one micro-VM per container | the default on an existing install; **opt-in** on a fresh one (`micropod runtime enable apple`); volumes, networks, ports |
 | `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
-| `hvf` | microvm | containerd and crun in a shared Hypervisor.framework machine | opt in with `micropod runtime enable hvf` after installing the machine assets |
 | `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; tcp ports, bind mounts; no named volumes; can't restart — run a new one |
 | `ci` | container | one Micropod-owned Linux VM per trusted runner account | `micropod ci start` keeps the kernel, Docker engine, BuildKit and named volumes warm |
+
+A fresh install defaults to `hvf`; an install that was already there keeps what it has. The first micropod
+binary to run (the CLI, the app, the API, the MCP server or the Docker shim) decides once, before it writes
+anything: with no `~/.micropod/runtimes.json` and a `~/.micropod` that is missing or empty it pins
+`{"default": "hvf", "defaultOrigin": "fresh-install"}`, and otherwise `{"defaultOrigin": "existing-install"}`, which
+keeps the Apple default. A runtimes.json that exists is never rewritten. On a fresh install the Apple runtime is
+**opt-in**: nothing pings, polls or starts it, the app does not start the Docker shim (which fronts it), a call
+that names it says `the Apple runtime is opt-in: micropod runtime enable apple`, and an id no enabled engine owns is
+not found instead of being asked of Apple. `micropod runtime enable apple` turns it on, `micropod runtime use apple`
+also makes it the default, and `MICROPOD_LEGACY_APPLE=1` enables it for one process. An existing install sees no
+change. (With `MICROPOD_RUNTIMES_CONFIG` set, as in tests and CI, nothing is decided unless
+`MICROPOD_INSTALL_ORIGIN=fresh|existing` says which.) No Apple or shim code is removed yet.
+
+```
+$ micropod runtime ls
+NAME       KIND       AVAILABLE  ENABLED  VERSION  ENDPOINT / REASON
+─────────  ─────────  ─────────  ───────  ───────  ─────────────────────────────────────────
+  apple    vm         yes        opt-in   —        opt-in: `micropod runtime enable apple`
+  docker   container  no         no       —        Docker socket not found
+  sandbox  microvm    yes        yes      —        —
+  ci       container  no         no       —        CI worker is stopped
+* hvf      microvm    no         yes      —        not set up: `micropod setup`
+default: hvf (chosen for a fresh install; `micropod runtime use <name>` changes it)
+```
 
 ```bash
 micropod runtime ls                        # availability, enabled, default
@@ -472,6 +496,45 @@ Installing changes neither the current docker context nor the current builder; e
 leaves an `import-<date>` image record. `micropod machine builder rm` removes exactly those two (selecting the context
 `micropod docker install --use` replaced first, when `micropod` is current). `micropod machine cache policy --register-buildx on` makes `machine start` install it when needed.
 
+#### First run: `micropod setup`
+
+`micropod setup` sets the machine up from local files, in five steps it reports one by one:
+
+```
+$ micropod setup
+[1/5] runtime files   micropod-vmm, Image, mp-hvf-init.cpio, tools/ from /Applications/Micropod.app
+[2/5] disk            cloned from /Applications/Micropod.app/Contents/Resources/hvf-base-disk.ext4
+[3/5] cache disk      created (32 GiB sparse)
+[4/5] start           running (engine micropod, Docker API 1.44–1.47)
+[5/5] default runtime hvf
+next: micropod docker install --use    micropod machine autostart on
+```
+
+- **runtime files** come from the app bundle the CLI belongs to, the extracted CLI tarball, or `--payload <Micropod.app
+  or a directory>` (a directory holding `micropod-vmm`, `vmlinux-hvf`, `mp-hvf-init.cpio` and `micropod-oci-tools`;
+  a payload version's `Image` and `tools/` work too). A development build needs `--payload`.
+- **disk** is an APFS clone of `--disk-from <ext4>`, else of the package's base disk `hvf-base-disk.ext4`; a disk on
+  another volume is copied (sparsely) instead. Only `--disk-image <ref>|default` downloads anything: it unpacks an OCI
+  image (the default is `docker:29.9.3-dind`) into a fresh disk. Packages do not ship a base disk yet
+  (`MICROPOD_HVF_BASE_DISK=<ext4> scripts/package_app.sh` adds one), so setup then says: `no base disk: this package
+  ships none. Pass --disk-from <ext4> (a local image), or --disk-image default to download docker:29.9.3-dind from
+  Docker Hub.`
+- **cache disk**: 32 GiB sparse for a new machine (`--cache-disk-size`, `--no-cache-disk`).
+- **start** boots it and waits for the Docker API (`--no-start` skips it).
+- **default runtime**: hvf on a fresh install; an existing install keeps its default (`micropod runtime use hvf`).
+
+Every source is checked (present, ext4, the VMM's hypervisor entitlement) before anything is written, and every
+problem is reported at once. Re-running keeps what is there (`[2/5] disk  present, kept`). `--docker` adds the
+docker context below and `--use` selects it; `--autostart` turns autostart on and lets launchd start the machine;
+nothing is selected or loaded without them. `--dry-run` prints the plan, `--json` the steps. With no machine,
+`micropod run alpine` says `the micropod machine is not set up (missing …): run micropod setup`; it never sets one
+up on its own.
+
+The API does the same with `RigService/SetupMachine {payload_path, disk_from, cache_disk_bytes, no_cache_disk,
+start}` (local sources only; the reply lists the steps, `ok`, and the machine status), and the app's first run
+offers it ("Set Up Machine", with "Choose Disk Image…" when the bundle has no base disk).
+`scripts/e2e_first_run.sh` runs a fresh install's first run on throwaway machines.
+
 #### Use the docker CLI
 
 `micropod docker install` makes the stock docker CLI, compose and buildx work with the machine the way Docker
@@ -571,7 +634,7 @@ apple:       not enabled
 ```
 
 The machine line also reads `starting`, `failed: <why>`, `stopped (on request)` or `not installed: missing … (micropod
-machine install)`. `GetMachineStatus` carries the same facts for any client: `readiness` and `failure_reason`, the
+setup)`. `GetMachineStatus` carries the same facts for any client: `readiness` and `failure_reason`, the
 engine's version and API range, `containers_total` and `containers_running`, `disk_flush`, `cache_disk`, `autostart`,
 `docker_endpoint` and the payload versions. It never boots the machine; while the machine runs it asks the guest
 (one second each). `SetMachineAutostart {enabled, force}` turns the LaunchAgent on or off as the CLI does, and
