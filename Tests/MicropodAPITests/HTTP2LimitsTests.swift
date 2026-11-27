@@ -161,6 +161,8 @@ final class HTTP2LimitsTests: HTTP2TestCase {
             method: "POST", path: "/echo", headers: [("content-type", "application/json")],
             body: Data(repeating: 0x61, count: 70 * 1024))
         XCTAssertEqual(big.status, 413)
+        XCTAssertEqual(
+            Self.json(big)?["code"] as? String, "resource_exhausted", "the reset after it does not drop the body")
         let grpc = try await client.grpc("/micropod.v1.SystemService/Ping", Data(repeating: 0, count: 70 * 1024))
         XCTAssertEqual(grpc.grpcStatus, 8, "RESOURCE_EXHAUSTED")
         let fits = try await client.request(
@@ -225,6 +227,38 @@ final class HTTP2LimitsTests: HTTP2TestCase {
             let stall = stalled.drain(timeout: 3) { type, stream in type == 0x3 && stream == 1 }.resets
             XCTAssertEqual(stall.first?.code, 0x8, "CANCEL at the write-stall deadline")
         }
+    }
+
+    /// A head refused before any handler (here a scheme that is not http),
+    /// from a client that never ends its request: the answer, then
+    /// RST_STREAM(NO_ERROR), so the stream is closed and the connection
+    /// reaches its idle GOAWAY instead of holding its place for good.
+    func testARefusedHeadThatNeverEndsIsClosed() async throws {
+        var policy = Self.policy
+        policy.keepAliveIdle = .milliseconds(400)
+        let served = try await serve(H2Fixture(), policy: policy)
+        try await offPool {
+            let raw = try Self.raw(served)
+            let fields = [(":method", "GET"), (":scheme", "https"), (":path", "/health")]
+            try raw.headers(stream: 1, fields, endStream: false)
+            let answer = raw.drain(timeout: 3)
+            XCTAssertEqual(answer.types.filter { $0 == 0x1 || $0 == 0x0 }, [0x1, 0x0], "the 400 and its body")
+            XCTAssertEqual(answer.resets.first?.stream, 1)
+            XCTAssertEqual(answer.resets.first?.code, 0x0, "NO_ERROR")
+            XCTAssertEqual(answer.goAway, 0x0, "idle: GOAWAY(NO_ERROR)")
+            XCTAssertTrue(answer.closed)
+
+            // A refused head that did end its stream needs no reset.
+            let ended = try Self.raw(served)
+            try ended.headers(stream: 1, fields)
+            let whole = ended.drain(timeout: 3)
+            XCTAssertTrue(whole.resets.isEmpty)
+            XCTAssertEqual(whole.goAway, 0x0)
+        }
+        for _ in 0..<50 where served.server.http2?.connections(.owner) != 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(served.server.http2?.connections(.owner), 0, "neither connection kept its place")
     }
 
     /// Past the HTTP/2 connection cap a client gets SETTINGS, GOAWAY and the

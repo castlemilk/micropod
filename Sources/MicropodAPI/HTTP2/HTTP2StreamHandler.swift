@@ -264,7 +264,13 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
                 switch HTTP2RequestAdapter.head(frame.headers) {
                 case .refuse(let status, let reason):
                     settle()
-                    refuse(context, status: status, code: status == 405 ? "unimplemented" : "invalid_argument", reason)
+                    let answered = refuse(
+                        context, status: status, code: status == 405 ? "unimplemented" : "invalid_argument", reason)
+                    // The answer is complete (RFC 9113 §8.1); a request the
+                    // client has not ended is closed after it. Its timers
+                    // are stopped, so left open it would hold the connection
+                    // (and its place) past every deadline.
+                    if !frame.endStream { closeAfter(answered, context) }
                     return
                 case .head(let parsed):
                     head = parsed
@@ -344,8 +350,27 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
         }
     }
 
-    /// A request refused before its exchange (malformed head).
-    private func refuse(_ context: ChannelHandlerContext, status: Int, code: String, _ reason: String) {
+    /// RST_STREAM(NO_ERROR) once an early answer's last frame left for the
+    /// socket (sent before it, the reset would drop a DATA frame NIO still
+    /// holds for flow control). A client whose window never lets the answer
+    /// out is reset at `writeStall` (CANCEL), as any response is.
+    private func closeAfter(_ answered: EventLoopFuture<Void>, _ context: ChannelHandlerContext) {
+        let bound = NIOLoopBound(context, eventLoop: context.eventLoop)
+        let stall = context.eventLoop.scheduleTask(in: limits.writeStall) { bound.value.close(promise: nil) }
+        answered.whenComplete { _ in
+            stall.cancel()
+            let context = bound.value
+            guard context.channel.isActive else { return }
+            context.writeAndFlush(NIOAny(HTTP2Frame.FramePayload.rstStream(.noError)), promise: nil)
+        }
+    }
+
+    /// A request refused before its exchange (malformed head). The future
+    /// is its last frame's write.
+    @discardableResult
+    private func refuse(
+        _ context: ChannelHandlerContext, status: Int, code: String, _ reason: String
+    ) -> EventLoopFuture<Void> {
         let body = (try? JSONSerialization.data(withJSONObject: ["code": code, "message": reason])) ?? Data()
         var headers = HPACKHeaders()
         headers.add(name: ":status", value: String(status))
@@ -353,22 +378,23 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
         headers.add(name: "content-length", value: String(body.count))
         context.write(wrapOutboundOut(.headers(.init(headers: headers))), promise: nil)
         let buffer = context.channel.allocator.buffer(bytes: body)
-        context.writeAndFlush(wrapOutboundOut(.data(.init(data: .byteBuffer(buffer), endStream: true))), promise: nil)
+        return context.writeAndFlush(wrapOutboundOut(.data(.init(data: .byteBuffer(buffer), endStream: true))))
     }
 
     /// A body over `streamBodyBytes`: 413, or RESOURCE_EXHAUSTED for gRPC;
     /// then the rest of the request is refused (RST_STREAM NO_ERROR).
     private func tooLarge(_ context: ChannelHandlerContext) {
         let reason = "request body exceeds \(limits.streamBodyBytes) bytes"
+        let answered: EventLoopFuture<Void>
         if let head, GRPCWire.codec(contentType: head.headers["content-type"]) != nil {
             var headers = HPACKHeaders()
             headers.add(name: ":status", value: "200")
             headers.add(name: "content-type", value: "application/grpc")
             for (name, value) in GRPCWire.trailers(8, reason) { headers.add(name: name, value: value) }
-            context.write(wrapOutboundOut(.headers(.init(headers: headers, endStream: true))), promise: nil)
+            answered = context.writeAndFlush(wrapOutboundOut(.headers(.init(headers: headers, endStream: true))))
         } else {
-            refuse(context, status: 413, code: "resource_exhausted", reason)
+            answered = refuse(context, status: 413, code: "resource_exhausted", reason)
         }
-        context.writeAndFlush(wrapOutboundOut(.rstStream(.noError)), promise: nil)
+        closeAfter(answered, context)
     }
 }
