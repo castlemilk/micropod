@@ -101,12 +101,31 @@ func WithGRPC() Option {
 	}
 }
 
+// Idle connections of the transport WithHTTP2 and WithUnixSocket build.
+//
+// The MicropodAPI closes an HTTP/1.1 connection that was idle for 120 s. A
+// client must drop it first: a Connect call is a POST, which net/http does
+// not retry on a connection the server closed under it, so the call fails
+// with "unavailable: unexpected EOF". 90 s is http.DefaultTransport's value,
+// which the default client has always had. (A zero http.Transport keeps
+// idle connections for ever, and only two per host, so concurrent callers
+// kept opening new ones.)
+const (
+	idleConnTimeout     = 90 * time.Second
+	maxIdleConnsPerHost = 16
+	maxIdleConns        = 64
+)
+
 // transport builds the HTTP client WithHTTP2 and WithUnixSocket ask for.
 func (c *config) transport() *http.Client {
 	if c.customHTTP || (!c.http2 && c.unixSocket == "") {
 		return c.httpClient
 	}
-	tr := &http.Transport{}
+	tr := &http.Transport{
+		IdleConnTimeout:     idleConnTimeout,
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,
+		MaxIdleConns:        maxIdleConns,
+	}
 	if c.http2 {
 		var protocols http.Protocols
 		protocols.SetUnencryptedHTTP2(true)

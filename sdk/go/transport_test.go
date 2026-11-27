@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -101,5 +103,60 @@ func TestWithUnixSocket(t *testing.T) {
 			t.Fatal(err)
 		}
 		<-seen
+	}
+}
+
+// Eight callers sharing a WithUnixSocket client reuse eight connections:
+// the transport keeps that many idle ones (a zero http.Transport keeps two
+// per host, and the callers kept opening new ones).
+func TestWithUnixSocketReusesConnectionsForConcurrentCallers(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "mp-sdk-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, "api.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var opened atomic.Int64
+	mux := http.NewServeMux()
+	route, handler := micropodv1connect.NewSystemServiceHandler(&pingServer{})
+	mux.Handle("/api"+route, http.StripPrefix("/api", handler))
+	server := httptest.NewUnstartedServer(mux)
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			opened.Add(1)
+		}
+	}
+	server.Listener.Close()
+	server.Listener = listener
+	server.Start()
+	t.Cleanup(server.Close)
+
+	client := micropod.NewClient("http://localhost/api", micropod.WithUnixSocket(path))
+	const callers, calls = 8, 100
+	var wg sync.WaitGroup
+	errs := make(chan error, callers)
+	for range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range calls {
+				if _, err := client.Ping(context.Background(), connect.NewRequest(&micropodv1.Empty{})); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	if got := opened.Load(); got > callers {
+		t.Fatalf("%d calls from %d callers opened %d connections, want at most %d", callers*calls, callers, got, callers)
 	}
 }
