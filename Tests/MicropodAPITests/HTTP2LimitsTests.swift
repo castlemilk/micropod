@@ -411,6 +411,48 @@ final class HTTP2LimitsTests: HTTP2TestCase {
         XCTAssertEqual(String(decoding: answer.body, as: UTF8.self), "slow")
     }
 
+    /// A client that sends its requests and ends its side (shutdown
+    /// SHUT_WR, as `nc -N` and socat do at end of input) is answered, as on
+    /// HTTP/1.1, then gets GOAWAY and the close.
+    func testAClientThatHalfClosesIsStillAnswered() async throws {
+        let fixture = H2Fixture()
+        let served = try await serve(fixture)
+        for path in ["/health", "/slow?ms=300"] {
+            let drained = try await offPool { () -> (types: [UInt8], goAway: UInt32?, closed: Bool) in
+                let raw = try Self.raw(served)
+                try raw.headers(stream: 1, H2Raw.request(path))
+                raw.wire.shutdownWrite()
+                let drained = raw.drain(timeout: 4)
+                return (drained.types, drained.goAway, drained.closed)
+            }
+            XCTAssertEqual(
+                drained.types.filter { $0 == 0x1 || $0 == 0x0 }, [0x1, 0x0], "\(path): HEADERS and DATA came back")
+            XCTAssertEqual(drained.goAway, 0x0, "\(path): GOAWAY(NO_ERROR)")
+            XCTAssertTrue(drained.closed, path)
+        }
+        for _ in 0..<50 where served.server.http2?.connections(.owner) != 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(served.server.http2?.connections(.owner), 0)
+    }
+
+    /// A request the client ended its side without finishing can never be
+    /// answered: its connection closes within the GOAWAY grace.
+    func testAHalfClosedConnectionWithAnUnfinishedRequestClosesWithinTheGrace() async throws {
+        var limits = HTTP2Limits(policy: Self.policy)
+        limits.goAwayGrace = .milliseconds(300)
+        let served = try await serve(H2Fixture(), limits: limits)
+        let started = Date()
+        let closed = try await offPool { () -> Bool in
+            let raw = try Self.raw(served)
+            try raw.headers(stream: 1, Self.post, endStream: false)
+            raw.wire.shutdownWrite()
+            return raw.drain(timeout: 4).closed
+        }
+        XCTAssertTrue(closed)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 2)
+    }
+
     /// The socketpair bridge leaves no descriptor behind, and carries a
     /// large response intact to a reader that takes it slowly.
     func testTheBridgeReturnsEveryDescriptor() async throws {

@@ -90,7 +90,10 @@ final class HTTP2Engine: @unchecked Sendable {
         let state = HTTP2ConnectionState(limits: limits, context: context, listener: counters)
         let limits = self.limits
         let server = ClientBootstrap(group: loop)
-            .channelOption(.allowRemoteHalfClosure, value: false)
+            // A client that ends its side after its requests (shutdown
+            // SHUT_WR, `nc -N`) is still answered, as on HTTP/1.1:
+            // `HTTP2ConnectionErrors` then closes the connection gracefully.
+            .channelOption(.allowRemoteHalfClosure, value: true)
             .channelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture { try Self.configure(channel, limits: limits, state: state) }
             }
@@ -150,7 +153,7 @@ final class HTTP2Engine: @unchecked Sendable {
         if limits.logControlFrames {
             try channel.pipeline.syncOperations.addHandler(HTTP2ControlFrameMeter(window: limits.controlFrames.window))
         }
-        try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors(goAways: goAways))
+        try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors(goAways: goAways, state: state))
     }
 
     /// The client gets this server's (empty) SETTINGS and
@@ -225,7 +228,8 @@ final class FirstStreamDeadline: ChannelInboundHandler {
     func handlerRemoved(context: ChannelHandlerContext) { timer?.cancel() }
 }
 
-/// Closes the connection on a connection error. NIOHTTP2Handler answers
+/// Closes the connection on a connection error, and gracefully once the
+/// client ended its side. NIOHTTP2Handler answers
 /// one (a flood past its bound, a malformed frame, a broken header block)
 /// with GOAWAY and reports it here, leaving the close to the pipeline;
 /// without this the connection would stay open after its GOAWAY.
@@ -244,8 +248,21 @@ final class HTTP2ConnectionErrors: ChannelInboundHandler {
     typealias InboundIn = HTTP2Frame
 
     private let goAways: HTTP2GoAwayWatch
+    private let state: HTTP2ConnectionState
 
-    init(goAways: HTTP2GoAwayWatch) { self.goAways = goAways }
+    init(goAways: HTTP2GoAwayWatch, state: HTTP2ConnectionState) {
+        self.goAways = goAways
+        self.state = state
+    }
+
+    /// The client ended its side. No request can follow, but the ones it
+    /// sent are answered: GOAWAY, then the close once no stream is open or
+    /// `goAwayGrace` ran out (a client that is gone altogether looks the
+    /// same, and its streams end with the first write that fails).
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if case .some(ChannelEvent.inputClosed) = event as? ChannelEvent { state.goAway() }
+        context.fireUserInboundEventTriggered(event)
+    }
 
     func errorCaught(context: ChannelHandlerContext, error: any Error) {
         guard !Self.streamLevel(error) else { return }
