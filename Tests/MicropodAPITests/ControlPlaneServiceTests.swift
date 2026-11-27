@@ -28,19 +28,43 @@ final class ControlPlaneServiceTests: XCTestCase {
         try? FileManager.default.removeItem(at: root)
     }
 
-    private func makeHandlers() async -> APIHandlers {
+    /// launchd as the machine's autostart sees it; never the real one.
+    private let launch = APIRecordingLaunch()
+    private var agents: URL { root.appendingPathComponent("LaunchAgents") }
+
+    private func makeHandlers(environment extra: [String: String] = [:]) async -> APIHandlers {
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
         let services = await RuntimeBackendResolver.resolveApple(
             client: client, environment: ["MICROPOD_RUNTIME": "cli"])
         let holder = RuntimeHolder(initial: services, resolve: { services }, managedSelectionPresent: { false })
-        let registry = EngineRegistry(environment: [
-            "MICROPOD_HVF_ROOT": root.path,
-            "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
-        ])
+        let registry = EngineRegistry(
+            environment: [
+                "MICROPOD_HVF_ROOT": root.path,
+                "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
+            ].merging(extra) { $1 })
+        let launch = self.launch
+        let agents = self.agents
         return APIHandlers(
             client: client, system: SystemService(client: client), images: ImageService(client: client),
             networks: NetworkService(client: client), compose: ComposeService(client: client), runtime: holder,
-            engineRegistry: registry)
+            engineRegistry: registry,
+            machineAutostart: { layout in
+                HVFMachineAutostartAgent(
+                    layout: layout, environment: ["PATH": "/usr/bin:/bin"], launch: launch,
+                    launchAgentsDirectory: agents)
+            })
+    }
+
+    private func installPlaceholders() throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: layout.tools.appendingPathComponent("runner"), withIntermediateDirectories: true)
+        for url in [
+            layout.vmm, layout.kernel, layout.initrd, layout.disk,
+            layout.tools.appendingPathComponent("runner/start.sh"),
+        ] {
+            XCTAssertTrue(fm.createFile(atPath: url.path, contents: Data("x".utf8)))
+        }
+        XCTAssertEqual(chmod(layout.vmm.path, 0o755), 0)
     }
 
     private struct Reply {
@@ -448,6 +472,158 @@ final class ControlPlaneServiceTests: XCTestCase {
         XCTAssertNil(down, "nothing runs on a machine that is not serving")
     }
 
+    /// What the menu bar and `micropod status` show of a running machine:
+    /// the engine, its containers, the cache disk, disk flush, readiness and
+    /// autostart, read from the guest within a second each.
+    func testMachineStatusCarriesTheEngineContainersAndCacheDiskWhileRunning() async throws {
+        try installPlaceholders()
+        let api = await makeHandlers()
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        let guest = try FakeGuestDockerAPI(path: layout.dockerSocket.path) { request in
+            switch request.path {
+            case "/version":
+                return (200, Data(#"{"Version":"micropod-1.2","ApiVersion":"1.47","MinAPIVersion":"1.44"}"#.utf8))
+            case "/containers/json":
+                return (
+                    200,
+                    Data(
+                        #"[{"Id":"a","State":"running"},{"Id":"b","State":"exited"},{"Id":"c","State":"running"}]"#.utf8
+                    )
+                )
+            case "/micropod/caches":
+                return (
+                    200,
+                    Data(
+                        #"{"cacheDisk":{"state":"mounted","device":"/dev/vdb","mounted":true,"sizeBytes":34359738368,"freeBytes":22977568768}}"#
+                            .utf8)
+                )
+            default: return (404, Data())
+            }
+        }
+        defer { guest.stop() }
+        for binary in [true, false] {
+            let status = try decoded(
+                Micropod_V1_HVFMachineStatus.self,
+                try await rpc(api, "RigService", "GetMachineStatus", Micropod_V1_Empty(), binary: binary))
+            XCTAssertEqual(status.phase, "running")
+            XCTAssertEqual(status.readiness, "running")
+            XCTAssertFalse(status.hasFailureReason)
+            XCTAssertEqual(status.engineVersion, "micropod-1.2")
+            XCTAssertEqual(status.engineApiVersion, "1.47")
+            XCTAssertEqual(status.engineMinApiVersion, "1.44")
+            XCTAssertEqual(status.containersTotal, 3)
+            XCTAssertEqual(status.containersRunning, 2)
+            XCTAssertTrue(status.cacheDisk.mounted)
+            XCTAssertEqual(status.cacheDisk.freeBytes, 22_977_568_768)
+            XCTAssertFalse(status.diskFlush.isEmpty)
+            XCTAssertEqual(status.dockerEndpoint, layout.dockerEndpoint)
+            XCTAssertFalse(status.autostart.enabled)
+            XCTAssertTrue(status.autostart.summary.hasPrefix("off"), status.autostart.summary)
+        }
+        XCTAssertEqual(launch.calls, [], "no autostart record: launchd is not asked")
+        let json = ControlPlaneJSON.machineStatus(
+            try decoded(
+                Micropod_V1_HVFMachineStatus.self,
+                try await rpc(api, "RigService", "GetMachineStatus", Micropod_V1_Empty())))
+        XCTAssertEqual(json["containersRunning"] as? Int, 2)
+        XCTAssertEqual(json["engineVersion"] as? String, "micropod-1.2")
+        XCTAssertEqual((json["autostart"] as? [String: Any])?["enabled"] as? Bool, false)
+    }
+
+    /// The app's Start button is an explicit start, as `machine start` is:
+    /// the canonical Docker socket follows it (here the link the caller
+    /// named in MICROPOD_DOCKER_SOCK).
+    func testControlMachineStartLinksTheCanonicalSocket() async throws {
+        try installPlaceholders()
+        let link = root.appendingPathComponent("canonical/docker.sock")
+        let api = await makeHandlers(environment: ["MICROPOD_DOCKER_SOCK": link.path])
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        let guest = try FakeGuestDockerAPI(path: layout.dockerSocket.path) { _ in (404, Data()) }
+        defer { guest.stop() }
+        let started = try decoded(
+            Micropod_V1_HVFMachineStatus.self,
+            try await rpc(
+                api, "RigService", "ControlMachine", Micropod_V1_ControlMachineRequest.with { $0.action = "start" }))
+        XCTAssertEqual(started.phase, "running")
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link.path), layout.dockerSocket.path)
+    }
+
+    /// A status read never starts a machine: one that is stopped stays
+    /// stopped, and nothing asks a guest that is not there.
+    func testMachineStatusDoesNotStartAStoppedMachine() async throws {
+        try installPlaceholders()
+        let api = await makeHandlers()
+        try HVFMachineState(phase: .failed, supervisorPID: 42, lastExitReason: "guest panicked").save(to: layout.state)
+        let status = try decoded(
+            Micropod_V1_HVFMachineStatus.self,
+            try await rpc(api, "RigService", "GetMachineStatus", Micropod_V1_Empty()))
+        XCTAssertEqual(status.readiness, "failed")
+        XCTAssertEqual(status.failureReason, "guest panicked")
+        XCTAssertFalse(status.hasEngineVersion)
+        XCTAssertFalse(status.hasContainersTotal)
+        XCTAssertEqual(status.cacheDisk.source, "unknown")
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertFalse(HVFFileLock.isHeld(layout.supervisorLock), "nothing was started")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.supervisorLog.path), "no supervisor was launched")
+    }
+
+    func testSetMachineAutostartLoadsAndUnloadsThroughLaunchd() async throws {
+        try installPlaceholders()
+        let api = await makeHandlers()
+        let label = HVFMachineAutostartAgent.label(for: layout)
+        let on = try decoded(
+            Micropod_V1_HVFMachineStatus.self,
+            try await rpc(
+                api, "RigService", "SetMachineAutostart",
+                Micropod_V1_SetMachineAutostartRequest.with { $0.enabled = true }))
+        XCTAssertTrue(on.autostart.enabled)
+        XCTAssertTrue(on.autostart.loaded)
+        XCTAssertEqual(on.autostart.label, label)
+        XCTAssertEqual(on.autostart.exitTimeoutSeconds, 25)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: agents.appendingPathComponent(label + ".plist").path))
+        XCTAssertEqual(launch.calls.filter { !$0.hasPrefix("print") }, ["bootstrap \(label).plist"])
+
+        let off = try decoded(
+            Micropod_V1_HVFMachineStatus.self,
+            try await rpc(
+                api, "RigService", "SetMachineAutostart",
+                Micropod_V1_SetMachineAutostartRequest.with { $0.enabled = false }))
+        XCTAssertFalse(off.autostart.enabled)
+        XCTAssertEqual(launch.calls.filter { !$0.hasPrefix("print") }.last, "bootout \(label)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: agents.appendingPathComponent(label + ".plist").path))
+    }
+
+    /// Turning autostart on hands a running machine to launchd, which
+    /// restarts it: deferred while containers run, unless forced.
+    func testSetMachineAutostartIsDeferredWhileContainersRun() async throws {
+        try installPlaceholders()
+        let api = await makeHandlers()
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        let guest = try FakeGuestDockerAPI(path: layout.dockerSocket.path) { request in
+            if request.path.contains("/containers/json") { return (200, Data(#"[{"Id": "ci-job-1"}]"#.utf8)) }
+            if request.path.contains("/micropod/metrics") {
+                return (200, Data(#"{"reaper": {"active_sessions": 0}}"#.utf8))
+            }
+            return (404, Data())
+        }
+        defer { guest.stop() }
+        let refused = try await rpc(
+            api, "RigService", "SetMachineAutostart", Micropod_V1_SetMachineAutostartRequest.with { $0.enabled = true })
+        XCTAssertEqual(refused.json["code"] as? String, "failed_precondition", "\(refused.json)")
+        let message = refused.json["message"] as? String ?? ""
+        XCTAssertTrue(message.hasPrefix("deferred: 1 running container(s) on the machine"), message)
+        XCTAssertTrue(message.contains("--force"), message)
+        XCTAssertEqual(launch.calls.filter { !$0.hasPrefix("print") }, [], "nothing was loaded")
+        XCTAssertNil(HVFMachineAutostartAgent.loadRecord(layout: layout))
+        XCTAssertTrue(HVFFileLock.isHeld(layout.supervisorLock), "nothing was stopped")
+    }
+
     func testMachineStatusSaysAStopWasAskedFor() throws {
         let client = HVFMachineClient(layout: layout)
         XCTAssertFalse(RigProto.machineStatus(client.status()).stoppedOnRequest, "never started")
@@ -722,6 +898,35 @@ private final class FollowingLogs: LogStreaming, @unchecked Sendable {
 }
 
 /// A drain check with a fixed answer (nil: it cannot tell).
+/// launchd for the machine's autostart: records calls, loads on bootstrap.
+final class APIRecordingLaunch: RigLaunchControlling, @unchecked Sendable {
+    private let lock = NSLock()
+    private var loaded: Set<String> = []
+    private var recorded: [String] = []
+    var calls: [String] { lock.withLock { recorded } }
+
+    func isLoaded(_ label: String) async -> Bool {
+        lock.withLock {
+            recorded.append("print \(label)")
+            return loaded.contains(label)
+        }
+    }
+    func loadedProgram(_ label: String) async -> String? { await isLoaded(label) ? "/x" : nil }
+    func bootout(_ label: String) async throws {
+        lock.withLock {
+            recorded.append("bootout \(label)")
+            _ = loaded.remove(label)
+        }
+    }
+    func bootstrap(_ plist: URL, label: String) async throws {
+        lock.withLock {
+            recorded.append("bootstrap \(plist.lastPathComponent)")
+            _ = loaded.insert(label)
+        }
+    }
+    func kickstart(_ label: String) async throws { lock.withLock { recorded.append("kickstart \(label)") } }
+}
+
 private struct StubDrain: HVFDrainCoordinating {
     var workloads: HVFWorkloads?
     func activeWorkloads() async throws -> HVFWorkloads {

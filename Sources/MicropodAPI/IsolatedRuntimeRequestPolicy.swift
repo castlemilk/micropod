@@ -12,6 +12,7 @@ enum IsolatedRuntimeRequestPolicy {
             // lifecycle are dependency lifecycle. Their REST twins are
             // /v1/rig/mode and /v1/rig/hvf/*.
             "GetRigMode", "SetRigMode", "GetHVFUpdateStatus", "ApplyHVFUpdate", "RollbackHVFUpdate", "ControlMachine",
+            "SetMachineAutostart",
         ]
         // Connect dispatch selects procedures by their last path component.
         // Refuse aliases through any service name as well as the canonical one.

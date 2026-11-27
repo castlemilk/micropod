@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/rig.proto.
  */
 export const file_micropod_v1_rig: GenFile = /*@__PURE__*/
-  fileDesc("ChVtaWNyb3BvZC92MS9yaWcucHJvdG8SC21pY3JvcG9kLnYxIj4KDVJpZ01vZGVPcHRpb24SDAoEbmFtZRgBIAEoCRIOCgZlbmdpbmUYAiABKAkSDwoHc3VtbWFyeRgDIAEoCSJbCgdSaWdNb2RlEgwKBG1vZGUYASABKAkSFwoPZGVmYXVsdF9ydW50aW1lGAIgASgJEikKBW1vZGVzGAMgAygLMhoubWljcm9wb2QudjEuUmlnTW9kZU9wdGlvbiIqChFTZXRSaWdNb2RlUmVxdWVzdBIVCgRtb2RlGAEgASgJQge6SARyAhABIpkDCgxSaWdDYWNoZURpc2sSDwoHbW91bnRlZBgBIAEoCBISCgpjb25maWd1cmVkGAIgASgIEhQKB21pc3NpbmcYAyABKAlIAIgBARIOCgZzb3VyY2UYBCABKAkSEwoGcmVhc29uGAUgASgJSAGIAQESEgoFc3RhdGUYBiABKAlIAogBARITCgZkZXZpY2UYByABKAlIA4gBARIdChBtb3VudF9pbmZvX2Vycm9yGAggASgJSASIAQESFwoKc2l6ZV9ieXRlcxgJIAEoBEgFiAEBEhcKCmZyZWVfYnl0ZXMYCiABKARIBogBARIVCg1zaGFyZWRfY2FjaGVzGAsgASgJEhgKC3VuYXZhaWxhYmxlGAwgASgJSAeIAQESDwoHc3VtbWFyeRgNIAEoCUIKCghfbWlzc2luZ0IJCgdfcmVhc29uQggKBl9zdGF0ZUIJCgdfZGV2aWNlQhMKEV9tb3VudF9pbmZvX2Vycm9yQg0KC19zaXplX2J5dGVzQg0KC19mcmVlX2J5dGVzQg4KDF91bmF2YWlsYWJsZSL7AQoMUmlnSFZGSGVhbHRoEhEKCWluc3RhbGxlZBgBIAEoCBINCgVwaGFzZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEgwKBHJvb3QYBCABKAkSFwoPZG9ja2VyX2VuZHBvaW50GAUgASgJEhoKEmNhY2hlX2Rpc2tfcHJlc2VudBgGIAEoCBItCgpjYWNoZV9kaXNrGAcgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEhUKDXNoYXJlZF9jYWNoZXMYCCABKAkSFgoOdXBkYXRlX3BlbmRpbmcYCSABKAgSFwoPcGF5bG9hZF92ZXJzaW9uGAogASgJInUKFVJpZ0NhY2hlUG9saWN5U3VtbWFyeRIMCgRtb2RlGAEgASgJEhEKCXNoYXJlZF9sMBgCIAEoCBIVCg1kZWZhdWx0X3RydXN0GAMgASgJEhAKCGdvX3Byb3h5GAQgASgJEhIKCnRvb2xfY291bnQYBSABKAUiKwoLUmlnRGVwcHJveHkSCwoDdXJsGAEgASgJEg8KB2hlYWx0aHkYAiABKAgi7AEKCVJpZ0hlYWx0aBIMCgRtb2RlGAEgASgJEhcKD2RlZmF1bHRfcnVudGltZRgCIAEoCRImCgNodmYYAyABKAsyGS5taWNyb3BvZC52MS5SaWdIVkZIZWFsdGgSOAoMY2FjaGVfcG9saWN5GAQgASgLMiIubWljcm9wb2QudjEuUmlnQ2FjaGVQb2xpY3lTdW1tYXJ5EioKCGRlcHByb3h5GAUgASgLMhgubWljcm9wb2QudjEuUmlnRGVwcHJveHkSGQoMY29uZmlnX2Vycm9yGAYgASgJSACIAQFCDwoNX2NvbmZpZ19lcnJvciLsAQoSSFZGUGF5bG9hZE1hbmlmZXN0Eg4KBnNjaGVtYRgBIAEoBRIPCgd2ZXJzaW9uGAIgASgJEhAKCHJldmlzaW9uGAMgASgJEhQKDGluc3RhbGxlZF9hdBgEIAEoCRI9CgdkaWdlc3RzGAUgAygLMiwubWljcm9wb2QudjEuSFZGUGF5bG9hZE1hbmlmZXN0LkRpZ2VzdHNFbnRyeRITCgZvcmlnaW4YBiABKAlIAIgBARouCgxEaWdlc3RzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfb3JpZ2luIpoFCg9IVkZVcGRhdGVTdGF0dXMSGQoMY3VycmVudF9wYXRoGAEgASgJSACIAQESGgoNcHJldmlvdXNfcGF0aBgCIAEoCUgBiAEBEhgKC3N0YWdlZF9wYXRoGAMgASgJSAKIAQESHAoPa25vd25fZ29vZF9wYXRoGAQgASgJSAOIAQESMAoHY3VycmVudBgFIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIxCghwcmV2aW91cxgGIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIvCgZzdGFnZWQYByABKAsyHy5taWNyb3BvZC52MS5IVkZQYXlsb2FkTWFuaWZlc3QSMwoKa25vd25fZ29vZBgIIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIZCgxydW5uaW5nX3BhdGgYCSABKAlIBIgBARIcCg9ydW5uaW5nX3ZlcnNpb24YCiABKAlIBYgBARIdChBydW5uaW5nX3JldmlzaW9uGAsgASgJSAaIAQESFgoOdXBkYXRlX3BlbmRpbmcYDCABKAgSGgoSYXZhaWxhYmxlX3ZlcnNpb25zGA0gAygJEiQKF2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlGA4gASgJSAeIAQFCDwoNX2N1cnJlbnRfcGF0aEIQCg5fcHJldmlvdXNfcGF0aEIOCgxfc3RhZ2VkX3BhdGhCEgoQX2tub3duX2dvb2RfcGF0aEIPCg1fcnVubmluZ19wYXRoQhIKEF9ydW5uaW5nX3ZlcnNpb25CEwoRX3J1bm5pbmdfcmV2aXNpb25CGgoYX2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlIiEKEEhWRlVwZGF0ZVJlcXVlc3QSDQoFZm9yY2UYASABKAgikgIKD0hWRlVwZGF0ZVJlc3VsdBIOCgZhY3Rpb24YASABKAkSGQoMZnJvbV92ZXJzaW9uGAIgASgJSACIAQESFwoKdG9fdmVyc2lvbhgDIAEoCUgBiAEBEhkKEWFjdGl2ZV9jb250YWluZXJzGAQgASgFEg4KBmRldGFpbBgFIAEoCRIbCg50YXJnZXRfdmVyc2lvbhgGIAEoCUgCiAEBEiQKF3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzGAcgASgDSAOIAQFCDwoNX2Zyb21fdmVyc2lvbkINCgtfdG9fdmVyc2lvbkIRCg9fdGFyZ2V0X3ZlcnNpb25CGgoYX3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzIq8DCg9IVkZNYWNoaW5lU3RhdGUSDQoFcGhhc2UYASABKAkSFgoOc3VwZXJ2aXNvcl9waWQYAiABKAUSFAoHdm1tX3BpZBgDIAEoBUgAiAEBEhcKCnN0YXJ0ZWRfYXQYBCABKAlIAYgBARIVCghyZWFkeV9hdBgFIAEoCUgCiAEBEhUKDXJlc3RhcnRfY291bnQYBiABKAUSHQoQbGFzdF9leGl0X3JlYXNvbhgHIAEoCUgDiAEBEhsKDmxhc3RfZXhpdF9jb2RlGAggASgFSASIAQESIAoTbG9hZGVkX3BheWxvYWRfcGF0aBgJIAEoCUgFiAEBEiMKFmxvYWRlZF9wYXlsb2FkX3ZlcnNpb24YCiABKAlIBogBARISCgp1cGRhdGVkX2F0GAsgASgJQgoKCF92bW1fcGlkQg0KC19zdGFydGVkX2F0QgsKCV9yZWFkeV9hdEITChFfbGFzdF9leGl0X3JlYXNvbkIRCg9fbGFzdF9leGl0X2NvZGVCFgoUX2xvYWRlZF9wYXlsb2FkX3BhdGhCGQoXX2xvYWRlZF9wYXlsb2FkX3ZlcnNpb24iuwIKEEhWRk1hY2hpbmVTdGF0dXMSDAoEcm9vdBgBIAEoCRIOCgZzb2NrZXQYAiABKAkSDwoHbWlzc2luZxgDIAMoCRIRCglpbnN0YWxsZWQYBCABKAgSFAoHcHJvYmxlbRgFIAEoCUgAiAEBEhgKEHN1cGVydmlzb3JfYWxpdmUYBiABKAgSDQoFcGhhc2UYByABKAkSKwoFc3RhdGUYCCABKAsyHC5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdGUSGAoLc3RhdGVfZXJyb3IYCSABKAlIAYgBARIWCg51cGRhdGVfcGVuZGluZxgKIAEoCBIPCgdzdW1tYXJ5GAsgASgJEhoKEnN0b3BwZWRfb25fcmVxdWVzdBgMIAEoCEIKCghfcHJvYmxlbUIOCgxfc3RhdGVfZXJyb3IiUwoVQ29udHJvbE1hY2hpbmVSZXF1ZXN0EisKBmFjdGlvbhgBIAEoCUIbukgYchZSBXN0YXJ0UgRzdG9wUgdyZXN0YXJ0Eg0KBWZvcmNlGAIgASgIMskECgpSaWdTZXJ2aWNlEjoKDEdldFJpZ0hlYWx0aBISLm1pY3JvcG9kLnYxLkVtcHR5GhYubWljcm9wb2QudjEuUmlnSGVhbHRoEjYKCkdldFJpZ01vZGUSEi5taWNyb3BvZC52MS5FbXB0eRoULm1pY3JvcG9kLnYxLlJpZ01vZGUSQgoKU2V0UmlnTW9kZRIeLm1pY3JvcG9kLnYxLlNldFJpZ01vZGVSZXF1ZXN0GhQubWljcm9wb2QudjEuUmlnTW9kZRJGChJHZXRIVkZVcGRhdGVTdGF0dXMSEi5taWNyb3BvZC52MS5FbXB0eRocLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVN0YXR1cxJNCg5BcHBseUhWRlVwZGF0ZRIdLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVJlcXVlc3QaHC5taWNyb3BvZC52MS5IVkZVcGRhdGVSZXN1bHQSUAoRUm9sbGJhY2tIVkZVcGRhdGUSHS5taWNyb3BvZC52MS5IVkZVcGRhdGVSZXF1ZXN0GhwubWljcm9wb2QudjEuSFZGVXBkYXRlUmVzdWx0EkUKEEdldE1hY2hpbmVTdGF0dXMSEi5taWNyb3BvZC52MS5FbXB0eRodLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVTdGF0dXMSUwoOQ29udHJvbE1hY2hpbmUSIi5taWNyb3BvZC52MS5Db250cm9sTWFjaGluZVJlcXVlc3QaHS5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdHVzQkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw", [file_buf_validate_validate, file_micropod_v1_api]);
+  fileDesc("ChVtaWNyb3BvZC92MS9yaWcucHJvdG8SC21pY3JvcG9kLnYxIj4KDVJpZ01vZGVPcHRpb24SDAoEbmFtZRgBIAEoCRIOCgZlbmdpbmUYAiABKAkSDwoHc3VtbWFyeRgDIAEoCSJbCgdSaWdNb2RlEgwKBG1vZGUYASABKAkSFwoPZGVmYXVsdF9ydW50aW1lGAIgASgJEikKBW1vZGVzGAMgAygLMhoubWljcm9wb2QudjEuUmlnTW9kZU9wdGlvbiIqChFTZXRSaWdNb2RlUmVxdWVzdBIVCgRtb2RlGAEgASgJQge6SARyAhABIpkDCgxSaWdDYWNoZURpc2sSDwoHbW91bnRlZBgBIAEoCBISCgpjb25maWd1cmVkGAIgASgIEhQKB21pc3NpbmcYAyABKAlIAIgBARIOCgZzb3VyY2UYBCABKAkSEwoGcmVhc29uGAUgASgJSAGIAQESEgoFc3RhdGUYBiABKAlIAogBARITCgZkZXZpY2UYByABKAlIA4gBARIdChBtb3VudF9pbmZvX2Vycm9yGAggASgJSASIAQESFwoKc2l6ZV9ieXRlcxgJIAEoBEgFiAEBEhcKCmZyZWVfYnl0ZXMYCiABKARIBogBARIVCg1zaGFyZWRfY2FjaGVzGAsgASgJEhgKC3VuYXZhaWxhYmxlGAwgASgJSAeIAQESDwoHc3VtbWFyeRgNIAEoCUIKCghfbWlzc2luZ0IJCgdfcmVhc29uQggKBl9zdGF0ZUIJCgdfZGV2aWNlQhMKEV9tb3VudF9pbmZvX2Vycm9yQg0KC19zaXplX2J5dGVzQg0KC19mcmVlX2J5dGVzQg4KDF91bmF2YWlsYWJsZSL7AQoMUmlnSFZGSGVhbHRoEhEKCWluc3RhbGxlZBgBIAEoCBINCgVwaGFzZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEgwKBHJvb3QYBCABKAkSFwoPZG9ja2VyX2VuZHBvaW50GAUgASgJEhoKEmNhY2hlX2Rpc2tfcHJlc2VudBgGIAEoCBItCgpjYWNoZV9kaXNrGAcgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEhUKDXNoYXJlZF9jYWNoZXMYCCABKAkSFgoOdXBkYXRlX3BlbmRpbmcYCSABKAgSFwoPcGF5bG9hZF92ZXJzaW9uGAogASgJInUKFVJpZ0NhY2hlUG9saWN5U3VtbWFyeRIMCgRtb2RlGAEgASgJEhEKCXNoYXJlZF9sMBgCIAEoCBIVCg1kZWZhdWx0X3RydXN0GAMgASgJEhAKCGdvX3Byb3h5GAQgASgJEhIKCnRvb2xfY291bnQYBSABKAUiKwoLUmlnRGVwcHJveHkSCwoDdXJsGAEgASgJEg8KB2hlYWx0aHkYAiABKAgi7AEKCVJpZ0hlYWx0aBIMCgRtb2RlGAEgASgJEhcKD2RlZmF1bHRfcnVudGltZRgCIAEoCRImCgNodmYYAyABKAsyGS5taWNyb3BvZC52MS5SaWdIVkZIZWFsdGgSOAoMY2FjaGVfcG9saWN5GAQgASgLMiIubWljcm9wb2QudjEuUmlnQ2FjaGVQb2xpY3lTdW1tYXJ5EioKCGRlcHByb3h5GAUgASgLMhgubWljcm9wb2QudjEuUmlnRGVwcHJveHkSGQoMY29uZmlnX2Vycm9yGAYgASgJSACIAQFCDwoNX2NvbmZpZ19lcnJvciLsAQoSSFZGUGF5bG9hZE1hbmlmZXN0Eg4KBnNjaGVtYRgBIAEoBRIPCgd2ZXJzaW9uGAIgASgJEhAKCHJldmlzaW9uGAMgASgJEhQKDGluc3RhbGxlZF9hdBgEIAEoCRI9CgdkaWdlc3RzGAUgAygLMiwubWljcm9wb2QudjEuSFZGUGF5bG9hZE1hbmlmZXN0LkRpZ2VzdHNFbnRyeRITCgZvcmlnaW4YBiABKAlIAIgBARouCgxEaWdlc3RzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfb3JpZ2luIpoFCg9IVkZVcGRhdGVTdGF0dXMSGQoMY3VycmVudF9wYXRoGAEgASgJSACIAQESGgoNcHJldmlvdXNfcGF0aBgCIAEoCUgBiAEBEhgKC3N0YWdlZF9wYXRoGAMgASgJSAKIAQESHAoPa25vd25fZ29vZF9wYXRoGAQgASgJSAOIAQESMAoHY3VycmVudBgFIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIxCghwcmV2aW91cxgGIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIvCgZzdGFnZWQYByABKAsyHy5taWNyb3BvZC52MS5IVkZQYXlsb2FkTWFuaWZlc3QSMwoKa25vd25fZ29vZBgIIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIZCgxydW5uaW5nX3BhdGgYCSABKAlIBIgBARIcCg9ydW5uaW5nX3ZlcnNpb24YCiABKAlIBYgBARIdChBydW5uaW5nX3JldmlzaW9uGAsgASgJSAaIAQESFgoOdXBkYXRlX3BlbmRpbmcYDCABKAgSGgoSYXZhaWxhYmxlX3ZlcnNpb25zGA0gAygJEiQKF2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlGA4gASgJSAeIAQFCDwoNX2N1cnJlbnRfcGF0aEIQCg5fcHJldmlvdXNfcGF0aEIOCgxfc3RhZ2VkX3BhdGhCEgoQX2tub3duX2dvb2RfcGF0aEIPCg1fcnVubmluZ19wYXRoQhIKEF9ydW5uaW5nX3ZlcnNpb25CEwoRX3J1bm5pbmdfcmV2aXNpb25CGgoYX2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlIiEKEEhWRlVwZGF0ZVJlcXVlc3QSDQoFZm9yY2UYASABKAgikgIKD0hWRlVwZGF0ZVJlc3VsdBIOCgZhY3Rpb24YASABKAkSGQoMZnJvbV92ZXJzaW9uGAIgASgJSACIAQESFwoKdG9fdmVyc2lvbhgDIAEoCUgBiAEBEhkKEWFjdGl2ZV9jb250YWluZXJzGAQgASgFEg4KBmRldGFpbBgFIAEoCRIbCg50YXJnZXRfdmVyc2lvbhgGIAEoCUgCiAEBEiQKF3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzGAcgASgDSAOIAQFCDwoNX2Zyb21fdmVyc2lvbkINCgtfdG9fdmVyc2lvbkIRCg9fdGFyZ2V0X3ZlcnNpb25CGgoYX3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzIq8DCg9IVkZNYWNoaW5lU3RhdGUSDQoFcGhhc2UYASABKAkSFgoOc3VwZXJ2aXNvcl9waWQYAiABKAUSFAoHdm1tX3BpZBgDIAEoBUgAiAEBEhcKCnN0YXJ0ZWRfYXQYBCABKAlIAYgBARIVCghyZWFkeV9hdBgFIAEoCUgCiAEBEhUKDXJlc3RhcnRfY291bnQYBiABKAUSHQoQbGFzdF9leGl0X3JlYXNvbhgHIAEoCUgDiAEBEhsKDmxhc3RfZXhpdF9jb2RlGAggASgFSASIAQESIAoTbG9hZGVkX3BheWxvYWRfcGF0aBgJIAEoCUgFiAEBEiMKFmxvYWRlZF9wYXlsb2FkX3ZlcnNpb24YCiABKAlIBogBARISCgp1cGRhdGVkX2F0GAsgASgJQgoKCF92bW1fcGlkQg0KC19zdGFydGVkX2F0QgsKCV9yZWFkeV9hdEITChFfbGFzdF9leGl0X3JlYXNvbkIRCg9fbGFzdF9leGl0X2NvZGVCFgoUX2xvYWRlZF9wYXlsb2FkX3BhdGhCGQoXX2xvYWRlZF9wYXlsb2FkX3ZlcnNpb24ihQcKEEhWRk1hY2hpbmVTdGF0dXMSDAoEcm9vdBgBIAEoCRIOCgZzb2NrZXQYAiABKAkSDwoHbWlzc2luZxgDIAMoCRIRCglpbnN0YWxsZWQYBCABKAgSFAoHcHJvYmxlbRgFIAEoCUgAiAEBEhgKEHN1cGVydmlzb3JfYWxpdmUYBiABKAgSDQoFcGhhc2UYByABKAkSKwoFc3RhdGUYCCABKAsyHC5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdGUSGAoLc3RhdGVfZXJyb3IYCSABKAlIAYgBARIWCg51cGRhdGVfcGVuZGluZxgKIAEoCBIPCgdzdW1tYXJ5GAsgASgJEhoKEnN0b3BwZWRfb25fcmVxdWVzdBgMIAEoCBIbCg5lbmdpbmVfdmVyc2lvbhgNIAEoCUgCiAEBEh8KEmVuZ2luZV9hcGlfdmVyc2lvbhgOIAEoCUgDiAEBEiMKFmVuZ2luZV9taW5fYXBpX3ZlcnNpb24YDyABKAlIBIgBARISCgpkaXNrX2ZsdXNoGBAgASgJEh0KEGNvbnRhaW5lcnNfdG90YWwYESABKAVIBYgBARIfChJjb250YWluZXJzX3J1bm5pbmcYEiABKAVIBogBARIRCglyZWFkaW5lc3MYEyABKAkSGwoOZmFpbHVyZV9yZWFzb24YFCABKAlIB4gBARItCgpjYWNoZV9kaXNrGBUgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEjMKCWF1dG9zdGFydBgWIAEoCzIgLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVBdXRvc3RhcnQSFwoPZG9ja2VyX2VuZHBvaW50GBcgASgJEhwKD3BheWxvYWRfdmVyc2lvbhgYIAEoCUgIiAEBEhsKDnN0YWdlZF92ZXJzaW9uGBkgASgJSAmIAQFCCgoIX3Byb2JsZW1CDgoMX3N0YXRlX2Vycm9yQhEKD19lbmdpbmVfdmVyc2lvbkIVChNfZW5naW5lX2FwaV92ZXJzaW9uQhkKF19lbmdpbmVfbWluX2FwaV92ZXJzaW9uQhMKEV9jb250YWluZXJzX3RvdGFsQhUKE19jb250YWluZXJzX3J1bm5pbmdCEQoPX2ZhaWx1cmVfcmVhc29uQhIKEF9wYXlsb2FkX3ZlcnNpb25CEQoPX3N0YWdlZF92ZXJzaW9uIuoBChNIVkZNYWNoaW5lQXV0b3N0YXJ0Eg8KB2VuYWJsZWQYASABKAgSDgoGbG9hZGVkGAIgASgIEg0KBWxhYmVsGAMgASgJEhIKCnBsaXN0X3BhdGgYBCABKAkSFAoHcHJvZ3JhbRgFIAEoCUgAiAEBEiEKFGV4aXRfdGltZW91dF9zZWNvbmRzGAYgASgFSAGIAQESFAoHcHJvYmxlbRgHIAEoCUgCiAEBEg8KB3N1bW1hcnkYCCABKAlCCgoIX3Byb2dyYW1CFwoVX2V4aXRfdGltZW91dF9zZWNvbmRzQgoKCF9wcm9ibGVtIjwKGlNldE1hY2hpbmVBdXRvc3RhcnRSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgSDQoFZm9yY2UYAiABKAgiUwoVQ29udHJvbE1hY2hpbmVSZXF1ZXN0EisKBmFjdGlvbhgBIAEoCUIbukgYchZSBXN0YXJ0UgRzdG9wUgdyZXN0YXJ0Eg0KBWZvcmNlGAIgASgIMqgFCgpSaWdTZXJ2aWNlEjoKDEdldFJpZ0hlYWx0aBISLm1pY3JvcG9kLnYxLkVtcHR5GhYubWljcm9wb2QudjEuUmlnSGVhbHRoEjYKCkdldFJpZ01vZGUSEi5taWNyb3BvZC52MS5FbXB0eRoULm1pY3JvcG9kLnYxLlJpZ01vZGUSQgoKU2V0UmlnTW9kZRIeLm1pY3JvcG9kLnYxLlNldFJpZ01vZGVSZXF1ZXN0GhQubWljcm9wb2QudjEuUmlnTW9kZRJGChJHZXRIVkZVcGRhdGVTdGF0dXMSEi5taWNyb3BvZC52MS5FbXB0eRocLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVN0YXR1cxJNCg5BcHBseUhWRlVwZGF0ZRIdLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVJlcXVlc3QaHC5taWNyb3BvZC52MS5IVkZVcGRhdGVSZXN1bHQSUAoRUm9sbGJhY2tIVkZVcGRhdGUSHS5taWNyb3BvZC52MS5IVkZVcGRhdGVSZXF1ZXN0GhwubWljcm9wb2QudjEuSFZGVXBkYXRlUmVzdWx0EkUKEEdldE1hY2hpbmVTdGF0dXMSEi5taWNyb3BvZC52MS5FbXB0eRodLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVTdGF0dXMSUwoOQ29udHJvbE1hY2hpbmUSIi5taWNyb3BvZC52MS5Db250cm9sTWFjaGluZVJlcXVlc3QaHS5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdHVzEl0KE1NldE1hY2hpbmVBdXRvc3RhcnQSJy5taWNyb3BvZC52MS5TZXRNYWNoaW5lQXV0b3N0YXJ0UmVxdWVzdBodLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVTdGF0dXNCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_micropod_v1_api]);
 
 /**
  * @generated from message micropod.v1.RigModeOption
@@ -713,6 +713,89 @@ export type HVFMachineStatus = Message<"micropod.v1.HVFMachineStatus"> & {
    * @generated from field: bool stopped_on_request = 12;
    */
   stoppedOnRequest: boolean;
+
+  /**
+   * The guest engine's /version, read only while the machine runs.
+   *
+   * @generated from field: optional string engine_version = 13;
+   */
+  engineVersion?: string;
+
+  /**
+   * The newest and oldest Docker API versions the engine serves.
+   *
+   * @generated from field: optional string engine_api_version = 14;
+   */
+  engineApiVersion?: string;
+
+  /**
+   * @generated from field: optional string engine_min_api_version = 15;
+   */
+  engineMinApiVersion?: string;
+
+  /**
+   * Each disk's flush mode now and at the next start, as `micropod machine
+   * status` prints it.
+   *
+   * @generated from field: string disk_flush = 16;
+   */
+  diskFlush: string;
+
+  /**
+   * The machine's containers (all, and running), read only while it runs.
+   *
+   * @generated from field: optional int32 containers_total = 17;
+   */
+  containersTotal?: number;
+
+  /**
+   * @generated from field: optional int32 containers_running = 18;
+   */
+  containersRunning?: number;
+
+  /**
+   * running, starting, stopping, stopped, failed, not-ready, not-installed
+   * or unusable: whether it can take work now.
+   *
+   * @generated from field: string readiness = 19;
+   */
+  readiness: string;
+
+  /**
+   * Why it is failed, unusable, not ready or not installed.
+   *
+   * @generated from field: optional string failure_reason = 20;
+   */
+  failureReason?: string;
+
+  /**
+   * @generated from field: micropod.v1.RigCacheDisk cache_disk = 21;
+   */
+  cacheDisk?: RigCacheDisk;
+
+  /**
+   * @generated from field: micropod.v1.HVFMachineAutostart autostart = 22;
+   */
+  autostart?: HVFMachineAutostart;
+
+  /**
+   * unix:// socket for DOCKER_HOST and the `micropod` docker context.
+   *
+   * @generated from field: string docker_endpoint = 23;
+   */
+  dockerEndpoint: string;
+
+  /**
+   * The payload that runs (or the next start boots) and the one staged.
+   *
+   * @generated from field: optional string payload_version = 24;
+   */
+  payloadVersion?: string;
+
+  /**
+   * @generated from field: optional string staged_version = 25;
+   */
+  stagedVersion?: string;
 };
 
 /**
@@ -721,6 +804,92 @@ export type HVFMachineStatus = Message<"micropod.v1.HVFMachineStatus"> & {
  */
 export const HVFMachineStatusSchema: GenMessage<HVFMachineStatus> = /*@__PURE__*/
   messageDesc(file_micropod_v1_rig, 13);
+
+/**
+ * The machine's autostart LaunchAgent (`micropod machine autostart`).
+ *
+ * @generated from message micropod.v1.HVFMachineAutostart
+ */
+export type HVFMachineAutostart = Message<"micropod.v1.HVFMachineAutostart"> & {
+  /**
+   * On: launchd starts the machine at login.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * launchd has the job loaded now.
+   *
+   * @generated from field: bool loaded = 2;
+   */
+  loaded: boolean;
+
+  /**
+   * @generated from field: string label = 3;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string plist_path = 4;
+   */
+  plistPath: string;
+
+  /**
+   * @generated from field: optional string program = 5;
+   */
+  program?: string;
+
+  /**
+   * launchd's SIGTERM -> SIGKILL wait, in seconds.
+   *
+   * @generated from field: optional int32 exit_timeout_seconds = 6;
+   */
+  exitTimeoutSeconds?: number;
+
+  /**
+   * Why the job cannot start the machine as recorded.
+   *
+   * @generated from field: optional string problem = 7;
+   */
+  problem?: string;
+
+  /**
+   * @generated from field: string summary = 8;
+   */
+  summary: string;
+};
+
+/**
+ * Describes the message micropod.v1.HVFMachineAutostart.
+ * Use `create(HVFMachineAutostartSchema)` to create a new message.
+ */
+export const HVFMachineAutostartSchema: GenMessage<HVFMachineAutostart> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 14);
+
+/**
+ * @generated from message micropod.v1.SetMachineAutostartRequest
+ */
+export type SetMachineAutostartRequest = Message<"micropod.v1.SetMachineAutostartRequest"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * Restart a machine that runs containers (interrupts them).
+   *
+   * @generated from field: bool force = 2;
+   */
+  force: boolean;
+};
+
+/**
+ * Describes the message micropod.v1.SetMachineAutostartRequest.
+ * Use `create(SetMachineAutostartRequestSchema)` to create a new message.
+ */
+export const SetMachineAutostartRequestSchema: GenMessage<SetMachineAutostartRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 15);
 
 /**
  * @generated from message micropod.v1.ControlMachineRequest
@@ -744,7 +913,7 @@ export type ControlMachineRequest = Message<"micropod.v1.ControlMachineRequest">
  * Use `create(ControlMachineRequestSchema)` to create a new message.
  */
 export const ControlMachineRequestSchema: GenMessage<ControlMachineRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_rig, 14);
+  messageDesc(file_micropod_v1_rig, 16);
 
 /**
  * The rootless rig: which execution mode new workloads use, the shared hvf
@@ -823,7 +992,9 @@ export const RigService: GenService<{
   },
   /**
    * The machine as every process sees it: assets, supervisor, phase, the
-   * published state. Never boots anything and never asks the guest.
+   * published state, and its autostart LaunchAgent. Never boots anything;
+   * while it runs, the guest is asked for its engine version, its
+   * containers and its cache disk (one second each).
    *
    * @generated from rpc micropod.v1.RigService.GetMachineStatus
    */
@@ -844,6 +1015,20 @@ export const RigService: GenService<{
   controlMachine: {
     methodKind: "unary";
     input: typeof ControlMachineRequestSchema;
+    output: typeof HVFMachineStatusSchema;
+  },
+  /**
+   * Turn the machine's autostart LaunchAgent on or off (`micropod machine
+   * autostart on|off`): on, launchd starts the machine at login and stops it
+   * cleanly at logout. Loading or unloading the job restarts a running
+   * machine, so it is deferred (`failed_precondition`, nothing changed)
+   * while containers run, unless `force`. Replies with the machine status.
+   *
+   * @generated from rpc micropod.v1.RigService.SetMachineAutostart
+   */
+  setMachineAutostart: {
+    methodKind: "unary";
+    input: typeof SetMachineAutostartRequestSchema;
     output: typeof HVFMachineStatusSchema;
   },
 }> = /*@__PURE__*/

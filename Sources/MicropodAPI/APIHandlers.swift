@@ -41,6 +41,9 @@ final class APIHandlers: Sendable {
     /// The metrics history `GetMetricsHistory` reads and `DeleteContainer`
     /// prunes (`MetricsStore.url(environment:)`: beside this API's socket).
     let metricsDatabase: URL
+    /// A machine root's autostart LaunchAgent (`SetMachineAutostart` and
+    /// the machine status's `autostart`); tests give it a stand-in launchd.
+    let machineAutostart: @Sendable (HVFMachineLayout) -> HVFMachineAutostartAgent
 
     init(
         client: ContainerCLIClient,
@@ -54,10 +57,14 @@ final class APIHandlers: Sendable {
         },
         versionEnvironment: VersionEnvironment? = nil,
         engineRegistry: EngineRegistry = .shared,
-        metricsDatabase: URL = MetricsStore.sharedURL
+        metricsDatabase: URL = MetricsStore.sharedURL,
+        machineAutostart: @escaping @Sendable (HVFMachineLayout) -> HVFMachineAutostartAgent = {
+            HVFMachineAutostartAgent(layout: $0, environment: ProcessInfo.processInfo.environment)
+        }
     ) {
         self.client = client
         self.metricsDatabase = metricsDatabase
+        self.machineAutostart = machineAutostart
         let versionEnvironment = versionEnvironment ?? .live(client: client)
         self.versionEnvironment = versionEnvironment
         self.engineRegistry = engineRegistry

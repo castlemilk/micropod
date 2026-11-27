@@ -333,6 +333,29 @@ public enum ControlPlaneJSON {
         ]
         if s.hasProblem { out["problem"] = s.problem }
         if s.hasStateError { out["stateError"] = s.stateError }
+        if !s.readiness.isEmpty { out["readiness"] = s.readiness }
+        if s.hasFailureReason { out["failureReason"] = s.failureReason }
+        if !s.dockerEndpoint.isEmpty { out["dockerEndpoint"] = s.dockerEndpoint }
+        if s.hasEngineVersion { out["engineVersion"] = s.engineVersion }
+        if s.hasEngineApiVersion { out["engineAPIVersion"] = s.engineApiVersion }
+        if s.hasEngineMinApiVersion { out["engineMinAPIVersion"] = s.engineMinApiVersion }
+        if s.hasContainersTotal { out["containersTotal"] = Int(s.containersTotal) }
+        if s.hasContainersRunning { out["containersRunning"] = Int(s.containersRunning) }
+        if !s.diskFlush.isEmpty { out["diskFlush"] = s.diskFlush }
+        if s.hasCacheDisk { out["cacheDisk"] = rigCacheDisk(s.cacheDisk) }
+        if s.hasPayloadVersion { out["payloadVersion"] = s.payloadVersion }
+        if s.hasStagedVersion { out["stagedVersion"] = s.stagedVersion }
+        if s.hasAutostart {
+            let a = s.autostart
+            var autostart: [String: Any] = [
+                "enabled": a.enabled, "loaded": a.loaded, "label": a.label, "plistPath": a.plistPath,
+                "summary": a.summary,
+            ]
+            if a.hasProgram { autostart["program"] = a.program }
+            if a.hasExitTimeoutSeconds { autostart["exitTimeoutSeconds"] = Int(a.exitTimeoutSeconds) }
+            if a.hasProblem { autostart["problem"] = a.problem }
+            out["autostart"] = autostart
+        }
         if s.hasState {
             let st = s.state
             var state: [String: Any] = [

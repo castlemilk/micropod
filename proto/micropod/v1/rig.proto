@@ -31,7 +31,9 @@ service RigService {
   // deferred like ApplyHVFUpdate.
   rpc RollbackHVFUpdate(HVFUpdateRequest) returns (HVFUpdateResult);
   // The machine as every process sees it: assets, supervisor, phase, the
-  // published state. Never boots anything and never asks the guest.
+  // published state, and its autostart LaunchAgent. Never boots anything;
+  // while it runs, the guest is asked for its engine version, its
+  // containers and its cache disk (one second each).
   rpc GetMachineStatus(Empty) returns (HVFMachineStatus);
   // Start (returns once the guest answers), stop (a stop on request: Ping and
   // GetSystem then say stopped and nothing restarts it on demand) or restart
@@ -39,6 +41,12 @@ service RigService {
   // deferred (`failed_precondition`, nothing stopped) while containers run on
   // a serving machine or its idleness cannot be confirmed, unless `force`.
   rpc ControlMachine(ControlMachineRequest) returns (HVFMachineStatus);
+  // Turn the machine's autostart LaunchAgent on or off (`micropod machine
+  // autostart on|off`): on, launchd starts the machine at login and stops it
+  // cleanly at logout. Loading or unloading the job restarts a running
+  // machine, so it is deferred (`failed_precondition`, nothing changed)
+  // while containers run, unless `force`. Replies with the machine status.
+  rpc SetMachineAutostart(SetMachineAutostartRequest) returns (HVFMachineStatus);
 }
 
 message RigModeOption {
@@ -211,6 +219,51 @@ message HVFMachineStatus {
   string summary = 11;
   // The last machine stop was asked for: nothing starts it on demand.
   bool stopped_on_request = 12;
+  // The guest engine's /version, read only while the machine runs.
+  optional string engine_version = 13;
+  // The newest and oldest Docker API versions the engine serves.
+  optional string engine_api_version = 14;
+  optional string engine_min_api_version = 15;
+  // Each disk's flush mode now and at the next start, as `micropod machine
+  // status` prints it.
+  string disk_flush = 16;
+  // The machine's containers (all, and running), read only while it runs.
+  optional int32 containers_total = 17;
+  optional int32 containers_running = 18;
+  // running, starting, stopping, stopped, failed, not-ready, not-installed
+  // or unusable: whether it can take work now.
+  string readiness = 19;
+  // Why it is failed, unusable, not ready or not installed.
+  optional string failure_reason = 20;
+  RigCacheDisk cache_disk = 21;
+  HVFMachineAutostart autostart = 22;
+  // unix:// socket for DOCKER_HOST and the `micropod` docker context.
+  string docker_endpoint = 23;
+  // The payload that runs (or the next start boots) and the one staged.
+  optional string payload_version = 24;
+  optional string staged_version = 25;
+}
+
+// The machine's autostart LaunchAgent (`micropod machine autostart`).
+message HVFMachineAutostart {
+  // On: launchd starts the machine at login.
+  bool enabled = 1;
+  // launchd has the job loaded now.
+  bool loaded = 2;
+  string label = 3;
+  string plist_path = 4;
+  optional string program = 5;
+  // launchd's SIGTERM -> SIGKILL wait, in seconds.
+  optional int32 exit_timeout_seconds = 6;
+  // Why the job cannot start the machine as recorded.
+  optional string problem = 7;
+  string summary = 8;
+}
+
+message SetMachineAutostartRequest {
+  bool enabled = 1;
+  // Restart a machine that runs containers (interrupts them).
+  bool force = 2;
 }
 
 message ControlMachineRequest {

@@ -142,7 +142,7 @@ final class GRPCTranscoderTests: XCTestCase {
 
     func testTheCatalogIsProtoDeclared() throws {
         XCTAssertEqual(RPCCatalog.services.count, 12)
-        XCTAssertEqual(RPCCatalog.services.values.reduce(0) { $0 + $1.count }, 90)
+        XCTAssertEqual(RPCCatalog.services.values.reduce(0) { $0 + $1.count }, 91)
         XCTAssertEqual(
             RPCCatalog.services.values.flatMap(\.values).filter { $0 == .serverStream }.count, 8)
         XCTAssertEqual(

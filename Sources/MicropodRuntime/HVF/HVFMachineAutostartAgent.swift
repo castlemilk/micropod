@@ -242,11 +242,13 @@ public struct HVFMachineAutostartAgent: Sendable {
         public var summary: String
     }
 
-    /// Never changes anything; asks launchd whether the job is loaded.
+    /// Never changes anything. Asks launchd whether the job is loaded only
+    /// when there is a record or a plist for this root: a root that never
+    /// had autostart runs no launchctl.
     public func status() async -> Status {
         let record = Self.loadRecord(layout: layout)
         let plistPresent = FileManager.default.fileExists(atPath: plistURL.path)
-        let loaded = await launch.isLoaded(label)
+        let loaded = record != nil || plistPresent ? await launch.isLoaded(label) : false
         guard let record, record.enabled else {
             var summary =
                 "off (the machine starts on demand from micropod and the API; nothing stops it cleanly at logout)"

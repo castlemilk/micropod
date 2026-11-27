@@ -19,14 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RigService_GetRigHealth_FullMethodName       = "/micropod.v1.RigService/GetRigHealth"
-	RigService_GetRigMode_FullMethodName         = "/micropod.v1.RigService/GetRigMode"
-	RigService_SetRigMode_FullMethodName         = "/micropod.v1.RigService/SetRigMode"
-	RigService_GetHVFUpdateStatus_FullMethodName = "/micropod.v1.RigService/GetHVFUpdateStatus"
-	RigService_ApplyHVFUpdate_FullMethodName     = "/micropod.v1.RigService/ApplyHVFUpdate"
-	RigService_RollbackHVFUpdate_FullMethodName  = "/micropod.v1.RigService/RollbackHVFUpdate"
-	RigService_GetMachineStatus_FullMethodName   = "/micropod.v1.RigService/GetMachineStatus"
-	RigService_ControlMachine_FullMethodName     = "/micropod.v1.RigService/ControlMachine"
+	RigService_GetRigHealth_FullMethodName        = "/micropod.v1.RigService/GetRigHealth"
+	RigService_GetRigMode_FullMethodName          = "/micropod.v1.RigService/GetRigMode"
+	RigService_SetRigMode_FullMethodName          = "/micropod.v1.RigService/SetRigMode"
+	RigService_GetHVFUpdateStatus_FullMethodName  = "/micropod.v1.RigService/GetHVFUpdateStatus"
+	RigService_ApplyHVFUpdate_FullMethodName      = "/micropod.v1.RigService/ApplyHVFUpdate"
+	RigService_RollbackHVFUpdate_FullMethodName   = "/micropod.v1.RigService/RollbackHVFUpdate"
+	RigService_GetMachineStatus_FullMethodName    = "/micropod.v1.RigService/GetMachineStatus"
+	RigService_ControlMachine_FullMethodName      = "/micropod.v1.RigService/ControlMachine"
+	RigService_SetMachineAutostart_FullMethodName = "/micropod.v1.RigService/SetMachineAutostart"
 )
 
 // RigServiceClient is the client API for RigService service.
@@ -57,7 +58,9 @@ type RigServiceClient interface {
 	// deferred like ApplyHVFUpdate.
 	RollbackHVFUpdate(ctx context.Context, in *HVFUpdateRequest, opts ...grpc.CallOption) (*HVFUpdateResult, error)
 	// The machine as every process sees it: assets, supervisor, phase, the
-	// published state. Never boots anything and never asks the guest.
+	// published state, and its autostart LaunchAgent. Never boots anything;
+	// while it runs, the guest is asked for its engine version, its
+	// containers and its cache disk (one second each).
 	GetMachineStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HVFMachineStatus, error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
@@ -65,6 +68,12 @@ type RigServiceClient interface {
 	// deferred (`failed_precondition`, nothing stopped) while containers run on
 	// a serving machine or its idleness cannot be confirmed, unless `force`.
 	ControlMachine(ctx context.Context, in *ControlMachineRequest, opts ...grpc.CallOption) (*HVFMachineStatus, error)
+	// Turn the machine's autostart LaunchAgent on or off (`micropod machine
+	// autostart on|off`): on, launchd starts the machine at login and stops it
+	// cleanly at logout. Loading or unloading the job restarts a running
+	// machine, so it is deferred (`failed_precondition`, nothing changed)
+	// while containers run, unless `force`. Replies with the machine status.
+	SetMachineAutostart(ctx context.Context, in *SetMachineAutostartRequest, opts ...grpc.CallOption) (*HVFMachineStatus, error)
 }
 
 type rigServiceClient struct {
@@ -155,6 +164,16 @@ func (c *rigServiceClient) ControlMachine(ctx context.Context, in *ControlMachin
 	return out, nil
 }
 
+func (c *rigServiceClient) SetMachineAutostart(ctx context.Context, in *SetMachineAutostartRequest, opts ...grpc.CallOption) (*HVFMachineStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HVFMachineStatus)
+	err := c.cc.Invoke(ctx, RigService_SetMachineAutostart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RigServiceServer is the server API for RigService service.
 // All implementations must embed UnimplementedRigServiceServer
 // for forward compatibility.
@@ -183,7 +202,9 @@ type RigServiceServer interface {
 	// deferred like ApplyHVFUpdate.
 	RollbackHVFUpdate(context.Context, *HVFUpdateRequest) (*HVFUpdateResult, error)
 	// The machine as every process sees it: assets, supervisor, phase, the
-	// published state. Never boots anything and never asks the guest.
+	// published state, and its autostart LaunchAgent. Never boots anything;
+	// while it runs, the guest is asked for its engine version, its
+	// containers and its cache disk (one second each).
 	GetMachineStatus(context.Context, *Empty) (*HVFMachineStatus, error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
@@ -191,6 +212,12 @@ type RigServiceServer interface {
 	// deferred (`failed_precondition`, nothing stopped) while containers run on
 	// a serving machine or its idleness cannot be confirmed, unless `force`.
 	ControlMachine(context.Context, *ControlMachineRequest) (*HVFMachineStatus, error)
+	// Turn the machine's autostart LaunchAgent on or off (`micropod machine
+	// autostart on|off`): on, launchd starts the machine at login and stops it
+	// cleanly at logout. Loading or unloading the job restarts a running
+	// machine, so it is deferred (`failed_precondition`, nothing changed)
+	// while containers run, unless `force`. Replies with the machine status.
+	SetMachineAutostart(context.Context, *SetMachineAutostartRequest) (*HVFMachineStatus, error)
 	mustEmbedUnimplementedRigServiceServer()
 }
 
@@ -224,6 +251,9 @@ func (UnimplementedRigServiceServer) GetMachineStatus(context.Context, *Empty) (
 }
 func (UnimplementedRigServiceServer) ControlMachine(context.Context, *ControlMachineRequest) (*HVFMachineStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method ControlMachine not implemented")
+}
+func (UnimplementedRigServiceServer) SetMachineAutostart(context.Context, *SetMachineAutostartRequest) (*HVFMachineStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetMachineAutostart not implemented")
 }
 func (UnimplementedRigServiceServer) mustEmbedUnimplementedRigServiceServer() {}
 func (UnimplementedRigServiceServer) testEmbeddedByValue()                    {}
@@ -390,6 +420,24 @@ func _RigService_ControlMachine_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RigService_SetMachineAutostart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMachineAutostartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RigServiceServer).SetMachineAutostart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RigService_SetMachineAutostart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RigServiceServer).SetMachineAutostart(ctx, req.(*SetMachineAutostartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RigService_ServiceDesc is the grpc.ServiceDesc for RigService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -428,6 +476,10 @@ var RigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ControlMachine",
 			Handler:    _RigService_ControlMachine_Handler,
+		},
+		{
+			MethodName: "SetMachineAutostart",
+			Handler:    _RigService_SetMachineAutostart_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
