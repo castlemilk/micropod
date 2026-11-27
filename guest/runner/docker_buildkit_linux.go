@@ -504,6 +504,14 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 			return nil, status.Error(codes.Unavailable, err.Error())
 		}
 	}
+	// A load for another platform (linux/amd64 alone or beside linux/arm64)
+	// is unpacked and named so it runs (image_unpack_linux.go), before the
+	// sync below makes it durable.
+	if err == nil && !local && !buildIsNative(platform) && tags != nil {
+		if err := s.finishEmulatedLoad(ctx, tags, result.GetExporterResponse()); err != nil {
+			return nil, status.Error(codes.Unavailable, err.Error())
+		}
+	}
 	// What the build stored (an image, its unpacked layers, BuildKit's cache
 	// records) is on the disk before its Solve answers
 	// (image_durability_linux.go).

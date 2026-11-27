@@ -24,6 +24,8 @@ import (
 	"time"
 
 	containers "github.com/containerd/containerd/api/services/containers/v1"
+	"github.com/containerd/platforms"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/metadata"
@@ -42,15 +44,18 @@ type dockerRecord struct {
 	OOMKilled                                    bool
 	CPUGrouped                                   bool `json:",omitempty"`
 	ID, Name, ImageID, Phase, RuntimeID, Failure string
-	Created, Started, Finished                   time.Time
-	Exit                                         int32
-	Exits                                        uint64
-	LogOffset                                    int64              `json:",omitempty"`
-	LogError                                     string             `json:",omitempty"`
-	Health                                       *dockerHealthState `json:",omitempty"`
-	Config                                       dockerConfig
-	RootFS                                       *dockerRootFS        `json:",omitempty"`
-	RootFSBinding                                *dockerRootFSBinding `json:",omitempty"`
+	// ImagePlatform is the image's platform ("linux/amd64" for an emulated
+	// container); "" for a record an older engine wrote, which is linux/arm64.
+	ImagePlatform              string `json:",omitempty"`
+	Created, Started, Finished time.Time
+	Exit                       int32
+	Exits                      uint64
+	LogOffset                  int64              `json:",omitempty"`
+	LogError                   string             `json:",omitempty"`
+	Health                     *dockerHealthState `json:",omitempty"`
+	Config                     dockerConfig
+	RootFS                     *dockerRootFS        `json:",omitempty"`
+	RootFSBinding              *dockerRootFSBinding `json:",omitempty"`
 	// Cache is the attach decision made once at create and replayed on every
 	// start; CacheSkipped lists tools the latest start had to leave out.
 	Cache        *cachePlan        `json:",omitempty"`
@@ -529,6 +534,13 @@ func serveEngine(ctx context.Context, n node) error {
 			return fmt.Errorf("prepare the native bridge resolver: %w", err)
 		}
 	}
+	if !privateRootless() {
+		// Before the socket opens and before buildkitd can start: BuildKit
+		// lists the platforms it builds by running a test binary of each,
+		// once (emulation_linux.go). Needs no containerd.
+		watch.enter("setting up linux/amd64 emulation")
+		setupAmd64Emulation(ctx)
+	}
 	// start.sh starts the engine beside containerd: what is above needs no
 	// containerd, and overlaps its start. Recovery does need it, and the
 	// socket opens only after recovery, so a _ping is never answered by an
@@ -716,6 +728,12 @@ func (s *dockerEngine) lookup(key string) (*dockerContainer, error) {
 	return found, nil
 }
 func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name string) (*dockerContainer, error) {
+	return s.createFor(ctx, spec, name, nil)
+}
+
+// createFor creates a container from the image ref means for platform (nil:
+// the request names none).
+func (s *dockerEngine) createFor(ctx context.Context, spec dockerConfig, name string, platform *ocispec.Platform) (*dockerContainer, error) {
 	if name != "" && !dockerName.MatchString(name) {
 		return nil, fail(400, "invalid container name")
 	}
@@ -725,12 +743,21 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	spec.HostConfig.applyDefaultLimits(s.cachePolicy.get())
 	s.imageMu.RLock()
 	defer s.imageMu.RUnlock()
-	img, err := s.node.dockerImageStatus(ctx, spec.Image, true)
+	img, err := s.node.dockerPlatformImageStatus(ctx, spec.Image, platform)
 	if err != nil {
 		return nil, err
 	}
 	if img.GetImage().GetId() == "" {
 		return nil, fail(404, "No such image: "+spec.Image)
+	}
+	// An image of another platform runs only through emulation; without it,
+	// say so now rather than with an exec format error at start.
+	imagePlatformName := ""
+	if p, ok := imagePlatform(img); ok {
+		if runs, why := runsHere(p); !runs {
+			return nil, fail(http.StatusBadRequest, "cannot create a container from "+spec.Image+": "+why)
+		}
+		imagePlatformName = platforms.Format(p)
 	}
 	spec.ExposedPorts = mergeImageExposedPorts(spec.ExposedPorts, img.GetInfo()["info"])
 	if err := s.configureDockerHealth(ctx, &spec, img.GetImage().GetId()); err != nil {
@@ -743,7 +770,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	}
 	// Before s.mu: a first probe of an image mounts it (tens of ms, seconds
 	// when containerd must unpack it first).
-	plan, runAs, err := s.cacheDecision(ctx, spec, img.Image.Id)
+	plan, runAs, err := s.cacheDecisionFor(ctx, spec, img.Image.Id, imagePlatformName)
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +838,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		return nil, err
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, ImageEnv: imageEnv(img.GetInfo()["info"]), Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, ImagePlatform: imagePlatformName, ImageEnv: imageEnv(img.GetInfo()["info"]), Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
@@ -871,8 +898,19 @@ func containerVolumeRules(pol cachePolicy, spec dockerConfig, plan *cachePlan, c
 // socket) bounds its trust: a create through a socket bound into a container
 // is never more trusted than that container's own plan.
 func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, imageID string) (*cachePlan, *runAsUser, error) {
+	return s.cacheDecisionFor(ctx, spec, imageID, "")
+}
+
+// cacheDecisionFor is cacheDecision for an image of the platform named ("":
+// the engine's own). An emulated container gets the same scope, trust, read-
+// only views and stores as a native one, except a store that holds programs
+// of the architecture that wrote it (cacheTool.NativeOnly).
+func (s *dockerEngine) cacheDecisionFor(ctx context.Context, spec dockerConfig, imageID, platform string) (*cachePlan, *runAsUser, error) {
 	pol := s.cachePolicy.get()
 	req := cacheRequest{origin: cacheOriginOf(ctx), proxyUp: dependencyProxies.up}
+	if platform != "" && platform != enginePlatform {
+		req.emulated = true
+	}
 	if !req.origin.hostFacing && req.origin.creator != "" {
 		s.mu.Lock()
 		if creator := s.containers[req.origin.creator]; creator != nil {
@@ -1935,8 +1973,19 @@ func (s *dockerEngine) info() map[string]any {
 	if s.direct != nil {
 		labels = append(labels, "io.micropod.published-path=macvlan")
 	}
+	// The platforms containers run on, and how linux/amd64 runs (or why not).
+	labels = append(labels, "io.micropod.platforms="+strings.Join(enginePlatforms(), ","))
+	emulation := currentEmulation()
+	if emulation.available() {
+		labels = append(labels, "io.micropod.amd64="+emulation.Emulator)
+	} else {
+		labels = append(labels, "io.micropod.amd64=unavailable")
+	}
 	info := map[string]any{"ID": os.Getenv("MICROPOD_CI_WORKER_ID"), "Name": "micropod", "OSType": "linux", "Architecture": "aarch64", "Driver": "overlayfs", "CgroupDriver": "cgroupfs", "CgroupVersion": "2", "DefaultRuntime": "crun", "ServerVersion": "micropod", "NCPU": runtime.NumCPU(), "Labels": labels}
 	info["LoggingDriver"] = dockerDefaultLogDriver
+	if emulation != nil {
+		info["MicropodEmulation"] = emulation
+	}
 	if controllers, err := os.ReadFile("/sys/fs/cgroup/cgroup.subtree_control"); err == nil {
 		info["CPUShares"] = slices.Contains(strings.Fields(string(controllers)), "cpu")
 	}

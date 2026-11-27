@@ -161,7 +161,8 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 	case path == "volumes" || strings.HasPrefix(path, "volumes/"):
 		return s.volumes(w, r, strings.TrimPrefix(path, "volumes"))
 	case path == "containers/create" && method == "POST":
-		if err := checkEnginePlatform(r.URL.Query().Get("platform")); err != nil {
+		platform, err := requestedPlatform(r.URL.Query().Get("platform"))
+		if err != nil {
 			return err
 		}
 		b, err := readBody(w, r)
@@ -172,7 +173,7 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return fail(400, err.Error())
 		}
-		c, err := s.create(r.Context(), spec, r.URL.Query().Get("name"))
+		c, err := s.createFor(r.Context(), spec, r.URL.Query().Get("name"), platform)
 		if err != nil {
 			return err
 		}
@@ -576,6 +577,12 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		}
 		v := imgMap(i.Image)
 		v["RepoDigests"] = digests
+		if p, ok := imagePlatform(i); ok {
+			v["Os"], v["Architecture"] = p.OS, p.Architecture
+			if p.Variant != "" {
+				v["Variant"] = p.Variant
+			}
+		}
 		var details struct {
 			ImageSpec struct {
 				Config  json.RawMessage
@@ -618,7 +625,8 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		if ref == "" {
 			return fail(400, "fromImage is required")
 		}
-		if err := checkEnginePlatform(q.Get("platform")); err != nil {
+		platform, err := requestedPlatform(q.Get("platform"))
+		if err != nil {
 			return err
 		}
 		if tag != "" {
@@ -631,6 +639,9 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		auth, err := registryPullCredentials(w, r, ref)
 		if err != nil {
 			return err
+		}
+		if !isNativePlatform(platform) {
+			return s.pullEmulatedImage(w, r, ref, *platform, auth)
 		}
 		// An explicit Docker pull refreshes a tag. Credentials are scoped to this call.
 		s.imageMu.RLock()

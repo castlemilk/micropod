@@ -29,6 +29,9 @@ func engineCapabilities(buildkit bool) []string {
 	if buildkit {
 		caps = append(caps, "buildkit", "grpc-build")
 	}
+	if currentEmulation().available() {
+		caps = append(caps, "platform-linux-amd64")
+	}
 	return caps
 }
 

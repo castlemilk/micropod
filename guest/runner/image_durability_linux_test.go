@@ -389,11 +389,16 @@ func (s storeImages) Delete(_ context.Context, req *images.DeleteImageRequest, _
 // fixtureImage adds a one-platform image of layers (their diff IDs) to f, its
 // blobs committed at when, and returns its chain IDs.
 func (f *storeFixture) fixtureImage(name string, when time.Time, layers ...string) (*images.Image, []string) {
+	return f.fixtureImageFor(name, "arm64", when, layers...)
+}
+
+// fixtureImageFor is fixtureImage for an image of another architecture.
+func (f *storeFixture) fixtureImageFor(name, arch string, when time.Time, layers ...string) (*images.Image, []string) {
 	var diffs []digest.Digest
 	for _, l := range layers {
 		diffs = append(diffs, digest.FromString(l))
 	}
-	config, _ := json.Marshal(map[string]any{"architecture": "arm64", "os": "linux", "rootfs": map[string]any{"type": "layers", "diff_ids": diffs}})
+	config, _ := json.Marshal(map[string]any{"architecture": arch, "os": "linux", "rootfs": map[string]any{"type": "layers", "diff_ids": diffs}})
 	cd := digest.FromBytes(config)
 	manifest, _ := json.Marshal(map[string]any{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
 		"config": map[string]any{"mediaType": "application/vnd.oci.image.config.v1+json", "digest": cd, "size": len(config)},
@@ -688,5 +693,37 @@ func TestBuildKitPrunesTheRecordsMadeAfterTheLastSync(t *testing.T) {
 	}
 	if _, err := os.Stat(buildkitPrunePath); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("the list stayed after BuildKit pruned: %v", err)
+	}
+}
+
+// An amd64 image pulled for emulation is unpacked like a native one, so after
+// an unclean stop it is checked like one: a layer committed after the last
+// sync takes the image with it, and a record written since that names a
+// layer not there goes. An amd64 image from before the sync stays.
+func TestDiscardUndurableImagesChecksEmulatedImagesToo(t *testing.T) {
+	t.Cleanup(func() { os.Remove(buildkitPrunePath) })
+	since := time.Unix(1_800_000_000, 0)
+	before, after := since.Add(-time.Minute), since.Add(time.Second)
+	f := &storeFixture{blobs: map[string][]byte{}}
+	_, durableChain := f.fixtureImageFor("docker.io/library/old@sha256:"+strings.Repeat("1", 64), "amd64", before, "amd64 base")
+	pulled, pulledChain := f.fixtureImageFor("docker.io/library/new@sha256:"+strings.Repeat("2", 64), "amd64", after, "amd64 base", "amd64 top")
+	missing, _ := f.fixtureImageFor("docker.io/library/gone@sha256:"+strings.Repeat("3", 64), "amd64", after, "never unpacked amd64")
+	f.snaps = []*snapshots.Info{
+		committed(durableChain[0], "", before),
+		committed(pulledChain[1], durableChain[0], after),
+	}
+	c := imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}}
+	if _, err := c.discardUndurableImages(context.Background(), since); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(f.removed, []string{pulledChain[1]}) {
+		t.Fatalf("removed snapshots %q, want the amd64 layer committed after the sync", f.removed)
+	}
+	gone := slices.Clone(f.imgGone)
+	slices.Sort(gone)
+	want := []string{missing.GetName(), pulled.GetName()}
+	slices.Sort(want)
+	if !slices.Equal(gone, want) {
+		t.Fatalf("removed images %q, want %q", gone, want)
 	}
 }

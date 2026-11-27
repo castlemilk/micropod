@@ -542,7 +542,11 @@ func (c imageStoreClients) imageUndurable(ctx context.Context, img *images.Image
 	if err := json.Unmarshal(raw, &config); err != nil {
 		return "", nil
 	}
-	if p := (ocispec.Platform{OS: config.OS, Architecture: config.Architecture, Variant: config.Variant}); !platforms.Only(platforms.MustParse("linux/arm64")).Match(p) {
+	// containerd's transfer service unpacks an image of any linux
+	// architecture (an amd64 one pulled for emulation, or a single-platform
+	// image pulled with no platform), so every linux image's layers are
+	// checked; only another OS's are never unpacked here.
+	if config.OS != "" && config.OS != "linux" {
 		return "", nil // never unpacked here
 	}
 	for _, chain := range identity.ChainIDs(slices.Clone(config.RootFS.DiffIDs)) {

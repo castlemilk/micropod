@@ -156,3 +156,43 @@ func TestOpenCacheMounts_ConcurrentYarnCoWOverlayFallback(t *testing.T) {
 		t.Fatalf("expected 1 CoW overlay for concurrent yarn, got %d", len(second.overlays))
 	}
 }
+
+// An emulated (linux/amd64) container gets the plan a native one gets, the
+// same scope, tier and read-only views, with one difference: no store that
+// holds programs of the architecture that wrote it (Playwright's browsers).
+// Go's and npm's stores stay attached: their entries are keyed by the
+// toolchain and target, or are content-addressed sources.
+func TestDecideCaches_EmulatedContainerKeepsItsTrustAndSkipsNativeOnlyStores(t *testing.T) {
+	pol := defaultCachePolicy()
+	facts := testFacts(
+		[]string{"PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin", "HOME=/root"},
+		map[string]pathFact{"/root/.bun": dirFact},
+		"go", "node", "npm", "bun", "playwright",
+	)
+	spec := dockerConfig{Labels: map[string]string{"io.micropod.cache.scope": "proj-x", "io.micropod.cache.trust": "untrusted"}}
+	native, err := decideCachesFor(pol, spec, facts, hostFacingRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := hostFacingRequest
+	req.emulated = true
+	emulated, err := decideCachesFor(pol, spec, facts, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emulated.Scope != native.Scope || emulated.Trust != native.Trust || emulated.ReadOnly != native.ReadOnly || !emulated.ReadOnly {
+		t.Fatalf("emulated plan scope %q trust %q read-only %v, native %q %q %v", emulated.Scope, emulated.Trust, emulated.ReadOnly,
+			native.Scope, native.Trust, native.ReadOnly)
+	}
+	if st := emulated.Tools["playwright"]; st.Mode != "skipped" || st.Reason != skipEmulatedPlatform {
+		t.Fatalf("playwright for an emulated container: %+v", st)
+	}
+	if st := native.Tools["playwright"]; st.Mode != "path" {
+		t.Fatalf("playwright for a native container: %+v", st)
+	}
+	for _, kind := range []string{"gomod", "gobuild", "npm", "bun"} {
+		if got, want := emulated.Tools[kind], native.Tools[kind]; got.Mode != want.Mode || got.Mode == "skipped" {
+			t.Errorf("%s: emulated %+v, native %+v", kind, got, want)
+		}
+	}
+}
