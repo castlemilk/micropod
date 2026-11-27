@@ -72,6 +72,7 @@ fn malformed_flags_exit_2_instead_of_panicking() {
         "--workspace",
         "--cmdline-append",
         "--disk-flush",
+        "--disk-flush-os",
     ];
     let mut cases: Vec<Vec<&str>> = value_flags.iter().map(|f| vec![*f]).collect();
     for numeric in [
@@ -93,6 +94,8 @@ fn malformed_flags_exit_2_instead_of_panicking() {
     cases.push(vec!["--workspace", "/tmp/."]);
     cases.push(vec!["--disk-flush", "fullfsync"]);
     cases.push(vec!["--disk-flush", ""]);
+    cases.push(vec!["--disk-flush-os", "fullfsync"]);
+    cases.push(vec!["--disk-flush-os", ""]);
     for args in cases {
         let output = run(&args);
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -104,9 +107,27 @@ fn malformed_flags_exit_2_instead_of_panicking() {
 #[test]
 fn every_disk_flush_mode_is_accepted() {
     for mode in ["barrier", "full", "fsync"] {
-        let output = run(&["--disk-flush", mode]);
-        assert_eq!(output.status.code(), Some(1), "{mode}");
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("read kernel"), "{mode}: {stderr}");
+        for flag in ["--disk-flush", "--disk-flush-os"] {
+            let output = run(&[flag, mode]);
+            assert_eq!(output.status.code(), Some(1), "{flag} {mode}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("read kernel"), "{flag} {mode}: {stderr}");
+        }
     }
+    let output = run(&["--disk-flush", "barrier", "--disk-flush-os", "fsync"]);
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn usage_names_the_per_disk_flush() {
+    let output = Command::new(env!("CARGO_BIN_EXE_micropod-vmm"))
+        .arg("--help")
+        .output()
+        .expect("launch micropod-vmm");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("[--disk-flush-os barrier|full|fsync]"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("the cache disk keeps"), "{stdout}");
 }

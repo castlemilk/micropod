@@ -514,6 +514,25 @@ pub struct ShareSpec {
     pub read_only: bool,
 }
 
+/// The host sync each disk runs for a guest flush.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DiskFlushModes {
+    /// `--disk` (`/dev/vda`).
+    pub os_disk: DiskFlush,
+    /// `--cache-disk` (`/dev/vdb`).
+    pub cache_disk: DiskFlush,
+}
+
+impl VmConfig {
+    /// `--disk-flush` for both disks, the OS disk's `--disk-flush-os` when set.
+    pub fn flush_modes(&self) -> DiskFlushModes {
+        DiskFlushModes {
+            os_disk: self.os_disk_flush.unwrap_or(self.disk_flush),
+            cache_disk: self.disk_flush,
+        }
+    }
+}
+
 pub struct VmConfig {
     pub kernel_path: PathBuf,
     pub initrd_path: Option<PathBuf>,
@@ -525,6 +544,9 @@ pub struct VmConfig {
     pub cache_disk_path: Option<PathBuf>,
     /// The host sync both disks run for a guest flush (`--disk-flush`).
     pub disk_flush: DiskFlush,
+    /// The OS disk's own (`--disk-flush-os`), overriding `disk_flush` for it
+    /// alone: the cache disk keeps `disk_flush`.
+    pub os_disk_flush: Option<DiskFlush>,
     pub num_vcpus: u32,
     pub memory_mib: usize,
     pub cmdline: String,
@@ -978,24 +1000,27 @@ pub fn run_vm_with_parent(
         };
 
         push_dev(Box::new(VirtioRng));
+        let flush = cfg.flush_modes();
+        if disk.is_some() && flush.os_disk != cfg.disk_flush {
+            eprintln!(
+                "[micropod-vmm] disk flush: OS disk {}, cache disk {} (--disk-flush-os)",
+                flush.os_disk.name(),
+                flush.cache_disk.name()
+            );
+        }
         if let Some(disk) = &disk {
             let file = disk
                 .try_clone()
                 .map_err(|e| format!("duplicate disk descriptor: {e}"))?;
-            let blk = VirtioBlk::new(
-                file,
-                cfg.disk_read_only,
-                blk_metrics.clone(),
-                cfg.disk_flush,
-            )
-            .map_err(|e| format!("init virtio-blk: {e}"))?;
+            let blk = VirtioBlk::new(file, cfg.disk_read_only, blk_metrics.clone(), flush.os_disk)
+                .map_err(|e| format!("init virtio-blk: {e}"))?;
             push_dev(Box::new(blk));
         }
         if let Some(cache_disk) = &cache_disk {
             let file = cache_disk
                 .try_clone()
                 .map_err(|e| format!("duplicate cache disk descriptor: {e}"))?;
-            let blk = VirtioBlk::new(file, false, blk_metrics.clone(), cfg.disk_flush)
+            let blk = VirtioBlk::new(file, false, blk_metrics.clone(), flush.cache_disk)
                 .map_err(|e| format!("init cache virtio-blk: {e}"))?;
             push_dev(Box::new(blk));
         }
@@ -2017,6 +2042,68 @@ mod vcpu_lifecycle_tests {
         assert_eq!(checked_ram_size(512).unwrap(), 512 * 1024 * 1024);
     }
 
+    fn flush_config(disk_flush: DiskFlush, os_disk_flush: Option<DiskFlush>) -> VmConfig {
+        VmConfig {
+            kernel_path: PathBuf::new(),
+            initrd_path: None,
+            disk_path: None,
+            disk_read_only: false,
+            cache_disk_path: None,
+            disk_flush,
+            os_disk_flush,
+            num_vcpus: 1,
+            memory_mib: 512,
+            cmdline: String::new(),
+            timeout_secs: 0,
+            echo_console: false,
+            enable_balloon: false,
+            enable_net: false,
+            enable_published_net: false,
+            published_mtu: 1500,
+            allow_host_ports: Vec::new(),
+            enable_vsock: false,
+            vsock_exposes: Vec::new(),
+            shares: Vec::new(),
+            snapshot_trigger: None,
+            snapshot_out: None,
+            snapshot_and_exit: false,
+            restore_from: None,
+            telemetry: TelemetryConfig::default(),
+            shutdown_timeout_secs: DEFAULT_SHUTDOWN_TIMEOUT_SECS,
+            console_log: None,
+        }
+    }
+
+    #[test]
+    fn os_disk_flush_overrides_only_the_os_disk() {
+        // Unchanged by default: barrier on both.
+        let both = flush_config(DiskFlush::default(), None).flush_modes();
+        assert_eq!(
+            both,
+            DiskFlushModes {
+                os_disk: DiskFlush::Barrier,
+                cache_disk: DiskFlush::Barrier
+            }
+        );
+        // --disk-flush still sets both.
+        let fsync = flush_config(DiskFlush::Fsync, None).flush_modes();
+        assert_eq!(
+            (fsync.os_disk, fsync.cache_disk),
+            (DiskFlush::Fsync, DiskFlush::Fsync)
+        );
+        // --disk-flush-os moves the OS disk alone; the cache disk keeps its ordering.
+        let os = flush_config(DiskFlush::Barrier, Some(DiskFlush::Fsync)).flush_modes();
+        assert_eq!(
+            (os.os_disk, os.cache_disk),
+            (DiskFlush::Fsync, DiskFlush::Barrier)
+        );
+        let os = flush_config(DiskFlush::Full, Some(DiskFlush::Barrier)).flush_modes();
+        assert_eq!(
+            (os.os_disk, os.cache_disk),
+            (DiskFlush::Barrier, DiskFlush::Full)
+        );
+    }
+
     #[test]
     fn invalid_boot_dimensions_are_rejected_before_reading_images() {
         for (num_vcpus, memory_mib, expected) in [
@@ -2031,6 +2118,7 @@ mod vcpu_lifecycle_tests {
                 disk_read_only: false,
                 cache_disk_path: None,
                 disk_flush: DiskFlush::default(),
+                os_disk_flush: None,
                 num_vcpus,
                 memory_mib,
                 cmdline: String::new(),
