@@ -60,7 +60,22 @@ enum MachineCommands {
                                                   any other builder; rm first selects the context
                                                   `micropod docker install --use` replaced when
                                                   `micropod` is current
-          micropod machine serve                  run the supervisor in the foreground
+          micropod machine autostart on [--no-load] [--program <path>] [--force]
+          micropod machine autostart off [--force]
+          micropod machine autostart status [--json]
+                                                  a LaunchAgent that runs `machine serve` under
+                                                  launchd: it starts the machine at login and stops it
+                                                  cleanly (SIGTERM, guest poweroff) at logout and
+                                                  shutdown. `on` loads it now, which starts the machine
+                                                  under launchd (a running machine with containers is
+                                                  deferred unless --force); --no-load takes effect at
+                                                  the next login. `off` unloads it (deferred while
+                                                  containers run unless --force) and starts a machine
+                                                  that was running again outside launchd. Without it,
+                                                  nothing stops the machine cleanly at logout
+          micropod machine serve [--link-socket]  run the supervisor in the foreground; --link-socket
+                                                  links the canonical Docker socket once it is ready
+                                                  (as `machine start` does; the LaunchAgent passes it)
 
         The root is MICROPOD_HVF_ROOT or ~/.micropod/hvf. `micropod run --runtime hvf …`
         starts the machine on demand (enable the engine first: `micropod runtime enable hvf`).
@@ -77,7 +92,7 @@ enum MachineCommands {
 
     static let hvfOnly: Set<String> = [
         "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "link-socket",
-        "help", "cache", "builder",
+        "help", "cache", "builder", "autostart",
     ]
 
     /// The hvf machine command in a whole `micropod` argv, if it is one: the
@@ -162,8 +177,14 @@ enum MachineCommands {
                     print("linked \(linkURL.path) -> \(client.layout.dockerSocket.path)")
                 }
             case "serve":
-                _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine serve")
-                return try await serve(layout: client.layout, environment: environment)
+                let parsed = try parseArgs(
+                    rest, boolFlags: ["--link-socket"], valueFlags: [], commandName: "machine serve")
+                return try await serve(
+                    layout: client.layout, environment: environment, linkSocket: parsed.has("--link-socket"))
+            case "autostart":
+                return try await autostart(
+                    rest, agent: HVFMachineAutostartAgent(layout: client.layout, environment: environment),
+                    client: client, environment: environment, json: json)
             case "cache": try cache(rest, client: client, json: json)
             case "builder": try builder(rest, layout: client.layout, environment: environment, json: json)
             default:
@@ -762,9 +783,95 @@ enum MachineCommands {
         return UInt64(info.st_ino)
     }
 
+    // MARK: autostart
+
+    static let autostartUsage = "machine autostart on [--no-load] [--program <path>] [--force] | off [--force] | status"
+
+    /// `machine autostart on|off|status`.
+    static func autostart(
+        _ args: [String], agent: HVFMachineAutostartAgent, client: HVFMachineClient, environment: [String: String],
+        json: Bool, current: URL = CLIInstall.currentExecutable(), handover: Duration = .seconds(10)
+    ) async throws -> Int32 {
+        let sub = args.first ?? "status"
+        let rest = Array(args.dropFirst())
+        switch sub {
+        case "on", "enable":
+            let parsed = try parseArgs(
+                rest, boolFlags: ["--no-load", "--force"], valueFlags: ["--program"],
+                commandName: "machine autostart on")
+            guard parsed.positionals.isEmpty else { throw UsageError(message: autostartUsage) }
+            let program = HVFMachineAutostartAgent.resolveProgram(
+                explicit: parsed.value("--program"), environment: environment, current: current)
+            let load = !parsed.has("--no-load")
+            let lines = try await agent.enable(load: load, program: program, force: parsed.has("--force"))
+            var started: Bool?
+            if load {
+                // RunAtLoad: launchd's supervisor takes its lock within moments.
+                let deadline = ContinuousClock.now + handover
+                started = false
+                while ContinuousClock.now < deadline {
+                    if client.status().supervisorAlive {
+                        started = true
+                        break
+                    }
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+            }
+            try printAutostart(lines, status: await agent.status(), json: json)
+            if started == false {
+                FileHandle.standardError.write(
+                    Data(
+                        ("warning: launchd loaded \(agent.label) but no supervisor took the machine within "
+                            + "\(handover); see \(client.layout.supervisorLog.path)\n").utf8))
+            } else if started == true, !json {
+                print("machine: starting under launchd (`micropod machine status`)")
+            }
+        case "off", "disable":
+            let parsed = try parseArgs(
+                rest, boolFlags: ["--force"], valueFlags: [], commandName: "machine autostart off")
+            guard parsed.positionals.isEmpty else { throw UsageError(message: autostartUsage) }
+            let lines = try await agent.disable(force: parsed.has("--force"))
+            try printAutostart(lines, status: await agent.status(), json: json)
+        case "status":
+            let parsed = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine autostart status")
+            guard parsed.positionals.isEmpty else { throw UsageError(message: autostartUsage) }
+            try printAutostart([], status: await agent.status(), json: json)
+        default:
+            throw UsageError(message: autostartUsage)
+        }
+        return ExitCode.ok
+    }
+
+    struct AutostartReport: Encodable {
+        var actions: [String]
+        var autostart: HVFMachineAutostartAgent.Status
+    }
+
+    static func printAutostart(_ lines: [String], status: HVFMachineAutostartAgent.Status, json: Bool) throws {
+        if json {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            print(
+                String(decoding: try encoder.encode(AutostartReport(actions: lines, autostart: status)), as: UTF8.self))
+            return
+        }
+        for line in lines where !line.hasPrefix("autostart: ") { print(line) }
+        print("autostart: \(status.summary)")
+    }
+
     // MARK: serve
 
-    static func serve(layout: HVFMachineLayout, environment: [String: String]) async throws -> Int32 {
+    /// `machine serve`: the supervisor in this process until SIGTERM. With
+    /// `linkSocket` (the autostart LaunchAgent passes it), the canonical
+    /// Docker socket is linked once the machine is ready, under the rules
+    /// `machine start` follows (`HVFMachineClient.autoLinkCanonicalDockerSocket`).
+    static func serve(layout: HVFMachineLayout, environment: [String: String], linkSocket: Bool = false) async throws
+        -> Int32
+    {
+        let linker =
+            linkSocket
+            ? Task { await linkWhenReady(HVFMachineClient(layout: layout, environment: environment)) } : nil
+        defer { linker?.cancel() }
         switch try await HVFMachineSupervisor.serve(layout: layout, environment: environment) {
         case .stopped:
             return ExitCode.ok
@@ -775,6 +882,23 @@ enum MachineCommands {
             FileHandle.standardError.write(
                 Data("hvf machine supervisor already running\(pid.map { " (pid \($0))" } ?? "")\n".utf8))
             return ExitCode.failure
+        }
+    }
+
+    /// Waits for the machine this process supervises to serve, then links
+    /// the canonical socket once; the outcome goes to the supervisor log.
+    static func linkWhenReady(_ client: HVFMachineClient, poll: Duration = .milliseconds(500)) async {
+        while !Task.isCancelled {
+            if client.isServing, await HVFMachineClient.ping(client.layout.dockerSocket) {
+                let line: String
+                switch client.autoLinkCanonicalDockerSocket() {
+                case .linked(let url): line = "linked \(url.path) -> \(client.layout.dockerSocket.path)"
+                case .skipped(let note), .refused(let note): line = note
+                }
+                HVFMachineSupervisor.stderrLog(line)
+                return
+            }
+            try? await Task.sleep(for: poll)
         }
     }
 }

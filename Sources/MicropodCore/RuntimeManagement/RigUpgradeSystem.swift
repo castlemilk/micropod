@@ -40,13 +40,19 @@ enum RigProcess {
     }
 }
 
-/// The user's launchd domain through `/bin/launchctl`.
+/// The user's launchd domain through `/bin/launchctl` (or `executable`:
+/// tests and throwaway machines name a stand-in that records its calls).
 public struct RigLaunchctl: RigLaunchControlling {
+    public static let defaultExecutable = "/bin/launchctl"
     public let domain: String
-    public init(domain: String = "gui/\(getuid())") { self.domain = domain }
+    public let executable: String
+    public init(domain: String = "gui/\(getuid())", executable: String = Self.defaultExecutable) {
+        self.domain = domain
+        self.executable = executable
+    }
 
     public func isLoaded(_ label: String) async -> Bool {
-        await RigProcess.run("/bin/launchctl", ["print", domain + "/" + label]).status == 0
+        await RigProcess.run(executable, ["print", domain + "/" + label]).status == 0
     }
 
     /// `program = …` from `launchctl print`, else the first argument.
@@ -82,13 +88,13 @@ public struct RigLaunchctl: RigLaunchControlling {
     }
 
     public func loadedProgram(_ label: String) async -> String? {
-        let result = await RigProcess.run("/bin/launchctl", ["print", domain + "/" + label])
+        let result = await RigProcess.run(executable, ["print", domain + "/" + label])
         guard result.status == 0 else { return nil }
         return Self.program(fromPrint: result.output) ?? ""
     }
 
     public func bootout(_ label: String) async throws {
-        let result = await RigProcess.run("/bin/launchctl", ["bootout", domain + "/" + label], timeout: .seconds(60))
+        let result = await RigProcess.run(executable, ["bootout", domain + "/" + label], timeout: .seconds(60))
         guard result.status != 0, await isLoaded(label) else { return }
         throw MicropodError.message("launchctl bootout \(label) failed (\(result.status)): \(result.output)")
     }
@@ -98,13 +104,13 @@ public struct RigLaunchctl: RigLaunchControlling {
             if loaded == RigUpgradeEngine.programPath(plist) { return }
             try await bootout(label)
         }
-        let result = await RigProcess.run("/bin/launchctl", ["bootstrap", domain, plist.path])
+        let result = await RigProcess.run(executable, ["bootstrap", domain, plist.path])
         guard result.status != 0, !(await isLoaded(label)) else { return }
         throw MicropodError.message("launchctl bootstrap \(label) failed (\(result.status)): \(result.output)")
     }
 
     public func kickstart(_ label: String) async throws {
-        let result = await RigProcess.run("/bin/launchctl", ["kickstart", domain + "/" + label])
+        let result = await RigProcess.run(executable, ["kickstart", domain + "/" + label])
         guard result.status == 0 else {
             throw MicropodError.message("launchctl kickstart \(label) failed (\(result.status)): \(result.output)")
         }

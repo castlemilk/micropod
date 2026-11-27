@@ -133,13 +133,7 @@ extension APIHandlers {
     static func machineBusy(
         _ client: HVFMachineClient, drain: (any HVFDrainCoordinating)? = nil
     ) async -> String? {
-        guard client.isServing else { return nil }
-        do {
-            let workloads = try await (drain ?? HVFGuestWorkloadDrain(client: client)).activeWorkloads()
-            return workloads.total > 0 ? "\(workloads.summary) on the machine" : nil
-        } catch {
-            return "could not confirm the machine is idle (\(error.localizedDescription))"
-        }
+        await client.activeWorkloadSummary(drain: drain)
     }
 
     // MARK: Shared with REST
