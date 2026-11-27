@@ -62,6 +62,8 @@ type volumeMetadata struct {
 }
 
 // Called under the engine lock. Existing named volumes keep their original labels.
+// A new volume is durable when this returns: an answered create survives a
+// crash, with its labels.
 func ensureVolume(name string, labels map[string]string) error {
 	return ensureVolumeBy(name, labels, "")
 }
@@ -84,12 +86,18 @@ func ensureVolumeBy(name string, labels map[string]string, creator string) error
 	metadata := volumeMetadata{formatTime(time.Now()), labels, creator}
 	b, err := json.Marshal(metadata)
 	if err == nil {
-		err = os.WriteFile(volumeMeta(name)+".tmp", b, 0600)
+		// Out on the disk before the rename: a crash never leaves an empty
+		// metadata file (writeOut).
+		err = writeFileOut(volumeMeta(name)+".tmp", b, 0600)
 	}
 	if err == nil {
 		err = os.Rename(volumeMeta(name)+".tmp", volumeMeta(name))
 	}
+	if err == nil {
+		err = errors.Join(syncRecordDir(filepath.Dir(volumeMeta(name))), syncRecordDir(filepath.Dir(volumePath(name))))
+	}
 	if err != nil {
+		os.Remove(volumeMeta(name))
 		os.Remove(volumePath(name))
 	}
 	return err

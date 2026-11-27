@@ -207,6 +207,35 @@ func TestDockerRootFSAttachDurablyFencesContainerdAndKeepsTheAckWhole(t *testing
 	}
 }
 
+// A new named volume is durable when the create returns: its metadata is out
+// on the disk before its rename, and both directories are synced after.
+func TestNewVolumeIsDurableWhenCreated(t *testing.T) {
+	old := volumeStore
+	volumeStore = t.TempDir()
+	t.Cleanup(func() { volumeStore = old })
+	for _, d := range []string{"volumes", "volume-meta"} {
+		if err := os.Mkdir(filepath.Join(volumeStore, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	steps := observeRecordIO(t)
+	if err := ensureVolume("data", map[string]string{"k": "v"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*steps) != 3 || !strings.HasPrefix((*steps)[0], "out data.json.tmp {") || !strings.Contains((*steps)[0], `"k":"v"`) ||
+		(*steps)[1] != "commit volume-meta data.json" || (*steps)[2] != "commit volumes data" {
+		t.Fatalf("volume create steps %q, want the metadata out, then both directories synced", *steps)
+	}
+	*steps = nil
+	if err := ensureVolume("data", nil); err != nil || len(*steps) != 0 {
+		t.Fatalf("an existing volume was written again: %q (%v)", *steps, err)
+	}
+	v, err := inspectVolume("data")
+	if err != nil || v.Labels["k"] != "v" {
+		t.Fatalf("volume %+v (%v)", v, err)
+	}
+}
+
 // writeOut takes the commit-free path only on a journaled ext4 filesystem;
 // anywhere else it is fsync. A device without a jbd2 journal is not one.
 func TestWriteOutNeedsAJournal(t *testing.T) {
