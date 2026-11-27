@@ -110,21 +110,20 @@ func connect() (*grpc.ClientConn, node, error) {
 	leaseClient := leases.NewLeasesClient(conn)
 	n := node{
 		runtime: cri.NewRuntimeServiceClient(conn), images: cri.NewImageServiceClient(conn),
-		imageStore:   images.NewImagesClient(conn),
-		imagePush:    newDockerRegistryPusher(conn),
-		registry:     dockerRegistryResolver{},
-		platformPull: newDockerRegistryPusher(conn),
-		content:      content.NewContentClient(conn),
-		containers:   containers.NewContainersClient(conn),
-		snapshots:    snapshotClient,
-		snapStore:    snapshotClient,
-		imageUsage:   snapshotClient,
-		leases:       leaseClient,
-		tasks:        taskClient,
-		execTasks:    taskClient,
-		probeKeys:    grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
-		reconnect:    conn.ResetConnectBackoff,
+		imageStore: images.NewImagesClient(conn),
+		imagePush:  newDockerRegistryPusher(conn),
+		content:    content.NewContentClient(conn),
+		containers: containers.NewContainersClient(conn),
+		snapshots:  snapshotClient,
+		snapStore:  snapshotClient,
+		imageUsage: snapshotClient,
+		leases:     leaseClient,
+		tasks:      taskClient,
+		execTasks:  taskClient,
+		probeKeys:  grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
+		reconnect:  conn.ResetConnectBackoff,
 	}
+	n.registry, n.platformPull = dockerRegistryResolver{}, newDockerRegistryPusher(conn)
 	n.unpacker = newLayerUnpacker(conn, n)
 	return conn, n, nil
 }
