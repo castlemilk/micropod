@@ -70,76 +70,6 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertEqual(registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"]).defaultName, "sandbox")
     }
 
-    /// The rig's own file: an install from before hvf, switched to it.
-    private static let hvfDefaultOnAnExistingInstall = #"{"default": "hvf", "engines": {"hvf": {"enabled": true}}}"#
-
-    /// A process that routes nothing (`MICROPOD_ENGINES=apple`) sends every
-    /// call to Apple's runtime, so Apple is its default whatever the file
-    /// names for the routed API beside it; a named default still wins.
-    func testAnAppleOnlyProcessDefaultsToAppleWhateverTheFileNames() throws {
-        try Data(Self.hvfDefaultOnAnExistingInstall.utf8).write(to: configURL)
-        XCTAssertEqual(registry().defaultName, "hvf")
-        let appleOnly = registry(["MICROPOD_ENGINES": "apple"])
-        XCTAssertEqual(appleOnly.defaultName, "apple")
-        XCTAssertTrue(appleOnly.isEnabled("apple"))
-        XCTAssertNil(appleOnly.activeMode, "Ping and GetSystem then describe Apple's runtime, not the machine")
-        XCTAssertTrue(
-            EngineRegistry.appleEnabled(environment: [
-                "MICROPOD_RUNTIMES_CONFIG": configURL.path, "MICROPOD_ENGINES": "apple",
-            ]))
-        XCTAssertEqual(
-            registry(["MICROPOD_ENGINES": "apple", "MICROPOD_DEFAULT_RUNTIME": "sandbox"]).defaultName, "sandbox")
-        XCTAssertEqual(registry(["MICROPOD_ENGINES": "all"]).defaultName, "hvf")
-    }
-
-    /// With hvf the default of an existing install, Apple's runtime stays
-    /// enabled (only a fresh install makes it opt-in) and a request that
-    /// names it reaches it with everything it asked for; an unnamed one
-    /// still goes to the default.
-    func testANamedAppleRequestReachesAppleWhileHVFIsTheDefault() async throws {
-        try Data(Self.hvfDefaultOnAnExistingInstall.utf8).write(to: configURL)
-        let reg = registry()
-        XCTAssertEqual(reg.defaultName, "hvf")
-        XCTAssertTrue(reg.isEnabled("apple"), "an existing install keeps Apple's runtime enabled")
-        XCTAssertFalse(reg.skipsApple(installed: true), "listings still ask it")
-        XCTAssertTrue(
-            RuntimeBackendResolver.pingsApple(environment: ["MICROPOD_RUNTIMES_CONFIG": configURL.path]),
-            "the API resolves Apple's native backend once its apiserver answers")
-
-        let containers = RequestRecordingContainers()
-        let router = RuntimeRouter(apple: apple(containers), registry: reg)
-        var request = ContainerRunRequest(image: "ghcr.io/example/vminit:1", runtime: "apple")
-        request.privileged = true
-        request.rosetta = true
-        request.useInit = true
-        request.platform = "linux/amd64"
-        request.volumes = ["golden:/var/lib/docker", "bundle:/opt/cf-docker:ro"]
-        _ = try await router.run(request)
-        _ = try await router.create(request)
-        let seen = await containers.requests
-        XCTAssertEqual(seen.count, 2)
-        for got in seen {
-            XCTAssertTrue(got.privileged && got.rosetta && got.useInit)
-            XCTAssertEqual(got.platform, "linux/amd64")
-            XCTAssertEqual(got.volumes, ["golden:/var/lib/docker", "bundle:/opt/cf-docker:ro"])
-            XCTAssertEqual(got.labels, [], "no hvf cache label is added for Apple")
-        }
-
-        do {
-            _ = try await router.run(ContainerRunRequest(image: "alpine"))
-            XCTFail("the unnamed run goes to hvf, which is not set up here")
-        } catch {
-            XCTAssertTrue(error.localizedDescription.contains("micropod machine is not set up"), "\(error)")
-        }
-        let afterUnnamed = await containers.requests
-        XCTAssertEqual(afterUnnamed.count, 2, "nothing unnamed reached Apple")
-
-        // An id no other engine owns is Apple's: exec, stop and the rest
-        // follow a container made with `runtime: apple`.
-        let owner = await router.owner("cf-attempt-1")
-        XCTAssertEqual(owner.name, "apple")
-    }
-
     func testUpdatePersistsAndReloads() throws {
         try registry().update("docker", enabled: true, endpoint: "tcp://10.0.0.5:2375")
         let reloaded = registry()
@@ -548,36 +478,6 @@ struct FailingContainers: ContainerServing {
     func prune() async throws -> String { throw down }
     func export(_ id: String, to outputPath: String) async throws { throw down }
     func copy(from: String, to: String) async throws { throw down }
-}
-
-/// Keeps the whole request of every run and create.
-actor RequestRecordingContainers: ContainerServing {
-    var requests: [ContainerRunRequest] = []
-
-    func list() async throws -> [Micropod_V1_Container] { [] }
-    func inspect(_ id: String) async throws -> Data { Data() }
-    func create(_ request: ContainerRunRequest) async throws -> String {
-        requests.append(request)
-        return request.image
-    }
-    func run(_ request: ContainerRunRequest) async throws -> String {
-        requests.append(request)
-        return request.image
-    }
-    func exec(_ request: ContainerExecRequest) async throws -> String { "" }
-    func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
-        ContainerExecResult(output: "", error: "", exitCode: 0)
-    }
-    func start(_ id: String) async throws {}
-    func stop(_ id: String, timeout: Int) async throws {}
-    func restart(_ id: String) async throws {}
-    func stopAll() async throws {}
-    func kill(_ id: String, signal: String) async throws {}
-    func delete(_ id: String, force: Bool) async throws {}
-    func deleteAll(force: Bool) async throws {}
-    func prune() async throws -> String { "" }
-    func export(_ id: String, to outputPath: String) async throws {}
-    func copy(from: String, to: String) async throws {}
 }
 
 actor RecordingContainers: ContainerServing {

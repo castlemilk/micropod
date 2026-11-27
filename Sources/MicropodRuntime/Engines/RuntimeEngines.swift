@@ -214,7 +214,7 @@ public final class EngineRegistry: Sendable {
         configURL = EngineConfig.url(environment: environment)
         dockerEnvironment = environment.filter { $0.key == "DOCKER_HOST" || $0.key == "DOCKER_API_VERSION" }
         let config = EngineConfig.load(from: configURL)
-        envDefault = Self.environmentDefault(environment)
+        envDefault = environment["MICROPOD_DEFAULT_RUNTIME"]
         legacyApple = environment["MICROPOD_LEGACY_APPLE"] == "1"
         machineSockets = (
             HVFMachineLayout(environment: environment).dockerSocket,
@@ -247,18 +247,6 @@ public final class EngineRegistry: Sendable {
         Self.defaultName(config: state.withLock { $0.config }, environmentDefault: envDefault)
     }
 
-    /// The default runtime the environment imposes over the persisted one:
-    /// `MICROPOD_DEFAULT_RUNTIME`, else Apple for a process that routes
-    /// nothing (`MICROPOD_ENGINES=apple`, as `RuntimeBackendResolver` reads
-    /// it). Such a process sends every container, image and volume call to
-    /// Apple's runtime, so its Ping, GetSystem and listings must describe
-    /// Apple's too, whatever `runtimes.json` names for the routed API next
-    /// to it (a rig whose default is hvf can run a second, Apple-only API).
-    static func environmentDefault(_ environment: [String: String]) -> String? {
-        if let named = environment["MICROPOD_DEFAULT_RUNTIME"] { return named }
-        return environment["MICROPOD_ENGINES"] == "apple" ? "apple" : nil
-    }
-
     static func defaultName(config: EngineConfig, environmentDefault: String?) -> String {
         if let environmentDefault { return canonicalName(environmentDefault) }
         if let persisted = config.default { return canonicalName(persisted) }
@@ -271,7 +259,7 @@ public final class EngineRegistry: Sendable {
     public static func appleEnabled(environment: [String: String]) -> Bool {
         let config = EngineConfig.load(from: EngineConfig.url(environment: environment))
         return appleEnabled(
-            config: config, environmentDefault: environmentDefault(environment),
+            config: config, environmentDefault: environment["MICROPOD_DEFAULT_RUNTIME"],
             legacy: environment["MICROPOD_LEGACY_APPLE"] == "1")
     }
 

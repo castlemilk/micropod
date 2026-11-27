@@ -376,10 +376,7 @@ type DeleteImageRequest struct {
 	// Image reference or digest to remove.
 	Reference string `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
 	// Remove even if containers reference the image.
-	Force bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
-	// The engine whose image is removed (apple, docker, ci, hvf). Unset
-	// removes it from the engine that has the image, the default runtime first.
-	Runtime       *string `protobuf:"bytes,3,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -428,13 +425,6 @@ func (x *DeleteImageRequest) GetForce() bool {
 	return false
 }
 
-func (x *DeleteImageRequest) GetRuntime() string {
-	if x != nil && x.Runtime != nil {
-		return *x.Runtime
-	}
-	return ""
-}
-
 var File_micropod_v1_image_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_image_proto_rawDesc = "" +
@@ -469,13 +459,10 @@ const file_micropod_v1_image_proto_rawDesc = "" +
 	"\x05stage\x18\x02 \x01(\x05B\b\xbaG\x05:\x03\x12\x013H\x00R\x05stage\x88\x01\x01\x120\n" +
 	"\ftotal_stages\x18\x03 \x01(\x05B\b\xbaG\x05:\x03\x12\x015H\x01R\vtotalStages\x88\x01\x01B\b\n" +
 	"\x06_stageB\x0f\n" +
-	"\r_total_stages\"\xa3\x01\n" +
+	"\r_total_stages\"h\n" +
 	"\x12DeleteImageRequest\x12<\n" +
 	"\treference\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force\x12-\n" +
-	"\aruntime\x18\x03 \x01(\tB\x0e\xbaG\v:\t\x12\a'apple'H\x00R\aruntime\x88\x01\x01B\n" +
-	"\n" +
-	"\b_runtime2\xde\x01\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force2\xde\x01\n" +
 	"\fImageService\x12A\n" +
 	"\n" +
 	"ListImages\x12\x12.micropod.v1.Empty\x1a\x1f.micropod.v1.ListImagesResponse\x12G\n" +
@@ -528,7 +515,6 @@ func file_micropod_v1_image_proto_init() {
 	file_micropod_v1_api_proto_init()
 	file_micropod_v1_image_proto_msgTypes[3].OneofWrappers = []any{}
 	file_micropod_v1_image_proto_msgTypes[4].OneofWrappers = []any{}
-	file_micropod_v1_image_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

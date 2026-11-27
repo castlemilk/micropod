@@ -276,23 +276,11 @@ public nonisolated struct Micropod_V1_CreateVolumeRequest: Sendable {
   /// Driver options passed through to the volume driver.
   public var options: [String] = []
 
-  /// The engine to create the volume on (apple, docker, hvf). Unset creates
-  /// it on the default runtime when that keeps volumes, else on Apple's.
-  public var runtime: String {
-    get {_runtime ?? String()}
-    set {_runtime = newValue}
-  }
-  /// Returns true if `runtime` has been explicitly set.
-  public var hasRuntime: Bool {self._runtime != nil}
-  /// Clears the value of `runtime`. Subsequent reads from it will return its default value.
-  public mutating func clearRuntime() {self._runtime = nil}
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _size: String? = nil
-  fileprivate var _runtime: String? = nil
 }
 
 public nonisolated struct Micropod_V1_DeleteVolumeRequest: Sendable {
@@ -303,22 +291,9 @@ public nonisolated struct Micropod_V1_DeleteVolumeRequest: Sendable {
   /// Volume name to remove.
   public var name: String = String()
 
-  /// The engine whose volume is removed (apple, docker, hvf). Unset removes
-  /// it from the engine that has the name, the default runtime first.
-  public var runtime: String {
-    get {_runtime ?? String()}
-    set {_runtime = newValue}
-  }
-  /// Returns true if `runtime` has been explicitly set.
-  public var hasRuntime: Bool {self._runtime != nil}
-  /// Clears the value of `runtime`. Subsequent reads from it will return its default value.
-  public mutating func clearRuntime() {self._runtime = nil}
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
-
-  fileprivate var _runtime: String? = nil
 }
 
 public nonisolated struct Micropod_V1_CloneVolumeRequest: Sendable {
@@ -545,7 +520,7 @@ nonisolated extension Micropod_V1_ListVolumesResponse: SwiftProtobuf.Message, Sw
 
 nonisolated extension Micropod_V1_CreateVolumeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateVolumeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}size\0\u{1}labels\0\u{1}options\0\u{1}runtime\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}size\0\u{1}labels\0\u{1}options\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -557,7 +532,6 @@ nonisolated extension Micropod_V1_CreateVolumeRequest: SwiftProtobuf.Message, Sw
       case 2: try { try decoder.decodeSingularStringField(value: &self._size) }()
       case 3: try { try decoder.decodeRepeatedStringField(value: &self.labels) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.options) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self._runtime) }()
       default: break
       }
     }
@@ -580,9 +554,6 @@ nonisolated extension Micropod_V1_CreateVolumeRequest: SwiftProtobuf.Message, Sw
     if !self.options.isEmpty {
       try visitor.visitRepeatedStringField(value: self.options, fieldNumber: 4)
     }
-    try { if let v = self._runtime {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -591,7 +562,6 @@ nonisolated extension Micropod_V1_CreateVolumeRequest: SwiftProtobuf.Message, Sw
     if lhs._size != rhs._size {return false}
     if lhs.labels != rhs.labels {return false}
     if lhs.options != rhs.options {return false}
-    if lhs._runtime != rhs._runtime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -599,7 +569,7 @@ nonisolated extension Micropod_V1_CreateVolumeRequest: SwiftProtobuf.Message, Sw
 
 nonisolated extension Micropod_V1_DeleteVolumeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteVolumeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}runtime\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -608,29 +578,20 @@ nonisolated extension Micropod_V1_DeleteVolumeRequest: SwiftProtobuf.Message, Sw
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._runtime) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
-    try { if let v = self._runtime {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_DeleteVolumeRequest, rhs: Micropod_V1_DeleteVolumeRequest) -> Bool {
     if lhs.name != rhs.name {return false}
-    if lhs._runtime != rhs._runtime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
