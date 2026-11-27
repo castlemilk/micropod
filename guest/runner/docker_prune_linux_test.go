@@ -102,6 +102,46 @@ func TestPrunableScopes(t *testing.T) {
 	}
 }
 
+// docker network prune is scoped as the other prunes are: a job's socket
+// takes what it created, the machine's socket the host's, and a request on
+// the machine's socket that names a family only that family's networks: not
+// another job's, and not one the host made with no family.
+func TestNetworkPruneScopes(t *testing.T) {
+	host := context.Background()
+	job := withViewer(host, "owner")
+	family := withRequestFamily(host, "gha-1")
+	plain := &workerNetwork{Name: "host-net"}
+	mine := &workerNetwork{Name: "gha-1-net", Labels: map[string]string{familyLabel: "gha-1", "job": "a"}}
+	theirs := &workerNetwork{Name: "gha-2-net", Labels: map[string]string{familyLabel: "gha-2"}}
+	jobs := &workerNetwork{Name: "job-net", CreatedBy: "owner", Labels: map[string]string{familyLabel: "gha-1"}}
+	others := &workerNetwork{Name: "other-job-net", CreatedBy: "other"}
+	for _, tc := range []struct {
+		name   string
+		ctx    context.Context
+		n      *workerNetwork
+		labels []string
+		want   bool
+	}{
+		{"the host takes its own", host, plain, nil, true},
+		{"the host takes a family's it made", host, mine, nil, true},
+		{"the host never takes a job's", host, jobs, nil, false},
+		{"a family takes its own", family, mine, nil, true},
+		{"a family takes its own that matches the filter", family, mine, []string{"job=a"}, true},
+		{"a family keeps its own that fails the filter", family, mine, []string{"job=b"}, false},
+		{"a family never takes another family's", family, theirs, nil, false},
+		{"a family never takes the host's own", family, plain, nil, false},
+		{"a family never takes a job socket's", family, jobs, nil, false},
+		{"a job takes what its socket made", job, jobs, nil, true},
+		{"a job never takes another job's", job, others, nil, false},
+		{"a job never takes the host's", job, plain, nil, false},
+		{"a job never takes a family's the host made", job, mine, nil, false},
+	} {
+		if got := networkPrunable(tc.ctx, tc.n, tc.labels); got != tc.want {
+			t.Errorf("%s: prunable %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
 // docker container prune and docker volume prune on a job's socket remove
 // what that socket created and nothing of another job's or the host's; on
 // the machine's socket they remove the host's own, never a job's children.

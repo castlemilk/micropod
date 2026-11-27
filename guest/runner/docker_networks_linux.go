@@ -528,12 +528,22 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 	return nil
 }
 
+// networkPrunable reports whether a network prune on ctx may take n: the
+// caller's own (prunable: a delegated socket's on that socket; on the
+// machine's socket the host's, and only a family's own when the request names
+// one) that matches every label filter.
+func networkPrunable(ctx context.Context, n *workerNetwork, labels []string) bool {
+	return prunable(ctx, n.CreatedBy, n.Labels) && matchesLabels(n.Labels, labels)
+}
+
 // pruneNetworks serves POST /networks/prune: it removes the networks no
 // container has an endpoint on, among those the caller made (the host's own
 // on the machine's socket, a family's on its delegated socket: a host prune
-// never takes a running job's network between two of its steps), that match
-// every label filter. A GitHub Actions runner prunes its own leftovers this
-// way before each job.
+// never takes a running job's network between two of its steps; a request on
+// the machine's socket that names a family, X-Micropod-Family, takes only
+// what the host made with that family's label, never another job's network
+// or one the host made for itself), that match every label filter. A GitHub
+// Actions runner prunes its own leftovers this way before each job.
 func (s *dockerEngine) pruneNetworks(w http.ResponseWriter, r *http.Request) error {
 	filters, err := dockerFilters(r.URL.Query().Get("filters"), "label", "until")
 	if err != nil {
@@ -542,10 +552,8 @@ func (s *dockerEngine) pruneNetworks(w http.ResponseWriter, r *http.Request) err
 	if len(filters["until"]) != 0 {
 		return fail(501, "network prune: the until filter is not supported")
 	}
-	viewer := viewerOf(r.Context())
-	mine := func(n *workerNetwork) bool {
-		return n.CreatedBy == viewer && matchesLabels(n.Labels, filters["label"])
-	}
+	ctx := r.Context()
+	mine := func(n *workerNetwork) bool { return networkPrunable(ctx, n, filters["label"]) }
 	s.mu.Lock()
 	candidates := map[string]string{}
 	for id, n := range s.namedNetworks {
