@@ -465,6 +465,8 @@ struct SharedState {
     restored: VcpuBarrier,
     tracer: Arc<telemetry::Tracer>,
     snap: SnapshotSync,
+    /// The guest physical address just past its RAM.
+    ram_end: u64,
 }
 
 impl SharedState {
@@ -831,7 +833,6 @@ pub fn run_vm_with_parent(
     create_res.map_err(|e| e.to_string())?;
 
     let mut ram_ptr: *mut std::ffi::c_void = ptr::null_mut();
-    let mut ram_is_mmap = false;
     let mut _ram_mmap_file: Option<std::fs::File> = None;
     let run_res = (|| -> Result<VmRunReport, String> {
         // 2. Configure and create Apple Hardware GICv3 BEFORE creating vCPUs
@@ -920,14 +921,31 @@ pub fn run_vm_with_parent(
             if let Some((ref snap_dir, _)) = restore_snap {
                 let (ptr, f) = snapshot::map_cow_ram(&snap_dir.join("ram.bin"), ram_size)?;
                 ram_ptr = ptr;
-                ram_is_mmap = true;
                 _ram_mmap_file = Some(f);
             } else {
-                check(
-                    unsafe { hv_vm_allocate(&mut ram_ptr, ram_size, HV_ALLOCATE_DEFAULT) },
-                    "hv_vm_allocate",
-                )
-                .map_err(|e| e.to_string())?;
+                // Plain anonymous memory, not hv_vm_allocate: the balloon
+                // gives reported free pages back by mapping fresh ones over
+                // them (GuestMemory::reclaim), and macOS frees neither the
+                // pages nor their footprint for hv_vm_allocate memory
+                // (madvise is ignored on it; pages replaced under it stay
+                // charged).
+                ram_ptr = unsafe {
+                    libc::mmap(
+                        ptr::null_mut(),
+                        ram_size,
+                        libc::PROT_READ | libc::PROT_WRITE,
+                        libc::MAP_PRIVATE | libc::MAP_ANON,
+                        -1,
+                        0,
+                    )
+                };
+                if ram_ptr == libc::MAP_FAILED {
+                    ram_ptr = ptr::null_mut();
+                    return Err(format!(
+                        "allocate {ram_size} bytes of guest RAM: {}",
+                        std::io::Error::last_os_error()
+                    ));
+                }
             }
             check(
                 unsafe { hv_vm_map(ram_ptr, RAM_BASE, ram_size, HV_MEMORY_RWX) },
@@ -936,7 +954,7 @@ pub fn run_vm_with_parent(
             .map_err(|e| e.to_string())?;
         }
 
-        let mem = Arc::new(unsafe { GuestMemory::new(ram_ptr.cast(), RAM_BASE, ram_size) });
+        let mem = Arc::new(unsafe { GuestMemory::new_guest_ram(ram_ptr.cast(), RAM_BASE, ram_size) });
 
         // 4. Cold-boot only: load kernel Image + optional initrd
         let (kernel_ipa, initrd_range, mut next_ipa) = if restore_snap.is_none() {
@@ -1187,6 +1205,7 @@ pub fn run_vm_with_parent(
                 exit_after_snapshot: cfg.snapshot_and_exit,
                 last_error: Mutex::new(None),
             },
+            ram_end: RAM_BASE + ram_size as u64,
         });
 
         let mut threads = Vec::with_capacity(num_vcpus as usize);
@@ -1501,11 +1520,7 @@ pub fn run_vm_with_parent(
 
     let _ = unsafe { hv_vm_destroy() };
     if !ram_ptr.is_null() {
-        if ram_is_mmap {
-            let _ = unsafe { libc::munmap(ram_ptr, ram_size) };
-        } else {
-            let _ = unsafe { hv_vm_deallocate(ram_ptr, ram_size) };
-        }
+        let _ = unsafe { libc::munmap(ram_ptr, ram_size) };
     }
     run_res
 }
@@ -1819,6 +1834,14 @@ fn run_vcpu_thread(
                             if shared.shutdown.load(Ordering::Relaxed) {
                                 break;
                             }
+                        }
+                        0x24 if (RAM_BASE..shared.ram_end)
+                            .contains(&exit.exception.physical_address) =>
+                        {
+                            // The guest touched RAM while the balloon had it
+                            // out of the stage-2 mapping for a moment
+                            // (GuestMemory::reclaim): run the access again.
+                            std::thread::yield_now();
                         }
                         0x24 => {
                             shared.mmio_exits.fetch_add(1, Ordering::Relaxed);

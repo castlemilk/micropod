@@ -326,6 +326,7 @@ pub struct TelemetrySnapshot {
     pub host_phys_bytes: u64,
     pub host_peak_bytes: u64,
     pub balloon_reclaimed_bytes: u64,
+    pub balloon_reclaim_failures: u64,
     pub blk_read_ops: u64,
     pub blk_write_ops: u64,
     pub blk_read_bytes: u64,
@@ -382,6 +383,7 @@ impl TelemetrySource {
             host_phys_bytes: phys_b,
             host_peak_bytes: peak_b,
             balloon_reclaimed_bytes: self.balloon.reclaimed_bytes.load(Ordering::Relaxed),
+            balloon_reclaim_failures: self.balloon.reclaim_failures.load(Ordering::Relaxed),
             blk_read_ops: self.blk.read_ops.load(Ordering::Relaxed),
             blk_write_ops: self.blk.write_ops.load(Ordering::Relaxed),
             blk_read_bytes: self.blk.read_bytes.load(Ordering::Relaxed),
@@ -465,11 +467,17 @@ impl TelemetrySource {
             "micropod_vmm_host_peak_footprint_bytes {}\n",
             s.host_peak_bytes
         ));
-        out.push_str("# HELP micropod_vmm_balloon_reclaimed_bytes Guest pages reclaimed via MADV_FREE in bytes.\n");
+        out.push_str("# HELP micropod_vmm_balloon_reclaimed_bytes Bytes of guest RAM the guest reported free and the host freed.\n");
         out.push_str("# TYPE micropod_vmm_balloon_reclaimed_bytes counter\n");
         out.push_str(&format!(
             "micropod_vmm_balloon_reclaimed_bytes {}\n",
             s.balloon_reclaimed_bytes
+        ));
+        out.push_str("# HELP micropod_vmm_balloon_reclaim_failures_total Reported free ranges the host could not free (left as they were).\n");
+        out.push_str("# TYPE micropod_vmm_balloon_reclaim_failures_total counter\n");
+        out.push_str(&format!(
+            "micropod_vmm_balloon_reclaim_failures_total {}\n",
+            s.balloon_reclaim_failures
         ));
         out.push_str("# HELP micropod_vmm_blk_ops_total Virtio-Blk I/O operations.\n");
         out.push_str("# TYPE micropod_vmm_blk_ops_total counter\n");
