@@ -12,6 +12,8 @@ final class HTTP2ConnectionState: @unchecked Sendable {
     private let lock = NSLock()
     private var handlers = 0
     private var bodyBytes = 0
+    /// Bodies of answers whose handlers gave their places back, not yet written.
+    private var unsentBytes = 0
     private var streams = 0
     /// Open streams that wait for nothing of the server's (`Slot.park`):
     /// they do not count against the idle bound.
@@ -151,7 +153,21 @@ final class HTTP2ConnectionState: @unchecked Sendable {
 
     var bufferedBodyBytes: Int { lock.withLock { bodyBytes } }
 
-    /// Released once, however often `release` is called.
+    /// Room for an answer of `count` bytes among this connection's unsent ones.
+    fileprivate func reserveAnswer(_ count: Int) -> Bool {
+        lock.withLock {
+            guard unsentBytes + count <= limits.unsentResponseBytes else { return false }
+            unsentBytes += count
+            return true
+        }
+    }
+
+    fileprivate func releaseAnswer(_ count: Int) { lock.withLock { unsentBytes -= count } }
+
+    var unsentAnswerBytes: Int { lock.withLock { unsentBytes } }
+
+    /// The handler place is released once, however often `release` (or
+    /// `answered` before it) is called.
     final class Slot: HTTP2HandlerSlot, @unchecked Sendable {
         private let connection: HTTP2ConnectionState
         private let lock = NSLock()
@@ -164,12 +180,27 @@ final class HTTP2ConnectionState: @unchecked Sendable {
             release()
             connection.park(self)
         }
+        /// Bytes of this stream's answer counted among the unsent ones.
+        private var answer = 0
+        func answered(bytes: Int) {
+            let freed = lock.withLock { () -> Bool in
+                guard !released, connection.reserveAnswer(bytes) else { return false }
+                released = true
+                answer = bytes
+                return true
+            }
+            if freed { connection.releaseHandler() }
+        }
         func release() {
-            let first = lock.withLock {
-                defer { released = true }
-                return !released
+            let (first, bytes) = lock.withLock { () -> (Bool, Int) in
+                defer {
+                    released = true
+                    answer = 0
+                }
+                return (!released, answer)
             }
             if first { connection.releaseHandler() }
+            if bytes > 0 { connection.releaseAnswer(bytes) }
         }
     }
 }

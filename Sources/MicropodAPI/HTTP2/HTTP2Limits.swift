@@ -39,12 +39,17 @@ struct HTTP2Limits: Sendable {
     var logControlFrames = false
 
     // The transport's own
-    /// Handlers in flight on one connection, counted until each settles (a
-    /// stream the client reset still holds its handler); past it a stream
-    /// is refused with REFUSED_STREAM.
+    /// Handlers in flight on one connection, counted until each returned
+    /// its answer or its stream ended (a stream the client reset still
+    /// holds its handler); past it a stream is refused with REFUSED_STREAM.
     var handlersPerConnection = 100
     /// Handlers in flight on all HTTP/2 connections of one listener.
     var handlersPerListener = 256
+    /// Response bodies one connection may hold in memory, answered by
+    /// handlers that already gave their places back, while the client has
+    /// not taken them (`HTTP2HandlerSlot.answered`). Past it an answer
+    /// keeps its handler place until it is written.
+    var unsentResponseBytes = 4 << 20
     /// HTTP/2 connections one listener serves at once. Each costs three
     /// descriptors (the client's socket and a socketpair).
     var maxConnections = 64

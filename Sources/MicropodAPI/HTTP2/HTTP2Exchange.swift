@@ -33,6 +33,13 @@ struct HTTP2ExchangeContext: Sendable {
 /// A handler place held until the handler settles (`HTTP2ConnectionState`).
 protocol HTTP2HandlerSlot: Sendable {
     func release()
+    /// The handler returned and its whole answer (`bytes` of body) is in
+    /// memory, with only its writes left. The handler place is freed now,
+    /// so a client that does not take its answers (a closed flow-control
+    /// window) holds no place another client's handler needs. The bytes
+    /// count against the connection's unsent answers until `release`; past
+    /// that bound the place stays held until the answer is written.
+    func answered(bytes: Int)
     /// The stream stays open but waits for nothing of the server's (a
     /// health Watch after its status): it frees its handler place and no
     /// longer keeps its connection from the idle bound.
@@ -40,6 +47,7 @@ protocol HTTP2HandlerSlot: Sendable {
 }
 
 extension HTTP2HandlerSlot {
+    func answered(bytes: Int) {}
     func park() { release() }
 }
 
@@ -63,16 +71,19 @@ enum HTTP2Exchange {
                 request: request, codec: codec, context: context, writer: writer, slot: slot
             ).run()
         } else {
-            await plain(request, context: context, writer: writer)
+            await plain(request, context: context, writer: writer, slot: slot)
         }
     }
 
     // MARK: - REST and Connect
 
-    static func plain(_ request: HTTPRequest, context: HTTP2ExchangeContext, writer: some HTTP2ResponseWriter) async {
+    static func plain(
+        _ request: HTTPRequest, context: HTTP2ExchangeContext, writer: some HTTP2ResponseWriter,
+        slot: some HTTP2HandlerSlot
+    ) async {
         let cors = CORSPolicy.responseHeaders(for: request)
         if let refusal = context.guardRejection(request, context.admission) {
-            await render(refusal, cors: cors, writer: writer)
+            await render(refusal, cors: cors, writer: writer, slot: slot)
             return
         }
         // The guest vsock bridge takes over its connection as raw bytes:
@@ -85,7 +96,7 @@ enum HTTP2Exchange {
         do {
             claim = try context.admissionClaim(request)
         } catch {
-            await render(HTTPServer.admissionClosed(), cors: [], writer: writer)
+            await render(HTTPServer.admissionClosed(), cors: [], writer: writer, slot: slot)
             return
         }
         var response = await uncancellable { await context.handler(request) }
@@ -98,11 +109,12 @@ enum HTTP2Exchange {
             try? claim?.completed()
             context.log("HTTP/2 \(request.method.rawValue) \(request.path): a duplex bridge needs HTTP/1.1")
             await render(
-                .json(500, ["code": "internal", "message": "this route needs HTTP/1.1"]), cors: cors, writer: writer)
+                .json(500, ["code": "internal", "message": "this route needs HTTP/1.1"]), cors: cors, writer: writer,
+                slot: slot)
         default:
             // The handler has settled; delivery failure cannot replay it.
             try? claim?.completed()
-            await render(response, cors: cors, writer: writer)
+            await render(response, cors: cors, writer: writer, slot: slot)
         }
         withExtendedLifetime(claim) {}
     }
@@ -129,12 +141,18 @@ enum HTTP2Exchange {
     }
 
     /// HEADERS (with CORS, the codec advertisement and Content-Length), then
-    /// the body in one DATA frame that ends the stream.
-    static func render(_ response: HTTPResponse, cors: [(String, String)], writer: some HTTP2ResponseWriter) async {
+    /// the body in one DATA frame that ends the stream. No handler runs any
+    /// more when an answer is rendered: its place is freed before the writes.
+    static func render(
+        _ response: HTTPResponse, cors: [(String, String)], writer: some HTTP2ResponseWriter,
+        slot: some HTTP2HandlerSlot
+    ) async {
         guard let (status, contentType, body) = complete(response) else {
-            await render(.json(500, ["code": "internal", "message": "no response"]), cors: cors, writer: writer)
+            await render(
+                .json(500, ["code": "internal", "message": "no response"]), cors: cors, writer: writer, slot: slot)
             return
         }
+        slot.answered(bytes: body.count)
         let fields =
             [("content-type", contentType)] + cors.map { ($0.0.lowercased(), $0.1) } + [
                 ("x-micropod-codecs", "json,proto"), ("content-length", String(body.count)),
@@ -204,7 +222,7 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
         if let refusal = context.guardRejection(canonical, context.admission) {
             let (status, _, body) = HTTP2Exchange.complete(refusal) ?? (403, "", Data())
             let (code, message) = GRPCWire.status(ofError: status, body: body)
-            await state.trailersOnly(code, message, contentType: contentType, writer: writer)
+            await end(code, message, state: state)
             return
         }
         let claim: RuntimeAdmissionClaim?
@@ -215,9 +233,9 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
                 ? nil
                 : try context.admissionClaim(canonical)
         } catch {
-            await state.trailersOnly(
+            await end(
                 ConnectWireCode.unavailable.grpcStatus, "Runtime maintenance has closed workload admission",
-                contentType: contentType, writer: writer)
+                state: state)
             return
         }
         defer {
@@ -226,7 +244,7 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
         }
         switch GRPCWire.timeout(request.headers["grpc-timeout"]) {
         case .malformed:
-            await state.trailersOnly(13, "malformed grpc-timeout", contentType: contentType, writer: writer)
+            await end(13, "malformed grpc-timeout", state: state)
         case .none:
             await serve(canonical, bare: bare, health: health, state: state)
         case .after(let limit):
@@ -243,13 +261,23 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
         }
     }
 
+    /// Ends the call with a status alone (Trailers-Only, or the trailers
+    /// of a response already begun). Called only when no handler runs for
+    /// the call any more, so its handler place is freed before the write
+    /// (a deadline that ends a call while its handler runs goes through
+    /// `GRPCResponseState.expire`, which keeps the place).
+    func end(_ code: Int, _ message: String, state: GRPCResponseState, extra: [(String, String)] = []) async {
+        slot.answered(bytes: message.utf8.count)
+        await state.trailersOnly(code, message, contentType: contentType, writer: writer, extra: extra)
+    }
+
     private func serve(_ canonical: HTTPRequest, bare: String, health: Bool, state: GRPCResponseState) async {
         guard GRPCWire.serves(bare), let route = RPCCatalog.route(bare) else {
-            return await state.trailersOnly(12, "unknown method \(bare)", contentType: contentType, writer: writer)
+            return await end(12, "unknown method \(bare)", state: state)
         }
         if let encoding = request.headers["grpc-encoding"], encoding.lowercased() != "identity" {
-            return await state.trailersOnly(
-                12, "grpc-encoding \(encoding) is not supported", contentType: contentType, writer: writer,
+            return await end(
+                12, "grpc-encoding \(encoding) is not supported", state: state,
                 extra: [("grpc-accept-encoding", "identity")])
         }
         let payload: Data
@@ -260,11 +288,9 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
             // refused above: the flag contradicts the headers, which gRPC
             // answers INTERNAL. UNIMPLEMENTED and grpc-accept-encoding are
             // for an encoding the client named.
-            return await state.trailersOnly(
-                13, "compressed flag set with identity or no grpc-encoding", contentType: contentType,
-                writer: writer)
+            return await end(13, "compressed flag set with identity or no grpc-encoding", state: state)
         case .malformed(let reason):
-            return await state.trailersOnly(3, reason, contentType: contentType, writer: writer)
+            return await end(3, reason, state: state)
         }
         if health {
             return await GRPCHealth(exchange: self, state: state).serve(method: route.method, payload: payload)
@@ -283,14 +309,14 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
         case (.serverStream, .stream(200, _, let events)):
             await stream(events, state: state)
         case (.unary, .data(200, _, let body)):
+            slot.answered(bytes: body.count)
             await state.unary(body, contentType: contentType, writer: writer)
         default:
             if let (status, _, body) = HTTP2Exchange.complete(response), status != 200 {
                 let (code, message) = GRPCWire.status(ofError: status, body: body)
-                await state.trailersOnly(code, message, contentType: contentType, writer: writer)
+                await end(code, message, state: state)
             } else {
-                await state.trailersOnly(
-                    13, "unexpected response for \(bare)", contentType: contentType, writer: writer)
+                await end(13, "unexpected response for \(bare)", state: state)
             }
         }
     }

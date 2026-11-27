@@ -435,6 +435,78 @@ final class HTTP2LimitsTests: HTTP2TestCase {
         fixture.open()
     }
 
+    /// A client that never opens its flow-control window cannot take its
+    /// answers. Their handlers have returned, so they hold no handler place:
+    /// other clients of the listener are still served. (They held one until
+    /// the write-stall deadline, and three such connections refused every
+    /// other HTTP/2 client of the listener.)
+    func testAnswersTheClientDoesNotTakeHoldNoHandlerPlace() async throws {
+        var limits = HTTP2Limits(policy: Self.policy)
+        limits.handlersPerListener = 4
+        let fixture = H2Fixture()
+        let served = try await serve(fixture, limits: limits)
+        let ping =
+            H2Raw.request("/micropod.v1.SystemService/Ping", method: "POST") + [
+                ("content-type", "application/grpc")
+            ]
+        let stalled = try await offPool { () -> H2Raw in
+            let raw = try Self.raw(served, settings: [(0x4, 0)])
+            usleep(100_000)
+            // One at a time: each handler returns before the next starts,
+            // so none is refused for the four places themselves.
+            for index in 0..<6 {
+                try raw.headers(stream: UInt32(2 * index + 1), H2Raw.request("/health"))
+                usleep(30_000)
+            }
+            for stream in [UInt32(13), 15] {
+                try raw.headers(stream: stream, ping, endStream: false)
+                try raw.data(stream: stream, GRPCWire.message(Data()), endStream: true)
+                usleep(30_000)
+            }
+            return raw
+        }
+        for _ in 0..<100 where fixture.count < 8 || fixture.inFlight > 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(fixture.count, 8, "every stalled request reached its handler")
+        XCTAssertEqual(served.server.http2?.handlers(.owner), 0, "answers waiting for a window hold no handler place")
+        let client = try await H2Client.unix(served.socket)
+        defer { client.close() }
+        let health = try await client.request(path: "/health")
+        XCTAssertEqual(health.status, 200, "another client is served: \(String(describing: health.reset))")
+        let grpc = try await client.grpc("/micropod.v1.SystemService/Ping", Data())
+        XCTAssertEqual(grpc.grpcStatus, 0)
+        withExtendedLifetime(stalled) {}
+    }
+
+    /// The answers a connection has not taken are bounded: past
+    /// `unsentResponseBytes` an answer keeps its handler place until it is
+    /// written, so a connection cannot park answers in memory without end.
+    func testUnsentAnswersPastTheirBoundKeepTheirHandlerPlace() async throws {
+        var limits = HTTP2Limits(policy: Self.policy)
+        limits.unsentResponseBytes = 1_000
+        limits.goAwayGrace = .milliseconds(300)
+        let fixture = H2Fixture()
+        let served = try await serve(fixture, limits: limits)
+        let stalled = try await offPool { () -> H2Raw in
+            let raw = try Self.raw(served, settings: [(0x4, 0)])
+            usleep(100_000)
+            for index in 0..<3 { try raw.headers(stream: UInt32(2 * index + 1), H2Raw.request("/big?bytes=400")) }
+            return raw
+        }
+        for _ in 0..<100 where fixture.count < 3 || fixture.inFlight > 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(served.server.http2?.handlers(.owner), 1, "two answers fit the bound, the third keeps its place")
+        stalled.wire.shutdownWrite()
+        for _ in 0..<400 where served.server.http2?.handlers(.owner) != 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(served.server.http2?.handlers(.owner), 0, "released when the connection went")
+    }
+
     /// The soak meter counts what NIO's control-frame bound counts.
     func testTheControlFrameMeterCountsAClientsPings() async throws {
         var limits = HTTP2Limits(policy: Self.policy)

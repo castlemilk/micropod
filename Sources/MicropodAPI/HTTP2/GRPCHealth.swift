@@ -24,16 +24,13 @@ struct GRPCHealth<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendable
     func serve(method: String, payload: Data) async {
         let contentType = exchange.contentType
         guard method == "Check" || method == "Watch" else {
-            return await state.trailersOnly(
-                12, "unknown method \(Self.service)/\(method)", contentType: contentType, writer: exchange.writer)
+            return await exchange.end(12, "unknown method \(Self.service)/\(method)", state: state)
         }
         guard let name = Self.serviceName(payload, codec: exchange.codec) else {
-            return await state.trailersOnly(
-                3, "invalid HealthCheckRequest", contentType: contentType, writer: exchange.writer)
+            return await exchange.end(3, "invalid HealthCheckRequest", state: state)
         }
         guard name.isEmpty || name == Self.service || RPCCatalog.services[name] != nil else {
-            return await state.trailersOnly(
-                5, "unknown service \(name)", contentType: contentType, writer: exchange.writer)
+            return await exchange.end(5, "unknown service \(name)", state: state)
         }
         let probe = HTTPRequest(
             method: .get, path: "/health", query: [:], body: Data(), headers: exchange.request.headers)
@@ -43,6 +40,7 @@ struct GRPCHealth<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendable
         let status: Status = HTTP2Exchange.complete(response)?.status == 200 ? .serving : .notServing
         let message = Self.response(status, codec: exchange.codec)
         if method == "Check" {
+            exchange.slot.answered(bytes: message.count)
             return await state.unary(message, contentType: contentType, writer: exchange.writer)
         }
         guard await state.begin(contentType: contentType, writer: exchange.writer),
