@@ -436,7 +436,7 @@ func (n node) rememberPulledTag(ctx context.Context, raw string) error {
 	}
 	tagged, isTagged := named.(reference.NamedTagged)
 	canonical, isCanonical := named.(reference.Canonical)
-	if !isTagged || !isCanonical {
+	if !isTagged || !isCanonical || n.imageStore == nil {
 		return nil
 	}
 	ctx = imageMetadataContext(ctx)
