@@ -30,6 +30,10 @@ install -m 0755 "$stage"/bin/* "$runner/bin/"
 install -m 0755 "$stage"/libexec/cni/* "$root/ci/runner/micropod-bridge" "$runner/cni/"
 install -m 0644 "$root"/ci/runner/*.toml "$root"/ci/runner/*.conflist "$runner/"
 install -m 0755 "$root/ci/runner/start.sh" "$root/ci/runner/published-ports.sh" "$root/ci/runner/rootless.sh" "$runner/"
+# The x86-64 emulator for linux/amd64 containers (guest/runner/emulation_linux.go).
+if ! "$allocation"; then
+    MICROPOD_GUEST_DOWNLOADS="$downloads" bash "$root/ci/fetch-qemu-user.sh" "$runner/emulators"
+fi
 commit=$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)
 dirty=false
 if [ "$commit" != unknown ] && [ -n "$(git -C "$root" status --porcelain -- guest ci 2>/dev/null)" ]; then dirty=true; fi
@@ -37,7 +41,9 @@ if [ "$commit" != unknown ] && [ -n "$(git -C "$root" status --porcelain -- gues
 # caller's GOFLAGS replaces the machine-wide setting.
 (cd "$root/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
     go build -trimpath -ldflags "-X main.engineCommit=$commit" -o "$runner/bin/job" .)
-for need in bin/buildkitd bin/ctr bin/job buildkitd.toml start.sh; do
+needs=(bin/buildkitd bin/ctr bin/job buildkitd.toml start.sh)
+if ! "$allocation"; then needs+=(emulators/qemu-x86_64 emulators/qemu-x86_64.copyright emulators/SOURCE); fi
+for need in "${needs[@]}"; do
     [ -s "$runner/$need" ] || { echo "guest tool bundle is missing runner/$need" >&2; exit 1; }
 done
 # buildkitd is a linux binary; its Go build info names the BuildKit release.
@@ -45,8 +51,11 @@ buildkit=$(go version -m "$runner/bin/buildkitd" | awk '$1 == "mod" && $2 == "gi
 [[ $buildkit =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "cannot read the BuildKit version of runner/bin/buildkitd" >&2; exit 1; }
 # The host reads this to tell what the bundle's engine supports. engineCommit
 # is also the GitCommit of the engine's GET /version.
-printf '{"engineCommit":"%s","engineDirty":%s,"cacheApi":1,"buildkit":"%s","capabilities":["caches","buildkit","grpc-build"]}\n' \
-    "$commit" "$dirty" "$buildkit" >"$runner/manifest.json"
+capabilities='"caches","buildkit","grpc-build"'
+# The bundle ships the x86-64 emulator; the engine says per boot whether it runs (machine.json amd64).
+if [ -x "$runner/emulators/qemu-x86_64" ]; then capabilities="$capabilities"',"platform-linux-amd64"'; fi
+printf '{"engineCommit":"%s","engineDirty":%s,"cacheApi":1,"buildkit":"%s","capabilities":[%s]}\n' \
+    "$commit" "$dirty" "$buildkit" "$capabilities" >"$runner/manifest.json"
 chmod 0644 "$runner/manifest.json"
 # Replace the generated directory so older tool or config files cannot leak into the bundle.
 mkdir -p "$out/guest"

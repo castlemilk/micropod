@@ -277,6 +277,26 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(verbose.suffix(3), ["loglevel=6", "psi=1", "loglevel=8"], "the kernel takes the last loglevel")
     }
 
+    func testAmd64OffBootsTheGuestWithoutX8664Emulation() throws {
+        // x86-64 emulation is on unless machine.json says "off"; the guest
+        // engine reads micropod.amd64= from the kernel command line, and a
+        // configured kernel argument still comes last and wins.
+        let appended = { (config: HVFMachineConfig) throws -> [String] in
+            let args = try HVFVMMCommand.arguments(layout: self.layout, config: config, parentPID: 1)
+            return args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
+        }
+        XCTAssertFalse(try appended(HVFMachineConfig(workspace: nil)).contains { $0.hasPrefix("micropod.amd64=") })
+        XCTAssertFalse(
+            try appended(HVFMachineConfig(workspace: nil, amd64: "auto")).contains { $0.hasPrefix("micropod.amd64=") })
+        let off = try appended(HVFMachineConfig(workspace: nil, kernelArguments: ["micropod.amd64=auto"], amd64: "off"))
+        XCTAssertEqual(off.suffix(2), ["micropod.amd64=off", "micropod.amd64=auto"])
+        XCTAssertThrowsError(try HVFMachineConfig(amd64: "sometimes").validate())
+        let saved = try JSONEncoder().encode(HVFMachineConfig(amd64: "off"))
+        XCTAssertEqual(try JSONDecoder().decode(HVFMachineConfig.self, from: saved).amd64, "off")
+        let plain = try JSONEncoder().encode(HVFMachineConfig())
+        XCTAssertFalse(String(decoding: plain, as: UTF8.self).contains("amd64"), "auto is saved as absent")
+    }
+
     func testWorkspaceKernelArgumentsAndExtras() throws {
         let config = HVFMachineConfig(
             cpus: 2, memoryMiB: 2048, workspace: "/Users/me/My Projects", publishedNet: false, console: false,

@@ -65,6 +65,10 @@ const (
 	// tool does not verify it on read. The start leaves it out; recreating
 	// the container attaches the store of its own scope.
 	skipRetiredShare = "shared-store-retired"
+	// The store holds programs built for the machine's own architecture
+	// (cacheTool.NativeOnly) and the container runs another's through
+	// emulation: it gets no store rather than one its programs cannot run.
+	skipEmulatedPlatform = "emulated-platform"
 )
 
 // Plan-level reasons for attaching nothing.
@@ -492,6 +496,15 @@ type cacheTool struct {
 	Targets     func(x toolCtx) []cacheTarget // path mode
 	Markers     func(p string) []cacheMarker
 	Presence    func(x toolCtx, f *imageFacts) bool // path mode
+	// NativeOnly: the store holds programs for the architecture that wrote
+	// them, under names that do not say which (Playwright's browsers,
+	// chromium-<revision>/), so a linux/amd64 container through emulation
+	// gets none. Every other store is safe across architectures: Go's build
+	// cache keys every entry by the toolchain and its target, the module,
+	// npm and pnpm stores are content-addressed sources (pnpm keys its
+	// side-effects cache by platform), and pip, uv, cargo, maven, gradle and
+	// bun keep sources or name each binary artifact by its platform.
+	NativeOnly bool
 }
 
 // userKeys are the variables whose presence in the request means the user
@@ -765,8 +778,9 @@ var cacheTable = []*cacheTool{
 			}
 			return path.Join(x.cacheHome(), "ms-playwright")
 		},
-		Markers:  func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
-		Presence: func(_ toolCtx, f *imageFacts) bool { return f.Binaries["playwright"] }},
+		Markers:    func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence:   func(_ toolCtx, f *imageFacts) bool { return f.Binaries["playwright"] },
+		NativeOnly: true},
 }
 
 func cacheToolByKind(kind string) *cacheTool {
@@ -1477,6 +1491,9 @@ type cacheRequest struct {
 	// $XDG_CONFIG_HOME/go/env or ~/.config/go/env) comes from a bind or a
 	// volume of the request and sets GOPROXY (mountedConfigSets).
 	projectGoProxy bool
+	// emulated: the container's image is for another architecture and runs
+	// through x86-64 emulation (cacheTool.NativeOnly).
+	emulated bool
 }
 
 // hostFacingRequest is a create on the engine's own socket with every proxy up.
@@ -1654,6 +1671,10 @@ func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req c
 		}
 		if userSet {
 			skip(skipUserEnv, "")
+			continue
+		}
+		if t.NativeOnly && req.emulated {
+			skip(skipEmulatedPlatform, "")
 			continue
 		}
 		if t.disabledBy(facts.Env) {

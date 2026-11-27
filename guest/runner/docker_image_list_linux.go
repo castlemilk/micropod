@@ -18,6 +18,7 @@ import (
 
 	images "github.com/containerd/containerd/api/services/images/v1"
 	"github.com/containerd/containerd/api/types"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -211,9 +212,12 @@ type dockerImageLabelResult struct {
 // image's OCI config, as `docker image inspect` decodes it) that listings use.
 type dockerImageConfigSpec struct {
 	ImageSpec *struct {
-		Created *time.Time `json:"created"`
-		Config  *struct{ Labels map[string]string }
-		RootFS  ocispec.RootFS `json:"rootfs"`
+		Created      *time.Time `json:"created"`
+		Config       *struct{ Labels map[string]string }
+		RootFS       ocispec.RootFS `json:"rootfs"`
+		OS           string         `json:"os"`
+		Architecture string         `json:"architecture"`
+		Variant      string         `json:"variant"`
 	} `json:"imageSpec"`
 }
 
@@ -227,6 +231,13 @@ func (spec dockerImageConfigSpec) config() dockerImageConfig {
 	}
 	for _, chain := range identity.ChainIDs(slices.Clone(spec.ImageSpec.RootFS.DiffIDs)) {
 		c.chains = append(c.chains, chain.String())
+	}
+	if spec.ImageSpec.Architecture != "" {
+		os := spec.ImageSpec.OS
+		if os == "" {
+			os = "linux"
+		}
+		c.platform = platforms.Normalize(ocispec.Platform{OS: os, Architecture: spec.ImageSpec.Architecture, Variant: spec.ImageSpec.Variant})
 	}
 	return c
 }
@@ -257,6 +268,20 @@ func (n node) dockerImageListLabels(ctx context.Context, id string) (dockerImage
 type dockerImageConfig struct {
 	created int64    // Unix seconds; 0 when the config records no time
 	chains  []string // the layers' chain IDs (their snapshot keys), base first
+	// platform is the config's; zero when it names none.
+	platform ocispec.Platform
+}
+
+// setPlatform reports the config's platform in a listing row, as `docker
+// image inspect` does; a row whose config was not read keeps linux/arm64.
+func (c dockerImageConfig) setPlatform(row map[string]any) {
+	if c.platform.Architecture == "" {
+		return
+	}
+	row["Os"], row["Architecture"] = c.platform.OS, c.platform.Architecture
+	if c.platform.Variant != "" {
+		row["Variant"] = c.platform.Variant
+	}
 }
 
 // dockerImageConfigCache keeps dockerImageConfig per image ID, so a listing
@@ -383,6 +408,7 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 			}
 			row := withPulled(image, summary(image))
 			row["Created"] = configs[image.GetId()].created
+			configs[image.GetId()].setPlatform(row)
 			list = append(list, row)
 		}
 		writeJSON(w, http.StatusOK, list)
@@ -407,6 +433,7 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 			row := withPulled(image, summary(image))
 			row["Labels"] = result.labels
 			row["Created"] = result.config.created
+			result.config.setPlatform(row)
 			list = append(list, row)
 		}
 	}

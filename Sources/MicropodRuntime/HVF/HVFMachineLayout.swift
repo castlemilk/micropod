@@ -311,6 +311,15 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     /// disk a host power loss or kernel panic can corrupt (`HVFDiskFlush`).
     /// The cache disk keeps its ordering whatever this says.
     public var osDiskFlush: String?
+    /// linux/amd64 containers through x86-64 emulation (the guest engine
+    /// registers the tool bundle's static qemu-x86_64 with binfmt_misc):
+    /// "auto", also when absent (nil), or "off", which boots the guest with
+    /// `micropod.amd64=off` so pulls and creates for linux/amd64 are refused,
+    /// naming the setting. Applies at the next boot.
+    public var amd64: String?
+
+    /// The values `amd64` takes.
+    public static let amd64Settings = ["auto", "off"]
 
     public static var defaultWorkspace: String { HVFMachineLayout.canonicalPath(NSHomeDirectory()) }
     /// Cuttlefish's depproxy listens on host loopback 7677.
@@ -319,7 +328,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
         case extraArguments, allowHostPorts, depproxyPort, cache
-        case cacheDiskBytes, osDiskFlush
+        case cacheDiskBytes, osDiskFlush, amd64
     }
 
     public init(
@@ -327,7 +336,8 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
         shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = [],
         allowHostPorts: [UInt16] = [], depproxyPort: UInt16 = HVFMachineConfig.defaultDepproxyPort,
-        cache: HVFMachineCachePolicy? = nil, cacheDiskBytes: UInt64? = nil, osDiskFlush: String? = nil
+        cache: HVFMachineCachePolicy? = nil, cacheDiskBytes: UInt64? = nil, osDiskFlush: String? = nil,
+        amd64: String? = nil
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -343,6 +353,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.cache = cache
         self.cacheDiskBytes = cacheDiskBytes
         self.osDiskFlush = osDiskFlush
+        self.amd64 = amd64
     }
 
     public init(from decoder: any Decoder) throws {
@@ -365,6 +376,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         cache = try c.decodeIfPresent(HVFMachineCachePolicy.self, forKey: .cache)
         cacheDiskBytes = try c.decodeIfPresent(UInt64.self, forKey: .cacheDiskBytes)
         osDiskFlush = try c.decodeIfPresent(String.self, forKey: .osDiskFlush)
+        amd64 = try c.decodeIfPresent(String.self, forKey: .amd64)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -383,6 +395,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         try c.encodeIfPresent(cache, forKey: .cache)
         try c.encodeIfPresent(cacheDiskBytes, forKey: .cacheDiskBytes)
         try c.encodeIfPresent(osDiskFlush, forKey: .osDiskFlush)
+        try c.encodeIfPresent(amd64, forKey: .amd64)
     }
 
     /// `cache`, or the defaults when machine.json has none.
@@ -456,6 +469,10 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         }
         guard (512...262_144).contains(memoryMiB) else {
             throw MicropodError.message("invalidArgument: hvf memoryMiB must be 512...262144, got \(memoryMiB)")
+        }
+        if let amd64, !Self.amd64Settings.contains(amd64) {
+            throw MicropodError.message(
+                "invalidArgument: hvf amd64 must be \(Self.amd64Settings.joined(separator: " or ")), got '\(amd64)'")
         }
         guard (1...600).contains(shutdownTimeoutSeconds) else {
             throw MicropodError.message(
@@ -554,6 +571,10 @@ public enum HVFVMMCommand {
     /// pressure. A configured `psi=` (machine.json `kernelArguments`) comes
     /// later and wins.
     public static let pressureBootArgument = "psi=1"
+    /// machine.json `amd64` "off": the guest engine registers no x86-64
+    /// interpreter, and refuses linux/amd64 naming this setting
+    /// (guest/runner/emulation_linux.go).
+    public static let amd64OffBootArgument = "micropod.amd64=off"
     /// Names the machine root for guest init (`mp.private_b64`, base64 with a
     /// trailing "." as micropod-vmm writes `mp.workspace_b64`) when it lies
     /// inside the workspace share, as the standard machine's `~/.micropod/hvf`
@@ -610,6 +631,7 @@ public enum HVFVMMCommand {
         }
         args += ["--cmdline-append", kernelLogLevelBootArgument]
         args += ["--cmdline-append", pressureBootArgument]
+        if config.amd64 == "off" { args += ["--cmdline-append", amd64OffBootArgument] }
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if osDiskFlushFlag, let osDiskFlush = config.osDiskFlush {
             args += [HVFVMMFeatures.osDiskFlushFlag, osDiskFlush]

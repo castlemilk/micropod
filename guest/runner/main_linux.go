@@ -78,6 +78,12 @@ type node struct {
 	images     cri.ImageServiceClient
 	imageStore imageMetadataClient
 	imagePush  dockerRegistryPusher
+	// registry and platformPull serve pulls for a platform CRI does not
+	// pull (docker_image_emulated_linux.go).
+	registry     registryResolver
+	platformPull platformPuller
+	// unpacker unpacks a built image of another platform (image_unpack_linux.go).
+	unpacker   layerUnpacker
 	content    content.ContentClient
 	containers containers.ContainersClient
 	snapshots  dockerSnapshotClient
@@ -104,7 +110,7 @@ func connect() (*grpc.ClientConn, node, error) {
 	taskClient := tasks.NewTasksClient(conn)
 	snapshotClient := snapshots.NewSnapshotsClient(conn)
 	leaseClient := leases.NewLeasesClient(conn)
-	return conn, node{
+	n := node{
 		runtime: cri.NewRuntimeServiceClient(conn), images: cri.NewImageServiceClient(conn),
 		imageStore:  images.NewImagesClient(conn),
 		imagePush:   newDockerRegistryPusher(conn),
@@ -119,7 +125,10 @@ func connect() (*grpc.ClientConn, node, error) {
 		execTasks:   taskClient,
 		probeKeys:   grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
 		reconnect:   conn.ResetConnectBackoff,
-	}, nil
+	}
+	n.registry, n.platformPull = dockerRegistryResolver{}, newDockerRegistryPusher(conn)
+	n.unpacker = newLayerUnpacker(conn, n)
+	return conn, n, nil
 }
 
 // containerdSocket is endpoint's path.

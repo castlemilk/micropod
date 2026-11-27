@@ -336,7 +336,9 @@ Volumes and images route the same way: `micropod volume ls` and `micropod images
 that keeps its own (Docker, the CI worker, the hvf machine) and name the runtime once more than one is listed; `volume create`
 and `pull` take `--runtime` or the default runtime; `volume rm`, `rmi`, `tag` and `image inspect` go to the engine
 that has the name. The hvf guest engine lists, creates, inspects and removes volumes, and lists, inspects and pulls
-(linux/arm64) images. With a tool bundle built from this tree (`ci/build-runner-tools.sh`) it also saves and loads
+linux/arm64 images, and linux/amd64 ones through x86-64 emulation (QEMU user mode, shipped in the tool bundle;
+`--platform linux/amd64` on pull, run, create and build, both platforms of an image side by side, and
+`micropod machine install --amd64 off` to turn it off: [docs/amd64-emulation.md](docs/amd64-emulation.md)). With a tool bundle built from this tree (`ci/build-runner-tools.sh`) it also saves and loads
 image archives: `micropod save --runtime hvf <ref> -o x.tar` and `micropod load --runtime hvf -i x.tar` (an unnamed
 `load` stays Apple's), and removes and tags images: `micropod rmi` of a tag untags it, of an ID or a digest removes
 the image once no container uses it (a multi-platform image from a registry included). Volume prune, volume sizes,

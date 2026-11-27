@@ -17,8 +17,11 @@
 #   create/ls/rm (and a micropod-made volume mounted by a container), image
 #   pull/ls/inspect (with the config's creation time), tag and rmi (a tag
 #   untags; a multi-platform index pulled and run by its digest is removed by
-#   it), platforms (another one refused naming linux/arm64, an image without
-#   arm64 Docker's "no matching manifest"), GET /system/df, the operations the
+#   it), platforms (an image without arm64 Docker's "no matching manifest";
+#   with the bundle's x86-64 emulator, linux/amd64 pulled beside the native
+#   image and run with --platform, a build for it, and machine.json amd64 off
+#   refusing it; without, linux/amd64 refused naming linux/arm64), GET
+#   /system/df, the operations the
 #   guest engine does not implement (volume prune, sizes) refused as
 #   unsupported, and an image save/load round trip through the guest;
 #   `machine status --json` capabilities, the BuildKit socket in the VMM argv,
@@ -271,10 +274,36 @@ check "run by index digest" \
 "$M" rm --force "e2e-dg-$S" >/dev/null
 check "rmi of a tag, then of the index digest, removes the image" \
     "$("$M" rmi busybox:1.37 >/dev/null 2>&1; "$M" rmi "docker.io/library/busybox@$BB_DIGEST" >/dev/null 2>&1; guest_api -o /dev/null -w '%{http_code}' "http://d/images/busybox@$BB_DIGEST/json")" "404"
-check "another platform is refused by the guest, naming the one it runs" \
-    "$("$M" pull --runtime hvf --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'unsupported platform linux/amd64: this engine runs linux/arm64')" "1"
 check "an image without linux/arm64 is Docker's no matching manifest" \
     "$("$M" pull --runtime hvf amd64/alpine:3.20 2>&1 | grep -c 'no matching manifest for linux/arm64')" "1"
+# linux/amd64 through x86-64 emulation, when the bundle ships the emulator
+# (guest/runner/emulation_linux.go): pulled beside the native image, run with
+# --platform, built, and turned off by machine.json `amd64`.
+gdocker() { DOCKER_HOST="unix://$ROOT_DIR/run/docker.sock" DOCKER_CONFIG="$TMP/docker" docker "$@"; }
+if [ -x "$TOOLS/runner/emulators/qemu-x86_64" ]; then
+    check "docker info names both platforms" \
+        "$(gdocker info --format '{{json .Labels}}' | grep -c 'io.micropod.platforms=linux/arm64,linux/amd64')" "1"
+    check "another platform is refused, naming the two the engine runs" \
+        "$("$M" pull --runtime hvf --platform linux/s390x alpine:3.20 2>&1 | grep -c 'unsupported platform linux/s390x: this engine runs linux/arm64 images, and linux/amd64 images through x86-64 emulation')" "1"
+    gdocker pull -q alpine:3.20 >/dev/null
+    check "pull --platform linux/amd64 beside the native image" \
+        "$(gdocker pull --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'linux/amd64')" "1"
+    check "…the tag stays the native image" "$(gdocker run --rm alpine:3.20 uname -m)" "aarch64"
+    check "…run --platform linux/amd64 runs the amd64 image" "$(gdocker run --rm --platform linux/amd64 alpine:3.20 uname -m)" "x86_64"
+    AMD64_ID="$(guest_api http://d/images/json | python3 -c 'import sys,json
+rows = [i for i in json.load(sys.stdin) if i.get("Architecture") == "amd64" and any("/alpine@" in d for d in i.get("RepoDigests") or [])]
+print(rows[0]["Id"] if rows else "")')"
+    check "…image inspect says amd64 by its ID" "$([ -n "$AMD64_ID" ] && gdocker image inspect "$AMD64_ID" --format '{{.Os}}/{{.Architecture}}')" "linux/amd64"
+    check "…an image without linux/arm64 pulls for linux/amd64" \
+        "$(gdocker pull -q --platform linux/amd64 amd64/alpine:3.20 >/dev/null 2>&1 && gdocker run --rm amd64/alpine:3.20 uname -m)" "x86_64"
+    check "…run --platform linux/arm64 of an amd64-only tag is Docker's not found" \
+        "$(curl -s -m 30 --unix-socket "$ROOT_DIR/run/docker.sock" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            -d '{"Image":"amd64/alpine:3.20"}' 'http://d/containers/create?platform=linux/arm64')" "404"
+    gdocker rmi --force amd64/alpine:3.20 "$AMD64_ID" >/dev/null 2>&1 || true
+else
+    check "another platform is refused by the guest, naming the one it runs" \
+        "$("$M" pull --runtime hvf --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'unsupported platform linux/amd64: this engine runs linux/arm64')" "1"
+fi
 check "system/df measures images, containers, volumes and the build cache" \
     "$(guest_api http://d/system/df | python3 -c 'import sys,json; d=json.load(sys.stdin); b=[i for i in d["Images"] if "docker.io/library/busybox:1.36" in i["RepoTags"]]; print(d["LayersSize"] > 0 and len(b) == 1 and b[0]["Size"] > 0 and b[0]["Created"] > 0 and all(isinstance(d[k], list) for k in ("Containers", "Volumes", "BuildCache")))')" "True"
 check "save --runtime hvf writes the guest's OCI archive" \
@@ -336,8 +365,37 @@ PY
         check "second build reuses it" "$(bx two)" "one two "
         "$M" machine restart >/dev/null
         check "the cache survives a machine restart" "$(bx three)" "one two three "
+        if [ -x "$TOOLS/runner/emulators/qemu-x86_64" ]; then
+            mkdir -p "$TMP/amd64ctx"
+            printf 'FROM alpine:3.20\nRUN uname -m > /arch\nCMD ["cat", "/arch"]\n' >"$TMP/amd64ctx/Dockerfile"
+            rm -rf "$TMP/out"
+            check "a build for linux/amd64 runs its steps through emulation" \
+                "$(DOCKER_CONFIG="$TMP/docker" docker buildx build --builder "$BUILDER" --platform linux/amd64 \
+                    --output "type=local,dest=$TMP/out" "$TMP/amd64ctx" >/dev/null 2>&1 && cat "$TMP/out/arch")" "x86_64"
+            check "…and a build for linux/amd64 loaded into the engine runs" \
+                "$(gdocker build -q --platform linux/amd64 -t "e2e-amd64:$S" "$TMP/amd64ctx" >/dev/null 2>&1 && gdocker run --rm "e2e-amd64:$S")" "x86_64"
+            gdocker rmi "e2e-amd64:$S" >/dev/null 2>&1 || true
+        fi
         DOCKER_CONFIG="$TMP/docker" docker buildx rm "$BUILDER" >/dev/null 2>&1 && BUILDER=""
     fi
+fi
+
+if [ -x "$TOOLS/runner/emulators/qemu-x86_64" ]; then
+    echo "== linux/amd64 off (machine.json amd64)"
+    "$M" machine stop >/dev/null
+    "$M" machine install --amd64 off >/dev/null
+    check "amd64 off is saved in machine.json" \
+        "$(python3 -c "import json; print(json.load(open('$ROOT_DIR/machine.json')).get('amd64'))")" "off"
+    "$M" machine start >/dev/null
+    check "…the guest refuses linux/amd64, naming the setting" \
+        "$(gdocker pull --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'micropod.amd64=off')" "1"
+    check "…and says so in docker info" "$(gdocker info --format '{{json .Labels}}' | grep -c 'io.micropod.amd64=unavailable')" "1"
+    "$M" machine stop >/dev/null
+    "$M" machine install --amd64 auto >/dev/null
+    check "amd64 auto is saved as absent" \
+        "$(python3 -c "import json; print(json.load(open('$ROOT_DIR/machine.json')).get('amd64'))")" "None"
+    "$M" machine start >/dev/null
+    check "…and linux/amd64 runs again" "$(gdocker run --rm --platform linux/amd64 alpine:3.20 uname -m)" "x86_64"
 fi
 
 echo "== workspace bind mount"
