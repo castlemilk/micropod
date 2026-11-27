@@ -22,11 +22,14 @@
 // every attempt gets a fresh deadline and a call can run MaxAttempts times
 // longer than the configured timeout.
 //
-// The Swift MicropodAPI server speaks proto-JSON only; pass
-// WithConnectOptions(connect.WithProtoJSON()) when talking to it.
+// The Swift MicropodAPI serves Connect (binary and proto-JSON) over HTTP/1.1
+// by default; WithHTTP2 switches the transport to HTTP/2 (h2c) and WithGRPC
+// to the gRPC protocol. WithUnixSocket reaches its owner socket.
 package micropod
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"time"
 
@@ -56,6 +59,9 @@ type config struct {
 	httpClient   *http.Client
 	interceptors []connect.Interceptor
 	connectOpts  []connect.ClientOption
+	http2        bool
+	unixSocket   string
+	customHTTP   bool
 }
 
 // Option customizes the SDK client.
@@ -63,7 +69,56 @@ type Option func(*config)
 
 // WithHTTPClient overrides the transport (custom TLS, proxy, vsock dialer…).
 func WithHTTPClient(h *http.Client) Option {
-	return func(c *config) { c.httpClient = h }
+	return func(c *config) {
+		c.httpClient = h
+		c.customHTTP = true
+	}
+}
+
+// WithHTTP2 speaks HTTP/2 with prior knowledge (h2c) to the Swift
+// MicropodAPI, which serves it beside HTTP/1.1 on the same port and socket.
+// All calls share one connection, multiplexed. Ignored when WithHTTPClient
+// supplies the transport. The default stays HTTP/1.1.
+func WithHTTP2() Option {
+	return func(c *config) { c.http2 = true }
+}
+
+// WithUnixSocket dials the API's Unix socket (~/.micropod/api.sock) for
+// every call, whatever host baseURL names (use http://localhost/api).
+// Ignored when WithHTTPClient supplies the transport.
+func WithUnixSocket(path string) Option {
+	return func(c *config) { c.unixSocket = path }
+}
+
+// WithGRPC speaks the gRPC protocol (application/grpc) instead of Connect:
+// connect.WithGRPC() over HTTP/2 (WithHTTP2). The Swift MicropodAPI serves
+// gRPC on /api/micropod.v1.<Service>/<Method> and on the bare
+// /micropod.v1.<Service>/<Method> path grpc-go uses.
+func WithGRPC() Option {
+	return func(c *config) {
+		c.http2 = true
+		c.connectOpts = append(c.connectOpts, connect.WithGRPC())
+	}
+}
+
+// transport builds the HTTP client WithHTTP2 and WithUnixSocket ask for.
+func (c *config) transport() *http.Client {
+	if c.customHTTP || (!c.http2 && c.unixSocket == "") {
+		return c.httpClient
+	}
+	tr := &http.Transport{}
+	if c.http2 {
+		var protocols http.Protocols
+		protocols.SetUnencryptedHTTP2(true)
+		tr.Protocols = &protocols
+	}
+	if path := c.unixSocket; path != "" {
+		dialer := &net.Dialer{}
+		tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "unix", path)
+		}
+	}
+	return &http.Client{Transport: tr}
 }
 
 // WithInterceptors appends custom interceptors after the built-in
@@ -121,6 +176,7 @@ func NewClient(baseURL string, opts ...Option) *Client {
 	for _, o := range opts {
 		o(cfg)
 	}
+	cfg.httpClient = cfg.transport()
 	clientOpts := append([]connect.ClientOption{connect.WithInterceptors(cfg.interceptors...)}, cfg.connectOpts...)
 	return &Client{
 		ContainerServiceClient: micropodv1connect.NewContainerServiceClient(cfg.httpClient, baseURL, clientOpts...),
