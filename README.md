@@ -469,7 +469,53 @@ picks the context's own builder and fails. `docker --context micropod buildx bui
 rewrites its current-builder file, forgetting a builder chosen without `--default` for another context. (buildx
 gives each docker context an implicit builder of the same name, so the builder cannot be called `micropod`.)
 Installing changes neither the current docker context nor the current builder; each build pays a tarball load and
-leaves an `import-<date>` image record. `micropod machine builder rm` removes exactly those two. `micropod machine cache policy --register-buildx on` makes `machine start` install it when needed.
+leaves an `import-<date>` image record. `micropod machine builder rm` removes exactly those two (selecting the context
+`micropod docker install --use` replaced first, when `micropod` is current). `micropod machine cache policy --register-buildx on` makes `machine start` install it when needed.
+
+#### Use the docker CLI
+
+`micropod docker install` makes the stock docker CLI, compose and buildx work with the machine the way Docker
+Desktop or OrbStack do, through a docker context named `micropod` on `<root>/run/docker.sock`:
+
+```bash
+micropod docker install            # create the context; the current context is left as it is
+micropod docker install --use      # …and select it (the context it replaces is recorded)
+docker run --rm alpine echo ok     # with --use; otherwise: docker --context micropod run …
+docker compose up -d               # compose and buildx follow the context
+docker build -t app .              # buildx's docker driver on the engine's own socket
+micropod docker status             # CLI, context, selection, shell overrides, plugins, builder, sockets
+micropod docker uninstall          # select the recorded context again (else default), remove what install made
+```
+
+```
+docker context micropod -> unix:///Users/me/.micropod/hvf/run/docker.sock (created)
+builder: the context's own builder (the engine builds on its Docker socket)
+compose: 5.5.0    buildx: v0.37.2
+current context: desktop-linux (unchanged; select with `micropod docker install --use` or `docker context use micropod`)
+```
+
+Nothing is written by hand: every change goes through the docker CLI (`MICROPOD_DOCKER_CLI`, else `docker` on
+`PATH`), so `DOCKER_CONFIG` decides whose configuration changes, and the current context changes only with `--use`.
+The context `--use` replaced is kept in `<root>/docker-wiring.json`; a second `--use` keeps it. A `micropod` context
+that points somewhere else is refused, naming its endpoint (`--force` repoints it). None of the commands starts the
+machine: start it with `micropod machine start` (or a `micropod run --runtime hvf …`); a selected context on a stopped
+machine fails the way a stopped Docker Desktop does.
+
+`--builder auto` (the default) adds no builder when the engine builds on its Docker socket (`machine status` says
+`docker build: ready`), and the remote builder `micropod-buildkit` (as `micropod machine builder install`) when it
+cannot; `--builder remote` always adds it, `--builder none` never. Problems that do not stop the command are `note:`
+lines on stderr: `DOCKER_HOST` or `DOCKER_CONTEXT` set in the shell (docker ignores the selected context while either
+is set), a compose or buildx plugin the CLI does not find (Homebrew installs them in
+`/opt/homebrew/lib/docker/cli-plugins`, which the CLI searches only when `cliPluginsExtraDirs` in `config.json` names
+it; `docker build` needs buildx, because the engine has no classic `/build`), a `credsStore` or `credHelpers` entry
+whose `docker-credential-<name>` is not on `PATH` (a leftover `"credsStore": "desktop"` after removing Docker Desktop
+breaks every pull), a docker CLI older than the engine's minimum Docker API 1.44, and a stopped machine. Without a
+docker CLI, `install` fails and prints the `DOCKER_HOST` line to export instead.
+
+Clients that ignore docker contexts and only try `/var/run/docker.sock` need a link there, which takes root:
+`micropod docker install --system-socket` prints the `sudo ln -sfn …` command and what the link points at now
+(Docker Desktop, OrbStack, …) and runs nothing; `uninstall` prints the `sudo rm` line when the link still leads here.
+`scripts/e2e_docker_wiring.sh` runs all of it against a throwaway machine with a temporary `DOCKER_CONFIG`.
 
 Sandbox VMs are owned by the process that boots them: long-lived sandbox
 containers live in the API daemon; the CLI's `run --runtime sandbox` runs in

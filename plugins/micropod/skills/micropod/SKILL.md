@@ -119,6 +119,17 @@ says `docker build: fallback builder only`, `micropod machine builder install`
 adds a `micropod` docker context and the remote buildx builder
 `micropod-buildkit`; build with
 `BUILDX_BUILDER=micropod-buildkit docker --context micropod build …`.
+For the stock docker CLI, compose and buildx, `micropod docker install`
+creates the docker context `micropod` on the machine's socket without
+changing the current context (`--use` selects it and records the one it
+replaced; `micropod docker uninstall` selects that again), picks the builder
+(`--builder auto|remote|none`), and prints `note:` lines for what would still
+break: `DOCKER_HOST`/`DOCKER_CONTEXT` set in the shell, a missing compose or
+buildx plugin, a credential helper not on `PATH`, a stopped machine.
+`micropod docker status --json` reports all of it. It never starts the
+machine and never runs sudo (`--system-socket` only prints the
+`/var/run/docker.sock` link command). In scripts, point `DOCKER_CONFIG` at a
+temporary directory so the user's `~/.docker` is not changed.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP
