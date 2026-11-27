@@ -166,6 +166,16 @@ raise_limit vm/max_map_count 262144
 raise_limit net/ipv4/neigh/default/gc_thresh2 4096
 raise_limit net/ipv4/neigh/default/gc_thresh3 8192
 mkdir -p /run/containerd /var/lib/micropod /etc/cni/net.d /etc/cni/micropod-private
+# No network namespace outlives a boot, so no address the default network
+# handed out before this boot is in use. BuildKit cannot give back the ones
+# its pooled namespaces held (its DEL of a namespace left from an earlier
+# boot fails in the loopback plugin: the mount is gone), so each restart
+# leaked as many addresses as RUN steps had last run at once. The
+# allocator's position (last_reserved_ip) stays, so addresses keep being
+# handed out in turn.
+for reservation in /var/lib/cni/networks/micropod-ci/10.*; do
+    if [ -f "$reservation" ]; then rm -f "$reservation"; fi
+done
 packages=
 command -v iptables >/dev/null || packages=iptables
 if [ "${MICROPOD_CI_PUBLISHED_PATH:-}" = macvlan ] && ! command -v nft >/dev/null; then
