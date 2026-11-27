@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 import MicropodCore
@@ -540,6 +541,62 @@ public struct HVFDockerWiring: Sendable {
     }
 
     static let overrideKeys = ["DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_API_VERSION", "BUILDX_BUILDER"]
+
+    // MARK: The store, read without the CLI
+
+    /// Docker context `micropod` as the docker CLI's own files have it now.
+    public struct StoredContext: Codable, Sendable, Equatable {
+        /// The context's docker host; nil when there is no such context.
+        public var host: String?
+        /// It points at this machine.
+        public var pointsHere: Bool
+        /// The context a plain `docker` in this environment uses.
+        public var current: String
+
+        public var exists: Bool { host != nil }
+        /// A plain `docker` reaches this machine through the context.
+        public var selected: Bool { pointsHere && current == HVFDockerWiring.contextName }
+
+        public init(host: String?, pointsHere: Bool, current: String) {
+            self.host = host
+            self.pointsHere = pointsHere
+            self.current = current
+        }
+    }
+
+    /// The context and the selection read from the docker CLI's files,
+    /// without running it (`micropod status` starts no process):
+    /// `contexts/meta/<sha256 of the name>/meta.json` and `currentContext`
+    /// in `config.json`, with the precedence the CLI gives the shell's
+    /// `DOCKER_CONTEXT` and `DOCKER_HOST`. The record only says what
+    /// `install` did; the user may have switched or removed the context
+    /// since. Nothing is written.
+    public func storedContext() -> StoredContext {
+        let digest = SHA256.hash(data: Data(Self.contextName.utf8)).map { String(format: "%02x", $0) }.joined()
+        let meta = configDirectory.appendingPathComponent("contexts/meta/\(digest)/meta.json")
+        var host: String?
+        if let data = try? Data(contentsOf: meta),
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        {
+            let endpoint = (json["Endpoints"] as? [String: Any])?["docker"] as? [String: Any]
+            host = endpoint?["Host"] as? String ?? ""
+        }
+        let current: String
+        if let name = environment["DOCKER_CONTEXT"], !name.isEmpty {
+            current = name
+        } else if let override = environment["DOCKER_HOST"], !override.isEmpty {
+            current = "default"
+        } else if let data = try? Data(contentsOf: configDirectory.appendingPathComponent("config.json")),
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let name = json["currentContext"] as? String, !name.isEmpty
+        {
+            current = name
+        } else {
+            current = "default"
+        }
+        return StoredContext(
+            host: host, pointsHere: HVFBuilderSetup.sameEndpoint(host, layout.dockerEndpoint), current: current)
+    }
 
     // MARK: Probes
 

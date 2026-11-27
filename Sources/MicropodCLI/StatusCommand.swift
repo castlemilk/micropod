@@ -44,6 +44,10 @@ enum StatusCommand {
         var source: Source
         /// The `micropod` docker context's record (`micropod docker install`).
         var docker: HVFDockerWiring.Record?
+        /// The context and the selection as the docker CLI's files have
+        /// them now: the record does not follow a `docker context use` or
+        /// `docker context rm` the user ran since.
+        var context: HVFDockerWiring.StoredContext
         var appleShown: Bool
     }
 
@@ -121,7 +125,8 @@ enum StatusCommand {
         } catch {
             source = .disk
         }
-        let docker = try? HVFDockerWiring(layout: client.layout, docker: nil, environment: environment).loadRecord()
+        let wiring = HVFDockerWiring(layout: client.layout, docker: nil, environment: environment)
+        let docker = try? wiring.loadRecord()
         let enabled = EngineRegistry.engineNames.filter { registry.isEnabled($0) }
         let facts: Micropod_V1_HVFMachineStatus
         if let machine {
@@ -131,7 +136,8 @@ enum StatusCommand {
         }
         return Report(
             defaultRuntime: registry.defaultName, enabledRuntimes: enabled, machine: facts, source: source,
-            docker: docker, appleShown: registry.defaultName == "apple" || registry.isEnabled("apple"))
+            docker: docker, context: wiring.storedContext(),
+            appleShown: registry.defaultName == "apple" || registry.isEnabled("apple"))
     }
 
     // MARK: Lines
@@ -156,7 +162,7 @@ enum StatusCommand {
             out.append(("containers:", "\(m.containersRunning) running, \(m.containersTotal) total"))
         }
         let endpoint = m.dockerEndpoint.isEmpty ? "unix://" + m.socket : m.dockerEndpoint
-        out.append(("docker:", "\(endpoint) \(dockerContext(report.docker))"))
+        out.append(("docker:", "\(endpoint) \(dockerContext(report.context, record: report.docker))"))
         if m.installed {
             out.append(("cache disk:", cacheDiskLine(m.cacheDisk)))
             if !m.diskFlush.isEmpty { out.append(("disk flush:", m.diskFlush)) }
@@ -183,9 +189,20 @@ enum StatusCommand {
         }
     }
 
-    static func dockerContext(_ record: HVFDockerWiring.Record?) -> String {
-        guard let record else { return "(no docker context: `micropod docker install`)" }
-        return record.selectedByMicropod ? "(context micropod, selected)" : "(context micropod)"
+    /// What the docker CLI's files say now; the record only tells a context
+    /// that was never made from one removed since.
+    static func dockerContext(_ context: HVFDockerWiring.StoredContext, record: HVFDockerWiring.Record?) -> String {
+        guard context.exists else {
+            return record == nil
+                ? "(no docker context: `micropod docker install`)"
+                : "(docker context micropod was removed: `micropod docker install` creates it again)"
+        }
+        guard context.pointsHere else {
+            return "(docker context micropod points at \(context.host ?? "another endpoint"), not this machine: "
+                + "`micropod docker install --force`)"
+        }
+        return context.selected
+            ? "(context micropod, selected)" : "(context micropod; current context: \(context.current))"
     }
 
     static func gib(_ bytes: UInt64) -> String {
@@ -246,11 +263,13 @@ enum StatusCommand {
             "endpoint": report.machine.dockerEndpoint.isEmpty
                 ? "unix://" + report.machine.socket : report.machine.dockerEndpoint
         ]
-        if let record = report.docker {
+        if report.context.exists {
             docker["context"] = HVFDockerWiring.contextName
-            docker["selected"] = record.selectedByMicropod
-            if let previous = record.previousContext { docker["previousContext"] = previous }
+            docker["contextHost"] = report.context.host ?? ""
         }
+        docker["selected"] = report.context.selected
+        docker["currentContext"] = report.context.current
+        if let previous = report.docker?.previousContext { docker["previousContext"] = previous }
         out["docker"] = docker
         var api: [String: Any] = ["line": apiLine(report.source)]
         switch report.source {

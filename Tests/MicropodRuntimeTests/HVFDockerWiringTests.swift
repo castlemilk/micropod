@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 import MicropodCore
@@ -41,6 +42,64 @@ final class HVFDockerWiringTests: XCTestCase {
         HVFDockerWiring(
             layout: layout, docker: dockerPath, environment: environment.merging(extra) { $1 }, runner: docker,
             systemSocket: systemSocket.path)
+    }
+
+    // MARK: The store, read without the CLI
+
+    /// The context file the docker CLI writes: `contexts/meta/<sha256 of
+    /// the name>/meta.json`.
+    private func writeContext(host: String) throws {
+        // sha256("micropod")
+        let directory = config.appendingPathComponent(
+            "contexts/meta/\(SHA256.hash(data: Data("micropod".utf8)).map { String(format: "%02x", $0) }.joined())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(
+            #"{"Name":"micropod","Metadata":{},"Endpoints":{"docker":{"Host":"\#(host)","SkipTLSVerify":false}}}"#.utf8
+        ).write(to: directory.appendingPathComponent("meta.json"))
+    }
+
+    private func writeConfig(currentContext: String?) throws {
+        let body = currentContext.map { #"{"auths":{},"currentContext":"\#($0)"}"# } ?? #"{"auths":{}}"#
+        try Data(body.utf8).write(to: config.appendingPathComponent("config.json"))
+    }
+
+    func testStoredContextReadsTheDockerFilesWithoutRunningTheCLI() throws {
+        let docker = fake()
+        XCTAssertEqual(
+            wiring(docker).storedContext(), .init(host: nil, pointsHere: false, current: "default"),
+            "no context file, no config.json")
+
+        try writeContext(host: layout.dockerEndpoint)
+        try writeConfig(currentContext: nil)
+        var stored = wiring(docker).storedContext()
+        XCTAssertEqual(stored, .init(host: layout.dockerEndpoint, pointsHere: true, current: "default"))
+        XCTAssertFalse(stored.selected)
+
+        try writeConfig(currentContext: "micropod")
+        stored = wiring(docker).storedContext()
+        XCTAssertTrue(stored.selected)
+
+        // The user switched away after `install --use`.
+        try writeConfig(currentContext: "desktop-linux")
+        stored = wiring(docker).storedContext()
+        XCTAssertEqual(stored.current, "desktop-linux")
+        XCTAssertFalse(stored.selected)
+
+        // The shell's overrides win, in the docker CLI's order.
+        try writeConfig(currentContext: "micropod")
+        XCTAssertEqual(wiring(docker, ["DOCKER_HOST": "unix:///x.sock"]).storedContext().current, "default")
+        XCTAssertEqual(
+            wiring(docker, ["DOCKER_HOST": "unix:///x.sock", "DOCKER_CONTEXT": "orbstack"]).storedContext().current,
+            "orbstack")
+        XCTAssertTrue(wiring(docker, ["DOCKER_CONTEXT": "micropod"]).storedContext().selected)
+
+        // A context of that name on another endpoint is not this machine's.
+        try writeContext(host: "unix:///elsewhere.sock")
+        stored = wiring(docker).storedContext()
+        XCTAssertEqual(stored.host, "unix:///elsewhere.sock")
+        XCTAssertFalse(stored.pointsHere)
+        XCTAssertFalse(stored.selected)
+        XCTAssertEqual(docker.calls, [], "the docker CLI is never run")
     }
 
     private func fake() -> FakeContextCLI {

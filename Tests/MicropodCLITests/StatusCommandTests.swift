@@ -55,9 +55,10 @@ final class StatusCommandTests: XCTestCase {
         return m
     }
 
-    private func lines(_ m: Micropod_V1_HVFMachineStatus, source: StatusCommand.Source = .disk, docker: Bool = false)
-        -> [String: String]
-    {
+    private func lines(
+        _ m: Micropod_V1_HVFMachineStatus, source: StatusCommand.Source = .disk, docker: Bool = false,
+        context: HVFDockerWiring.StoredContext? = nil
+    ) -> [String: String] {
         let record =
             docker
             ? HVFDockerWiring.Record(
@@ -65,6 +66,10 @@ final class StatusCommandTests: XCTestCase {
                 endpoint: m.dockerEndpoint, installedAt: Date()) : nil
         let report = StatusCommand.Report(
             defaultRuntime: "hvf", enabledRuntimes: ["sandbox", "hvf"], machine: m, source: source, docker: record,
+            context: context
+                ?? (docker
+                    ? .init(host: m.dockerEndpoint, pointsHere: true, current: "micropod")
+                    : .init(host: nil, pointsHere: false, current: "default")),
             appleShown: false)
         return Dictionary(StatusCommand.lines(report), uniquingKeysWith: { $1 })
     }
@@ -102,6 +107,31 @@ final class StatusCommandTests: XCTestCase {
         XCTAssertEqual(l["autostart:"], "on (loaded)")
         XCTAssertEqual(l["api:"], "running (/Users/me/.micropod/api.sock)")
         XCTAssertEqual(l["apple:"], "not enabled")
+    }
+
+    /// The record says what `docker install --use` did; the docker line
+    /// says what the docker CLI's files say now.
+    func testTheDockerLineFollowsTheStoreNotTheRecord() {
+        let m = machine { $0.readiness = "running" }
+        func docker(_ context: HVFDockerWiring.StoredContext, recorded: Bool = true) -> String? {
+            lines(m, docker: recorded, context: context)["docker:"]
+        }
+        XCTAssertEqual(
+            docker(.init(host: m.dockerEndpoint, pointsHere: true, current: "desktop-linux")),
+            "unix:///r/run/docker.sock (context micropod; current context: desktop-linux)",
+            "the user switched away after `install --use`: the record still says selected")
+        XCTAssertEqual(
+            docker(.init(host: nil, pointsHere: false, current: "default")),
+            "unix:///r/run/docker.sock (docker context micropod was removed: `micropod docker install` creates it again)"
+        )
+        XCTAssertEqual(
+            docker(.init(host: "unix:///elsewhere.sock", pointsHere: false, current: "micropod")),
+            "unix:///r/run/docker.sock (docker context micropod points at unix:///elsewhere.sock, not this machine: "
+                + "`micropod docker install --force`)")
+        XCTAssertEqual(
+            docker(.init(host: m.dockerEndpoint, pointsHere: true, current: "micropod"), recorded: false),
+            "unix:///r/run/docker.sock (context micropod, selected)",
+            "selected by hand with `docker context use micropod`: no record")
     }
 
     func testMachineStatesAndWhy() {

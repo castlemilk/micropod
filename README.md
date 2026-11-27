@@ -634,7 +634,10 @@ apple:       not enabled
 ```
 
 The machine line also reads `starting`, `failed: <why>`, `stopped (on request)` or `not installed: missing … (micropod
-setup)`. `GetMachineStatus` carries the same facts for any client: `readiness` and `failure_reason`, the
+setup)`. The docker line is read from the docker CLI's own files (no docker process runs), so it follows a `docker
+context use` or `docker context rm` done since `micropod docker install`: `(context micropod; current context:
+desktop-linux)`, `(docker context micropod was removed: …)`, or `(docker context micropod points at …, not this
+machine: …)`; a `DOCKER_CONTEXT` or `DOCKER_HOST` in the shell counts as the docker CLI counts it. `GetMachineStatus` carries the same facts for any client: `readiness` and `failure_reason`, the
 engine's version and API range, `containers_total` and `containers_running`, `disk_flush`, `cache_disk`, `autostart`,
 `docker_endpoint` and the payload versions. It never boots the machine; while the machine runs it asks the guest
 (one second each). `SetMachineAutostart {enabled, force}` turns the LaunchAgent on or off as the CLI does, and
