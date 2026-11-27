@@ -29,8 +29,9 @@ struct HTTP2Limits: Sendable {
     var streamErrors = RateLimit(count: 200, window: .seconds(30))
     /// PING (ACKs included), SETTINGS, PRIORITY, ALTSVC and ORIGIN frames
     /// a client may send. grpc-go sends a BDP PING per data round trip, so
-    /// this is far above NIO's 200 per 30 s (`HTTP2LimitsTests` records the
-    /// rate a grpc-go log flood reaches).
+    /// this is far above NIO's 200 per 30 s: a 60 s grpc-go 1.84 follow of
+    /// a container logging as fast as it can (~95 MB/min, scripts/h2-interop.sh
+    /// --machine, 2026-11-27) peaked at 873 and 854 per 10 s, about 7x under it.
     var controlFrames = RateLimit(count: 6_000, window: .seconds(10))
     var maxConnectionGlitches = 200
     /// Log each connection's busiest control-frame window at its close

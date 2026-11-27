@@ -4,8 +4,9 @@ import MicropodCore
 import MicropodRuntime
 import Network
 
-// MicropodAPI — a local HTTP/1.1 JSON API over the same service layer the
-// desktop app and MCP server use. Docker-shaped routes where it makes sense:
+// MicropodAPI — a local HTTP/1.1 and HTTP/2 (h2c) API over the same service
+// layer the desktop app and MCP server use: REST, Connect, and gRPC over
+// HTTP/2 (see HTTP2/). Docker-shaped routes where it makes sense:
 //
 //   GET  /health
 //   GET  /v1/system                      status + disk usage
@@ -212,6 +213,10 @@ enum HTTPResponse {
 /// `HTTPStreamFraming`) on a connection that may persist: its body is sent
 /// in chunks, ends with the zero-length chunk, and the connection then serves
 /// the next request. See `ConnectionPolicy` for the timeouts.
+///
+/// A connection on those two listeners whose first bytes are the HTTP/2
+/// prior-knowledge preface is handed to `HTTP2Engine` instead; its streams
+/// reach the same `guardRejection`, `admissionClaim` and handler.
 final class HTTPServer: @unchecked Sendable {
     let port: UInt16
     let handler: (HTTPRequest) async -> HTTPResponse

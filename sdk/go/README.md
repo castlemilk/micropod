@@ -43,6 +43,23 @@ Override providers with `WithTracerProvider` / `WithMeterProvider`;
 `WithHTTPClient` accepts any `*http.Client` — point the dialer at a Unix
 socket, vsock bridge, or instrumented `http.RoundTripper`.
 
+The Swift MicropodAPI serves HTTP/2 with prior knowledge (h2c) and gRPC
+beside HTTP/1.1 on the same socket and port. The default stays HTTP/1.1
+Connect; opt in per client:
+
+```go
+client := micropod.NewClient("http://localhost/api",
+    micropod.WithUnixSocket(os.Getenv("HOME")+"/.micropod/api.sock"), // the owner socket
+    micropod.WithHTTP2(), // h2c: every call multiplexed on one connection
+)
+grpcClient := micropod.NewClient("http://127.0.0.1:45454/api", micropod.WithGRPC()) // gRPC over h2c
+```
+
+Stock grpc-go works too, with the stubs in `gen/micropod/v1`:
+`grpc.NewClient("unix:///Users/me/.micropod/api.sock", grpc.WithTransportCredentials(insecure.NewCredentials()))`.
+`interop_test.go` (`go test -tags interop`, driven by `scripts/h2-interop.sh`)
+runs both against a live API.
+
 ## Versioning
 
 `go get github.com/castlemilk/micropod/sdk/go@sdk/go/v0.7.0` — the SDK is

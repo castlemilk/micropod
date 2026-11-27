@@ -223,16 +223,26 @@ func TestInteropGRPCStreams(t *testing.T) {
 					break
 				}
 			}
-			// An unknown container ends the stream with NotFound.
-			stream, err = client.StreamContainerLogs(ctx, &micropodv1.StreamLogsRequest{Id: "no-such-container-h2", NoFollow: true})
+			// An unknown container ends the stream with the code the same
+			// handler answers a Connect client over HTTP/1.1.
+			unknown := &micropodv1.StreamLogsRequest{Id: "no-such-container-h2", NoFollow: true}
+			stream, err = client.StreamContainerLogs(ctx, unknown)
 			if err == nil {
 				for err == nil {
 					_, err = stream.Recv()
 				}
 			}
-			if code := status.Code(err); code != codes.NotFound {
-				t.Fatalf("unknown container's stream: %v", err)
+			h1 := connectClient(target)
+			h1Stream, h1Err := h1.StreamContainerLogs(ctx, connect.NewRequest(unknown))
+			if h1Err == nil {
+				for h1Stream.Receive() {
+				}
+				h1Err = h1Stream.Err()
 			}
+			if h1Err == nil || uint32(status.Code(err)) != uint32(connect.CodeOf(h1Err)) {
+				t.Fatalf("unknown container's stream: gRPC %v, Connect over HTTP/1.1 %v", err, h1Err)
+			}
+			t.Logf("unknown container's stream: %v (Connect: %v)", status.Code(err), connect.CodeOf(h1Err))
 		})
 	}
 }

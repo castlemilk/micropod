@@ -604,7 +604,7 @@ a day (checked in the background, never blocking a command). Scripts, CI,
 
 ## Local HTTP API
 
-`task api` (`Sources/MicropodAPI`) runs a dependency-free HTTP/1.1 JSON API
+`task api` (`Sources/MicropodAPI`) runs an HTTP/1.1 and HTTP/2 (h2c) JSON, Connect and gRPC API
 over the same MicropodCore services the app and MCP use — programmatic access
 for scripts and tools. Docker-shaped routes:
 
@@ -672,8 +672,83 @@ reply. Inside a request, `MICROPOD_API_READ_IDLE_TIMEOUT_MS` (30000) of
 silence or `MICROPOD_API_READ_DEADLINE_MS` (120000) in total answers `408`;
 on a kept connection those clocks start at the next request's first byte. The
 managed runtime's internal socket answers one request per connection, because
-its gateway checks a caller's capability on the first request head only. The
-API speaks HTTP/1.1 only: an HTTP/2 client's preface gets an HTTP/1.1 `505`.
+its gateway checks a caller's capability on the first request head only.
+
+### Transports: socket or TCP, HTTP/1.1 or HTTP/2, Connect or gRPC
+
+Every route and RPC is served on both listeners, in every combination below,
+by the same handlers behind the same admission checks.
+
+| | Use it when | Notes |
+|---|---|---|
+| Owner socket `~/.micropod/api.sock` | your own processes on this Mac (CLI, MCP, agents, scripts) | `0600`, this user's only; no `Host`/`Origin`/`Content-Type` checks (no browser can reach it); fastest (no TCP stack) |
+| Loopback TCP `127.0.0.1:45454` | tools that only speak TCP, browsers (the docs explorer), other local users' tools | every request must name `Host: 127.0.0.1:45454` (or `localhost`/`[::1]`), pass the Origin allowlist and the Content-Type rule |
+| HTTP/1.1 (default) | every existing client: CLI, MCP, Cuttlefish, SDK defaults, curl | keep-alive and pipelining; streams close-delimited (or chunked on request) |
+| HTTP/2 (h2c, prior knowledge) | many concurrent calls over one connection, gRPC tooling | detected from the connection's first bytes on the same socket and port; no TLS, no `Upgrade: h2c` |
+| Connect (`/api/micropod.v1.<Service>/<Method>`) | connect-go, connect-es, the Swift SDK, plain `curl` with JSON | unary over either HTTP version; server streams as Connect envelopes |
+| gRPC (`application/grpc`, `+proto`, `+json`) | grpc-go and any stock gRPC client, grpcurl, buf curl | HTTP/2 only; bare `/micropod.v1.<Service>/<Method>` paths and `/api/...`; `grpc-timeout` honoured; `grpc.health.v1.Health` Check and Watch; no reflection (use the protos) and no compression |
+
+HTTP/2 is served only to a connection whose first bytes are the h2c preface,
+on the owner socket and loopback TCP; the managed runtime's internal socket
+stays HTTP/1.1 (one request per connection), and `MICROPOD_API_HTTP2=0` turns
+it off (a preface then gets HTTP/1.1's `505`). `curl --http2` (the HTTP/1.1
+`Upgrade: h2c` dance, removed from HTTP/2 by RFC 9113) gets a plain HTTP/1.1
+answer. The guest vsock bridge (`GET /v1/containers/{id}/vsock/{port}`)
+takes over its connection as raw bytes, so it needs HTTP/1.1: over HTTP/2 the
+stream is reset with `HTTP_1_1_REQUIRED` before anything is dialled.
+
+Over HTTP/2 each request gets the HTTP/1.1 server's own checks: `:authority`
+is the `Host` the guard reads (a `host` field that disagrees is a `400`), and
+`host`, `origin`, `content-type`, `content-length` and `grpc-timeout` may
+appear once. gRPC statuses are the Connect error codes the handlers return
+(`not_found` → `NOT_FOUND`, …), refusals included: a foreign `:authority` is
+`PERMISSION_DENIED`, a closed runtime admission `UNAVAILABLE`, a method no
+service declares `UNIMPLEMENTED` (answered from the headers alone). Bounds
+(`Sources/MicropodAPI/HTTP2/HTTP2Limits.swift`): 100 concurrent streams and
+100 handlers in flight per connection (a stream the client resets still holds
+its handler until it settles; mutations are never cut half way), 64 KiB of
+headers (once the client acknowledged the server's SETTINGS), 64 MiB per
+request body, 128 MiB buffered per connection, NIO's flood limits
+(CONTINUATION, RST_STREAM rapid reset, empty DATA, PING/SETTINGS at 6000 per
+10 s — a grpc-go log flood peaks below 900), the HTTP/1.1 request deadlines
+(RST_STREAM CANCEL), a 120 s write-stall deadline, GOAWAY after
+`MICROPOD_API_KEEPALIVE_IDLE_MS` without a stream, and at most 64 HTTP/2
+connections per listener, each holding one of the 256 kept-connection places.
+
+```bash
+# REST and Connect over h2c
+curl --http2-prior-knowledge --unix-socket ~/.micropod/api.sock http://localhost/v1/system
+curl --http2-prior-knowledge -H 'Content-Type: application/json' -d '{}' \
+    http://127.0.0.1:45454/api/micropod.v1.SystemService/Ping
+
+# gRPC: grpcurl and buf curl, with the protos (no reflection)
+buf build -o /tmp/micropod.binpb
+grpcurl -plaintext -protoset /tmp/micropod.binpb -d '{}' 127.0.0.1:45454 micropod.v1.SystemService/Ping
+grpcurl -plaintext -protoset /tmp/micropod.binpb -d '{"id":"web","tail":5,"no_follow":true}' \
+    unix://$HOME/.micropod/api.sock micropod.v1.ContainerService/StreamContainerLogs
+buf curl --http2-prior-knowledge --protocol grpc --schema /tmp/micropod.binpb -d '{}' \
+    http://127.0.0.1:45454/micropod.v1.SystemService/Ping
+```
+
+```go
+// grpc-go with the generated stubs in sdk/go/gen (unix:// or host:port)
+conn, _ := grpc.NewClient("unix://"+os.Getenv("HOME")+"/.micropod/api.sock",
+    grpc.WithTransportCredentials(insecure.NewCredentials()))
+ping, err := micropodv1.NewSystemServiceClient(conn).Ping(ctx, &micropodv1.Empty{})
+
+// The Go SDK: HTTP/1.1 Connect by default; opt into h2c, gRPC, the socket
+client := micropod.NewClient("http://localhost/api",
+    micropod.WithUnixSocket(os.Getenv("HOME")+"/.micropod/api.sock"), micropod.WithGRPC())
+```
+
+Pick the owner socket for anything running as you, and stay on HTTP/1.1
+Connect unless you need what HTTP/2 adds: at one call at a time it is as fast
+or faster (B25: Ping, `ListContainers(8)`, `GetCacheStatus` p95 under 1 ms
+on the socket); HTTP/2 pays a socketpair hop inside the API and shines with
+many concurrent calls on one connection or with stock gRPC tooling.
+`scripts/h2-interop.sh` runs grpc-go, connect-go, curl, grpcurl and buf curl
+against a throwaway API (`--machine` adds a throwaway hvf machine, server
+streams and a log-flood soak).
 
 Configuration: `MICROPOD_API_PORT` (default 45454), `MICROPOD_CONTAINER_CLI_PATH`,
 `MICROPOD_RUNTIME` (`auto`/`native`/`cli`), `MICROPOD_ALLOW_MULTI_ATTACH=1`
