@@ -33,10 +33,15 @@ Before the trials (section C; see clean_stop_check): a machine stop and start
 removes no image, not even CRI's sandbox image, which nothing had synced.
 
 Then the image trials (GATE_IMAGE_TRIALS, section I; see image_main): a pull,
-a load or a build of an image the engine never had, the VMM killed after the
-answer (after:MS) or before it (before:FRACTION of the kind's duration); the
-image must then be whole, or gone when the operation had not answered, and a
-second pull, load or build must leave it whole.
+a load, a build or a multi-step build (steps) of an image the engine never
+had, the VMM killed after the answer (after:MS) or before it (before:FRACTION
+of the kind's duration); the image must then be whole, or gone when the
+operation had not answered, and a second pull, load or build must leave it
+whole. A steps build commits one BuildKit snapshot per RUN step, so a kill
+before it answered often lands inside a commit: I18-01, where containerd's
+snapshotter had the commit and its metadata did not, and every relaunch
+refused to start ("cannot remove snapshot with child"). After the sweep the
+console log must name no snapshot recovery kept (section R).
 
 The engine must answer _ping after every relaunch: recovery refuses a torn or
 empty record, so an engine that does not come back fails the trial. Nothing
@@ -402,6 +407,9 @@ SWEEP = os.environ.get("GATE_SWEEP", "records,images").split(",")
 DOCKER_BIN = os.environ.get("GATE_DOCKER_BIN", "docker")
 GATE_TMP = os.environ.get("GATE_TMP", "/tmp")
 GEN_MIB = int(os.environ.get("GATE_IMAGE_MIB", "32"))
+# A steps build: STEPS RUN steps, each writing STEP_BYTES of its own text.
+STEPS = int(os.environ.get("GATE_BUILD_STEPS", "6"))
+STEP_BYTES = 4 << 20
 used_refs = set()
 durations = {}
 expected_cache = {}
@@ -414,8 +422,8 @@ def parse_trials(spec):
     out = []
     for item in [x for x in spec.split(",") if x]:
         kind, phase, value = item.split(":")
-        if kind not in ("pull", "load", "build") or phase not in ("after", "before"):
-            raise ValueError("image trial %r: want pull|load|build:after|before:N" % item)
+        if kind not in ("pull", "load", "build", "steps") or phase not in ("after", "before"):
+            raise ValueError("image trial %r: want pull|load|build|steps:after|before:N" % item)
         out.append((kind, phase, float(value)))
     return out
 
@@ -617,17 +625,26 @@ class ImageOp:
             self.ref = "docker.io/library/rc-load-%s:v1" % t
             self.archive, self.expected = gen_load_archive(self.ref)
         else:
-            self.ref = "docker.io/library/rc-build-%s:v1" % t
+            self.ref = "docker.io/library/rc-%s-%s:v1" % (kind, t)
             layer, self.expected, _ = gen_rootfs(self.ref)
             self.ctx = os.path.join(GATE_TMP, "build-" + t)
             os.makedirs(self.ctx, exist_ok=True)
             with open(os.path.join(self.ctx, "rootfs.tar"), "wb") as f:
                 f.write(layer)
+            steps = ""
+            if kind == "steps":
+                import hashlib
+                for n in range(1, STEPS + 1):
+                    word = "rc-step-%d-%s" % (n, t)
+                    steps += "RUN --network=none yes %s | head -c %d > /rc/step-%d\n" % (word, STEP_BYTES, n)
+                    text = ((word + "\n") * (STEP_BYTES // (len(word) + 1) + 1)).encode()[:STEP_BYTES]
+                    self.expected["rc/step-%d" % n] = hashlib.sha256(text).hexdigest()
             with open(os.path.join(self.ctx, "Dockerfile"), "w") as f:
-                f.write('FROM scratch\nADD rootfs.tar /\nCMD ["/bin/sh"]\n')
+                f.write('FROM scratch\nADD rootfs.tar /\n%sCMD ["/bin/sh"]\n' % steps)
 
     def run(self, timeout=900):
-        """Runs the operation; returns once it answered (raises if it failed)."""
+        """Runs the operation; returns once it answered (raises if it failed);
+        build and steps are both docker build."""
         if self.kind == "pull":
             repo, tag = self.ref.rsplit(":", 1)
             st, p = call("POST", "/images/create?fromImage=%s&tag=%s" % (repo, tag), timeout=timeout)
@@ -883,7 +900,30 @@ def main():
     if "images" in SWEEP and IMAGE_TRIALS:
         ok, kills = image_main(1, kills)
         all_ok &= ok
+        all_ok &= recovery_log_check()
     return 0 if all_ok else 1
+
+
+def recovery_log_check():
+    """Section R: what image recovery did over the sweep, from the console
+    log. A snapshot it kept (one it could not remove, even through the
+    collector) fails: the engine started, but a layer that may be torn is
+    still in the store."""
+    console = os.path.join(ROOT, "logs", "console.log")
+    try:
+        with open(console, errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError as e:
+        return record("R", "the console log is readable", str(e), "readable", False)
+    refused = [l for l in lines if "check the image store after an unclean stop" in l]
+    hidden = [l for l in lines if "which containerd no longer lists" in l]
+    kept = [l for l in lines if "KEPT snapshot" in l]
+    ok = record("R", "no relaunch refused to start over the image store (I18-01)", "%d refusals" % len(refused), "0 refusals", not refused,
+                (refused[0][-200:] if refused else "logs/console.log"))
+    record("R", "snapshot records containerd no longer listed (a commit cut short) that recovery removed", "%d" % len(hidden), "any", True, "logs/console.log")
+    ok &= record("R", "recovery kept no snapshot it could not remove", "%d kept" % len(kept), "0 kept", not kept,
+                 (kept[0][-200:] if kept else "logs/console.log"))
+    return ok
 
 
 if __name__ == "__main__":

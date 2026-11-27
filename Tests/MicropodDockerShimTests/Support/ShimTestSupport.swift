@@ -84,6 +84,8 @@ enum ShimTestSupport {
         let events = EventsHub(containers: containerService, interval: 0.1, readCache: readCache)
         var config = ShimConfig(
             bridgeHost: "192.168.64.1", tcpPort: 45455, defaultVolumeSize: "64g")
+        // Builds stage their contexts here, never under the real home.
+        config.buildStagingRoot = dir.appendingPathComponent("builds", isDirectory: true)
         configure(&config)
         // Isolated on-disk build-context cache (never the real home dir).
         let buildCache = BuildContextCache(

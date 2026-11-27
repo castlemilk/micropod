@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -1359,7 +1360,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 		var bridgeRetireErr error
 		hooks := processHooks{
 			created: func(ctx context.Context, podID, id string) error {
-				if console == nil && len(c.Config.HostConfig.Tmpfs) == 0 && jobParent == "" {
+				if console == nil && len(c.Config.HostConfig.Tmpfs) == 0 && jobParent == "" && len(c.Config.HostConfig.Ulimits) == 0 {
 					return nil
 				}
 				if jobParent != "" {
@@ -1580,6 +1581,12 @@ func (n node) installDockerOCI(ctx context.Context, podID, id string, config doc
 			return fmt.Errorf("configure OCI tmpfs: %w", err)
 		}
 	}
+	if len(config.HostConfig.Ulimits) != 0 {
+		record.Spec.Value, err = config.specWithUlimits(record.Spec.Value)
+		if err != nil {
+			return fmt.Errorf("configure OCI rlimits: %w", err)
+		}
+	}
 	if jobParent != "" {
 		record.Spec.Value, err = specWithJobParent(record.Spec.Value, jobParent, id)
 		if err != nil {
@@ -1794,6 +1801,64 @@ func (c *dockerContainer) effectivePorts() portMap {
 // restart) until start transitions it directly into "running"; exposing the
 // internal "starting" phase breaks stock clients such as testcontainers-go
 // during concurrent Ryuk startup races.
+// dockerListStatus is the Status of a container's row in GET
+// /containers/json, as Docker words it ("Up 3 seconds", "Up 2 minutes
+// (healthy)", "Exited (0) 2 minutes ago", "Created"). State, the field
+// programs read, and inspect's State.Status stay dockerStatus.
+func (c *dockerContainer) dockerListStatus(now time.Time) string {
+	switch status := c.dockerStatus(); status {
+	case "running":
+		up := "Up " + dockerHumanDuration(now.Sub(c.Started))
+		if h := c.Health; h != nil && h.Status != "" {
+			health := h.Status
+			if health == dockerHealthStarting {
+				health = "health: starting"
+			}
+			up += " (" + health + ")"
+		}
+		return up
+	case "exited":
+		if c.Finished.IsZero() {
+			return fmt.Sprintf("Exited (%d)", c.Exit)
+		}
+		return fmt.Sprintf("Exited (%d) %s ago", c.Exit, dockerHumanDuration(now.Sub(c.Finished)))
+	case "created":
+		return "Created"
+	case "dead":
+		return "Dead"
+	case "removing":
+		return "Removal In Progress"
+	default:
+		return status
+	}
+}
+
+// dockerHumanDuration words d as Docker's ps does (go-units HumanDuration).
+func dockerHumanDuration(d time.Duration) string {
+	if seconds := int(d.Seconds()); seconds < 1 {
+		return "Less than a second"
+	} else if seconds == 1 {
+		return "1 second"
+	} else if seconds < 60 {
+		return fmt.Sprintf("%d seconds", seconds)
+	} else if minutes := int(d.Minutes()); minutes == 1 {
+		return "About a minute"
+	} else if minutes < 60 {
+		return fmt.Sprintf("%d minutes", minutes)
+	} else if hours := int(math.Round(d.Hours())); hours == 1 {
+		return "About an hour"
+	} else if hours < 48 {
+		return fmt.Sprintf("%d hours", hours)
+	} else if hours < 24*7*2 {
+		return fmt.Sprintf("%d days", hours/24)
+	} else if hours < 24*30*2 {
+		return fmt.Sprintf("%d weeks", hours/24/7)
+	} else if hours < 24*365*2 {
+		return fmt.Sprintf("%d months", hours/24/30)
+	}
+	return fmt.Sprintf("%d years", int(d.Hours())/24/365)
+}
+
 func (c *dockerContainer) dockerStatus() string {
 	if c.Phase == "starting" {
 		if c.Exits > 0 {

@@ -137,6 +137,9 @@ func matchesLabels(labels map[string]string, filters []string) bool {
 }
 func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path string) error {
 	root := filepath.Join(engineRoot, "volumes")
+	if path == "/prune" && r.Method == "POST" {
+		return s.pruneVolumes(w, r)
+	}
 	if path == "/create" && r.Method == "POST" {
 		b, err := readBody(w, r)
 		if err != nil {

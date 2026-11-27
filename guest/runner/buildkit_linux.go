@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -39,6 +42,79 @@ type buildkitService struct {
 	mu       sync.Mutex
 	cmd      *exec.Cmd
 	lifetime context.Context // buildkitd runs until this ends, never a request's context
+	// output is the end of the current or last buildkitd's output, and exited
+	// closes when that buildkitd has exited (tornCacheSetAside).
+	output *tailBuffer
+	exited chan struct{}
+	// cacheSetAside is true once this engine moved a torn cache index aside.
+	cacheSetAside bool
+}
+
+// tailBuffer keeps the last bytes written to it.
+type tailBuffer struct {
+	mu  sync.Mutex
+	buf []byte
+}
+
+const buildkitOutputTail = 64 << 10
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, p...)
+	if over := len(t.buf) - buildkitOutputTail; over > 0 {
+		t.buf = append([]byte(nil), t.buf[over:]...)
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return string(t.buf)
+}
+
+// buildkitCacheDB is BuildKit's solver cache index (cache keys to results).
+// BuildKit opens it without fsync (NoSync), so an unclean stop can leave it
+// torn; its own fallback for a database that does not open (set it aside,
+// start empty) does not catch the panic bbolt raises in the goroutine that
+// rebuilds the free list, and buildkitd then dies at every start.
+func buildkitCacheDB() string { return filepath.Join(buildkitRoot, "cache.db") }
+
+// tornCacheSetAside waits briefly for the last buildkitd to exit; if it died
+// panicking in bbolt, it moves BuildKit's cache index aside (once per
+// engine), as BuildKit's own fallback would, and reports true: the next
+// start begins with an empty index. Only the index goes: the cache records
+// and their snapshots stay, and BuildKit's collector removes the ones no key
+// reaches any more. Builds miss the cache until it is filled again.
+func (b *buildkitService) tornCacheSetAside() bool {
+	b.mu.Lock()
+	exited, output, done := b.exited, b.output, b.cacheSetAside
+	b.mu.Unlock()
+	if exited == nil || output == nil || done {
+		return false
+	}
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		return false
+	}
+	text := output.String()
+	if !strings.Contains(text, "panic") || !strings.Contains(text, "go.etcd.io/bbolt") {
+		return false
+	}
+	db := buildkitCacheDB()
+	aside := fmt.Sprintf("%s.torn-%d", db, time.Now().Unix())
+	if err := os.Rename(db, aside); err != nil {
+		log.Printf("BuildKit died in its database and its cache index cannot be moved aside: %v", err)
+		return false
+	}
+	_ = syncDir(filepath.Dir(db))
+	b.mu.Lock()
+	b.cacheSetAside = true
+	b.mu.Unlock()
+	log.Printf("BuildKit died in its database at start (an unclean stop tore its cache index, which it does not sync): moved %s to %s; it starts with an empty index", db, aside)
+	return true
 }
 
 // sharedBuildkit serves the raw vsock bridge, the Docker socket's /grpc and
@@ -72,13 +148,16 @@ func (b *buildkitService) dial(ctx context.Context) (*net.UnixConn, error) {
 		}
 		cmd := exec.CommandContext(b.lifetime, buildkitBinary, "--config", buildkitConfig)
 		cmd.Env = buildkitEnv()
-		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+		output := &tailBuffer{}
+		cmd.Stdout = io.MultiWriter(os.Stderr, output)
+		cmd.Stderr = cmd.Stdout
 		cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
 		if err := cmd.Start(); err != nil {
 			b.mu.Unlock()
 			return nil, err
 		}
-		b.cmd = cmd
+		exited := make(chan struct{})
+		b.cmd, b.output, b.exited = cmd, output, exited
 		go func() {
 			err := cmd.Wait()
 			if err != nil {
@@ -89,6 +168,7 @@ func (b *buildkitService) dial(ctx context.Context) (*net.UnixConn, error) {
 				b.cmd = nil
 			}
 			b.mu.Unlock()
+			close(exited)
 		}()
 	}
 	b.mu.Unlock()

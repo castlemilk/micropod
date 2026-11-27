@@ -52,3 +52,8 @@ chmod 0644 "$runner/manifest.json"
 mkdir -p "$out/guest"
 rm -rf "$out/guest/runner"
 mv "$runner" "$out/guest/runner"
+# e2fsprogs for `micropod machine disk grow` (guest init grows a cloned disk
+# with them in a maintenance boot).
+if ! "$allocation"; then
+    MICROPOD_GUEST_DOWNLOADS="$downloads" bash "$root/ci/fetch-e2fsprogs.sh" "$out/guest/e2fsprogs"
+fi

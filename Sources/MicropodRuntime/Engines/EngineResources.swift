@@ -129,7 +129,15 @@ enum DockerResources {
     static func image(from entry: [String: Any]) -> Micropod_V1_Image {
         Micropod_V1_Image.with { image in
             image.id = entry["Id"] as? String ?? ""
-            image.names = (entry["RepoTags"] as? [String] ?? []).filter { $0 != "<none>:<none>" }
+            // Tags, then the tag@digest references a pull named (the HVF
+            // engine's MicropodPulledAs: Docker keeps only repo@digest for
+            // one), then the digest references: every name a client may have
+            // pulled or may look the image up by.
+            let tags = (entry["RepoTags"] as? [String] ?? []).filter { $0 != "<none>:<none>" }
+            let pulledAs = entry["MicropodPulledAs"] as? [String] ?? []
+            let digests = (entry["RepoDigests"] as? [String] ?? []).filter { $0 != "<none>@<none>" }
+            var seen = Set<String>()
+            image.names = (tags + pulledAs + digests).filter { seen.insert($0).inserted }
             if let digest = (entry["RepoDigests"] as? [String])?.first?.split(separator: "@").last {
                 image.digest = String(digest)
             }

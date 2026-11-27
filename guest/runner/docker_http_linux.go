@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"regexp"
@@ -180,6 +181,8 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	case path == "containers/json" && method == "GET":
 		return s.list(w, r)
+	case path == "containers/prune" && method == "POST":
+		return s.pruneContainers(w, r)
 	case strings.HasPrefix(path, "exec/"):
 		return s.exec(w, r, strings.TrimPrefix(path, "exec/"))
 	case strings.HasPrefix(path, "containers/"):
@@ -282,7 +285,7 @@ func (s *dockerEngine) containerListRowLocked(c *dockerContainer) dockerContaine
 	return dockerContainerListRow{
 		ID: c.ID, Names: []string{"/" + c.Name}, Image: c.Config.Image, ImageID: c.ImageID,
 		Command: strings.Join(append(append([]string{}, c.Config.Entrypoint...), c.Config.Cmd...), " "),
-		Created: c.Created.Unix(), State: status, Status: status, Labels: c.Config.Labels,
+		Created: c.Created.Unix(), State: status, Status: c.dockerListStatus(time.Now()), Labels: c.Config.Labels,
 		Ports: c.effectivePorts().summary(), Mounts: []any{}, created: c.Created,
 		NetworkSettings: dockerNetworkSettings{Networks: s.dockerContainerNetworks(c)},
 	}
@@ -550,6 +553,8 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		return map[string]any{"Id": i.Id, "RepoTags": i.RepoTags, "RepoDigests": i.RepoDigests, "Size": i.Size, "Os": "linux", "Architecture": "arm64"}
 	}
 	switch {
+	case path == "prune" && r.Method == "POST":
+		return s.pruneImages(w, r)
 	case path == "load" && r.Method == "POST":
 		s.imageMu.RLock()
 		defer s.imageMu.RUnlock()
@@ -638,6 +643,11 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		_, err = s.node.images.PullImage(r.Context(), &cri.PullImageRequest{Image: &cri.ImageSpec{Image: ref}, Auth: auth})
 		if err != nil {
 			return pullPlatformError(ref, err)
+		}
+		// A tag the reference named with its digest is kept beside it
+		// (pulledTagLabel); without it the image is still whole and usable.
+		if err := s.node.rememberPulledTag(r.Context(), ref); err != nil {
+			log.Printf("pull %s: remember its tag: %v", ref, err)
 		}
 		// The unpacked files are on the disk before the pull answers
 		// (image_durability_linux.go).

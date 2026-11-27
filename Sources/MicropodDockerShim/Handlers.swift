@@ -63,6 +63,12 @@ struct ShimConfig: Sendable {
     /// `StartContainer`, `docker run`), and pruning it fails that start —
     /// the grace the native runtime's own prune gives (live defect 4).
     var pruneUnstartedGrace: TimeInterval = 300
+    /// Where a build's context is staged while it runs. It must be under the
+    /// home directory: the container CLI's file provider silently drops
+    /// subdirectory contents for contexts outside the home tree. Tests point
+    /// it at their own directory.
+    var buildStagingRoot: URL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".micropod/builds")
 }
 
 struct DockerNetworkCreateBody: Codable {
@@ -703,11 +709,9 @@ final class Router: @unchecked Sendable {
         {
             labelSpecs = dict.map { LabelSpec(key: $0.key, value: $0.value) }
         }
-        // Create temp context — lifetime tied to the streaming Task, not the request scope.
-        // Must live under $HOME: the container CLI's file provider silently drops
-        // subdirectory contents for contexts outside the home tree.
-        let buildsRoot = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".micropod/builds")
+        // Create temp context — lifetime tied to the streaming Task, not the
+        // request scope, under config.buildStagingRoot (the home directory's).
+        let buildsRoot = config.buildStagingRoot
         try? FileManager.default.createDirectory(at: buildsRoot, withIntermediateDirectories: true)
         let tmpRoot = buildsRoot.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tmpRoot, withIntermediateDirectories: true)

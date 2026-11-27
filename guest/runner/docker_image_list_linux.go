@@ -4,9 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
+	"math"
 	"net/http"
 	"net/url"
+	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,27 +21,150 @@ import (
 	"github.com/distribution/reference"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
-func dockerImageLabelFilters(raw string) ([]string, error) {
+// dockerImageListFilters is what GET /images/json filters on, as Docker:
+// label predicates, dangling (no tag names the image), reference patterns
+// (matched against the image's familiar tags and digests), and before and
+// since (images created before or after the one named).
+type dockerImageListFilters struct {
+	labels        []string
+	dangling      *bool
+	references    []string
+	before, since []string
+}
+
+func parseDockerImageListFilters(raw string) (dockerImageListFilters, error) {
+	var f dockerImageListFilters
 	if raw == "" {
-		return nil, nil
+		return f, nil
 	}
 	var fields map[string]json.RawMessage
 	if json.Unmarshal([]byte(raw), &fields) != nil {
-		return nil, fail(http.StatusBadRequest, "invalid image list filters")
+		return f, fail(http.StatusBadRequest, "invalid image list filters")
 	}
-	for key := range fields {
-		if key != "label" {
-			return nil, fail(http.StatusBadRequest, "unsupported image list filter: "+key)
+	other := map[string]json.RawMessage{}
+	for key, value := range fields {
+		switch key {
+		case "label":
+		case "dangling", "reference", "before", "since":
+			other[key] = value
+		default:
+			return f, fail(http.StatusBadRequest, "unsupported image list filter: "+key)
 		}
 	}
-	wire, exists := fields["label"]
-	if !exists {
+	labels, err := dockerImageLabelFilters(fields["label"])
+	if err != nil {
+		return f, err
+	}
+	f.labels = labels
+	if len(other) == 0 {
+		return f, nil
+	}
+	b, _ := json.Marshal(other)
+	values, err := dockerFilterValues(string(b), nil, []string{"dangling", "reference", "before", "since"})
+	if err != nil {
+		return f, fail(http.StatusBadRequest, "invalid image list filter values")
+	}
+	for _, v := range values["dangling"] {
+		d, err := strconv.ParseBool(v)
+		if err != nil {
+			return f, fail(http.StatusBadRequest, "invalid dangling filter "+strconv.Quote(v))
+		}
+		f.dangling = &d
+	}
+	for _, pattern := range values["reference"] {
+		if _, err := path.Match(pattern, ""); err != nil {
+			return f, fail(http.StatusBadRequest, "invalid reference filter "+strconv.Quote(pattern))
+		}
+	}
+	f.references, f.before, f.since = values["reference"], values["before"], values["since"]
+	return f, nil
+}
+
+// danglingImage reports whether no name was given to an image: no tag names
+// it, and no pull named it by repo:tag@digest (pulledAs). Docker counts a
+// digest-only image as dangling; one a client pulled by tag and digest (a
+// pinned warm image) it named, and a prune of dangling images keeps it.
+func danglingImage(image *cri.Image, pulledAs []string) bool {
+	return len(image.GetRepoTags()) == 0 && len(pulledAs) == 0
+}
+
+// keepsRow reports whether an image passes dangling and reference.
+func (f dockerImageListFilters) keepsRow(image *cri.Image, pulledAs []string) bool {
+	if f.dangling != nil && *f.dangling != danglingImage(image, pulledAs) {
+		return false
+	}
+	if len(f.references) == 0 {
+		return true
+	}
+	for _, name := range append(append(slices.Clone(image.GetRepoTags()), pulledAs...), image.GetRepoDigests()...) {
+		ref, err := reference.ParseNormalizedNamed(name)
+		if err != nil {
+			continue
+		}
+		refs := []reference.Named{ref}
+		if tagged, ok := ref.(reference.NamedTagged); ok {
+			if _, digested := ref.(reference.Digested); digested {
+				// A repo:tag@digest it was pulled as matches as repo:tag too.
+				if bare, err := reference.WithTag(reference.TrimNamed(ref), tagged.Tag()); err == nil {
+					refs = append(refs, bare)
+				}
+			}
+		}
+		for _, pattern := range f.references {
+			for _, r := range refs {
+				if ok, _ := reference.FamiliarMatch(pattern, r); ok {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// createdBounds resolves before and since to creation times (Unix seconds)
+// by the images they name in rows: an ID, an ID prefix of 12 or more, or a
+// tag.
+func (f dockerImageListFilters) createdBounds(rows []*cri.Image, configs map[string]dockerImageConfig) (before, since int64, err error) {
+	find := func(name string) (int64, error) {
+		tag, _ := namedImageTag(name)
+		short := strings.TrimPrefix(name, "sha256:")
+		for _, row := range rows {
+			id := strings.TrimPrefix(row.GetId(), "sha256:")
+			if id == short || len(short) >= 12 && strings.HasPrefix(id, short) || tag != nil && slices.ContainsFunc(row.GetRepoTags(), func(t string) bool {
+				listed, err := namedImageTag(t)
+				return err == nil && listed.String() == tag.String()
+			}) {
+				return configs[row.GetId()].created, nil
+			}
+		}
+		return 0, fail(http.StatusNotFound, "No such image: "+name)
+	}
+	before, since = math.MaxInt64, math.MinInt64
+	for _, name := range f.before {
+		t, err := find(name)
+		if err != nil {
+			return 0, 0, err
+		}
+		before = min(before, t)
+	}
+	for _, name := range f.since {
+		t, err := find(name)
+		if err != nil {
+			return 0, 0, err
+		}
+		since = max(since, t)
+	}
+	return before, since, nil
+}
+
+func dockerImageLabelFilters(wire json.RawMessage) ([]string, error) {
+	if wire == nil {
 		return nil, nil
 	}
-
 	var predicates []string
 	var array []*string
 	if json.Unmarshal(wire, &array) == nil {
@@ -197,10 +325,11 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		return fail(http.StatusBadRequest, "invalid image list query")
 	}
-	predicates, err := dockerImageLabelFilters(query.Get("filters"))
+	filters, err := parseDockerImageListFilters(query.Get("filters"))
 	if err != nil {
 		return err
 	}
+	predicates := filters.labels
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -208,9 +337,35 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		return err
 	}
-	rows, err := s.node.visibleDockerImageRows(ctx, listed.GetImages())
+	all, pulled, err := s.node.visibleDockerImageNames(ctx, listed.GetImages())
 	if err != nil {
 		return err
+	}
+	// MicropodPulledAs (not Docker's) names the repo:tag@digest references
+	// the image was pulled as (pulledTagLabel); Docker clients ignore it.
+	withPulled := func(image *cri.Image, row map[string]any) map[string]any {
+		if names := pulled[image.GetId()]; len(names) != 0 {
+			row["MicropodPulledAs"] = names
+		}
+		return row
+	}
+	rows := make([]*cri.Image, 0, len(all))
+	for _, image := range all {
+		if filters.keepsRow(image, pulled[image.GetId()]) {
+			rows = append(rows, image)
+		}
+	}
+	created := func(int64) bool { return true }
+	if len(filters.before)+len(filters.since) != 0 {
+		ids := make([]string, 0, len(all))
+		for _, image := range all {
+			ids = append(ids, image.GetId())
+		}
+		before, since, err := filters.createdBounds(all, s.dockerImageConfigs(ctx, ids))
+		if err != nil {
+			return err
+		}
+		created = func(t int64) bool { return t < before && t > since }
 	}
 	list := make([]map[string]any, 0, len(rows))
 	if len(predicates) == 0 {
@@ -223,7 +378,10 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 		}
 		configs := s.dockerImageConfigs(ctx, ids)
 		for _, image := range rows {
-			row := summary(image)
+			if !created(configs[image.GetId()].created) {
+				continue
+			}
+			row := withPulled(image, summary(image))
 			row["Created"] = configs[image.GetId()].created
 			list = append(list, row)
 		}
@@ -245,8 +403,8 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 			checked[id] = result
 			s.imageConfigs.store(id, result.config)
 		}
-		if result.present && matchesLabels(result.labels, predicates) {
-			row := summary(image)
+		if result.present && matchesLabels(result.labels, predicates) && created(result.config.created) {
+			row := withPulled(image, summary(image))
 			row["Labels"] = result.labels
 			row["Created"] = result.config.created
 			list = append(list, row)
@@ -279,17 +437,100 @@ func (catalog dockerImageCatalog) target(ref string) *types.Descriptor {
 	return catalog.normalized[dockerImageCatalogReference(ref)]
 }
 
+// pulledTagLabel prefixes the labels that keep, on a digest reference's
+// record (repo@digest), each tag a pull named with it (repo:tag@digest). CRI
+// stores such a pull under repo@digest only, as Docker does, so the listing
+// lost the name the client pulled by and a client that checks for its image
+// by that name (Cuttlefish's warmer) pulled it again at every start. The tag
+// is not made a tag of the image: a pinned pull of an older digest must not
+// move the tag a newer pull set. The label goes with the record.
+const pulledTagLabel = "io.micropod.pulled-tag."
+
+// rememberPulledTag labels the record a pull of raw made when raw names a tag
+// and a digest; any other reference needs nothing.
+func (n node) rememberPulledTag(ctx context.Context, raw string) error {
+	named, err := reference.ParseNormalizedNamed(raw)
+	if err != nil {
+		return nil
+	}
+	tagged, isTagged := named.(reference.NamedTagged)
+	canonical, isCanonical := named.(reference.Canonical)
+	if !isTagged || !isCanonical || n.imageStore == nil {
+		return nil
+	}
+	ctx = imageMetadataContext(ctx)
+	name := named.Name() + "@" + canonical.Digest().String()
+	got, err := n.imageStore.Get(ctx, &images.GetImageRequest{Name: name})
+	if err != nil {
+		return fmt.Errorf("read %s: %w", name, err)
+	}
+	img := got.GetImage()
+	key := pulledTagLabel + tagged.Tag()
+	if img.GetLabels()[key] != "" {
+		return nil
+	}
+	img.Labels = maps.Clone(img.GetLabels())
+	if img.Labels == nil {
+		img.Labels = map[string]string{}
+	}
+	img.Labels[key] = "1"
+	_, err = n.imageStore.Update(ctx, &images.UpdateImageRequest{Image: img, UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"labels." + key}}})
+	return err
+}
+
+// pulledAs is every repo:tag@digest a record's pulled-tag labels name.
+func pulledAs(record *images.Image) []string {
+	var out []string
+	named, err := reference.ParseNormalizedNamed(record.GetName())
+	canonical, ok := named.(reference.Canonical)
+	if err != nil || !ok {
+		return nil
+	}
+	if _, tagged := named.(reference.Tagged); tagged {
+		return nil
+	}
+	for key := range record.GetLabels() {
+		tag, ok := strings.CutPrefix(key, pulledTagLabel)
+		if !ok {
+			continue
+		}
+		withTag, err := reference.WithTag(reference.TrimNamed(named), tag)
+		if err != nil {
+			continue
+		}
+		if full, err := reference.WithDigest(withTag, canonical.Digest()); err == nil {
+			out = append(out, full.String())
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // CRI uses an asynchronous inventory for readiness, size and labels. Join it
 // with the live containerd catalog so a deleted alias cannot keep a row visible.
 func (n node) visibleDockerImageRows(ctx context.Context, rows []*cri.Image) ([]*cri.Image, error) {
+	visible, _, err := n.visibleDockerImageNames(ctx, rows)
+	return visible, err
+}
+
+// visibleDockerImageNames is visibleDockerImageRows with, per image ID, the
+// repo:tag@digest names its digest references were pulled as (pulledAs).
+func (n node) visibleDockerImageNames(ctx context.Context, rows []*cri.Image) ([]*cri.Image, map[string][]string, error) {
 	if len(rows) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	ctx = imageMetadataContext(ctx)
 	catalogRows, err := n.imageStore.List(ctx, &images.ListImagesRequest{})
 	if err != nil || catalogRows == nil {
-		return nil, fail(http.StatusServiceUnavailable, "containerd image inventory could not be verified")
+		return nil, nil, fail(http.StatusServiceUnavailable, "containerd image inventory could not be verified")
 	}
+	pulled := map[string][]string{}
+	for _, record := range catalogRows.GetImages() {
+		if names := pulledAs(record); len(names) != 0 {
+			pulled[record.GetName()] = names
+		}
+	}
+	extra := map[string][]string{}
 	catalog := dockerImageCatalog{
 		exact:      make(map[string]*types.Descriptor, len(catalogRows.GetImages())),
 		normalized: make(map[string]*types.Descriptor),
@@ -355,6 +596,7 @@ func (n node) visibleDockerImageRows(ctx context.Context, rows []*cri.Image) ([]
 			if catalog.repoTarget[[2]string{ref.Name(), digest}] {
 				matchingTargets[digest] = true
 				image.RepoDigests = append(image.RepoDigests, name)
+				extra[id] = append(extra[id], pulled[name]...)
 			}
 		}
 		for _, name := range row.GetRepoTags() {
@@ -385,7 +627,7 @@ func (n node) visibleDockerImageRows(ctx context.Context, rows []*cri.Image) ([]
 					configID, err = n.manifestConfigID(ctx, target)
 					var problem apiError
 					if err != nil && (!errors.As(err, &problem) || problem.code != http.StatusConflict) {
-						return nil, fail(http.StatusServiceUnavailable, "containerd image alias could not be verified")
+						return nil, nil, fail(http.StatusServiceUnavailable, "containerd image alias could not be verified")
 					}
 					aliasConfigs[digest] = configID
 				}
@@ -398,5 +640,5 @@ func (n node) visibleDockerImageRows(ctx context.Context, rows []*cri.Image) ([]
 			visible = append(visible, image)
 		}
 	}
-	return visible, nil
+	return visible, extra, nil
 }

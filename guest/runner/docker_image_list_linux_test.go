@@ -168,7 +168,7 @@ func TestDockerImageListRejectsInvalidFiltersBeforeRuntimeRead(t *testing.T) {
 	for _, filter := range []string{
 		`{"label":["team"]`, `[]`, `{"label":"team"}`, `{"label":[2]}`, `{"label":[null]}`,
 		`{"label":{"team":"true"}}`, `{"label":{"team":null}}`, `{"not-supported":["team"]}`,
-		`{"reference":["ci:*"]}`, `{"label!":["team"]}`, `{"label":["team!=ci"]}`,
+		`{"reference":["ci:["]}`, `{"label!":["team"]}`, `{"label":["team!=ci"]}`,
 		`{"label":["k=` + strings.Repeat("v", 4096) + `"]}`,
 	} {
 		engine, cri := imageListLabelFixture(t)

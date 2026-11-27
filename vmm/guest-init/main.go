@@ -574,6 +574,11 @@ func stage2Supervise() {
 
 	// Mount Virtio-FS shares
 	mustMount("oci-tools", toolsDir, "virtiofs", syscall.MS_RDONLY, "")
+	if params[diskGrowParam] == "1" {
+		// A maintenance boot: it grows the second disk and powers off; no
+		// engine, network or workspace (diskgrow.go).
+		growDiskAndPowerOff()
+	}
 	go prefetchTools(toolsDir, bootTools)
 	if workspace != "" {
 		if err := prepareWorkspaceMount(workspace); err != nil {
