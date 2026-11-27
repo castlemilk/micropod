@@ -80,6 +80,7 @@ type node struct {
 	content    content.ContentClient
 	containers containers.ContainersClient
 	snapshots  dockerSnapshotClient
+	snapStore  snapshotStore // lists and removes snapshots (image recovery)
 	imageUsage imageLayerUsageClient
 	leases     archiveLeaseClient
 	tasks      taskWaitClient
@@ -107,6 +108,7 @@ func connect() (*grpc.ClientConn, node, error) {
 		content:    content.NewContentClient(conn),
 		containers: containers.NewContainersClient(conn),
 		snapshots:  snapshotClient,
+		snapStore:  snapshotClient,
 		imageUsage: snapshotClient,
 		leases:     leaseClient,
 		tasks:      taskClient,
@@ -205,6 +207,11 @@ func (n node) image(ctx context.Context, ref string) (string, bool, error) {
 	}
 	if r.ImageRef == "" {
 		return "", false, errors.New("runtime returned an empty image reference")
+	}
+	// The next job of this image skips the pull: what was unpacked must be on
+	// the disk before anything can depend on it (image_durability_linux.go).
+	if err := imageSync.Sync(); err != nil {
+		return "", false, err
 	}
 	return r.ImageRef, false, nil
 }

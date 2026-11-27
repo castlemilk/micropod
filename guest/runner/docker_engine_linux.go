@@ -527,6 +527,16 @@ func serveEngine(ctx context.Context, n node) error {
 	if err := awaitRuntime(ctx, systemClock{}, runtimeWaitInterval, runtimeWaitBudget, n.runtimeReady); err != nil {
 		return err
 	}
+	// Before anything can use an image: after an unclean stop, what may not
+	// have reached the disk goes (image_durability_linux.go).
+	var repull []string
+	buildkitOK := true
+	if !privateRootless() {
+		watch.enter("checking the image store")
+		if repull, buildkitOK, err = n.recoverImageStore(ctx); err != nil {
+			return err
+		}
+	}
 	// The scheduler jobs a previous boot left, as `job recover` did before
 	// start.sh started the engine.
 	watch.enter("recovering interrupted jobs")
@@ -596,11 +606,18 @@ func serveEngine(ctx context.Context, n node) error {
 		return err
 	}
 	watch.enter("starting the BuildKit socket")
-	s.buildkitSocket, err = serveBuildKit(ctx)
-	if err != nil {
-		return err
+	// A BuildKit that still holds cache records recovery could not have it
+	// prune would build on files that may never have reached the disk.
+	if buildkitOK {
+		s.buildkitSocket, err = serveBuildKit(ctx)
+		if err != nil {
+			return err
+		}
 	}
 	watch.disarm()
+	if len(repull) > 0 {
+		go n.repullPinnedImages(ctx, repull)
+	}
 	// Every request on this socket is the host's (cacheOrigin): only guest
 	// init's vsock bridge reaches it. In the rootless engine the socket is
 	// also bound into the job's containers (dockerSocketMount), which have

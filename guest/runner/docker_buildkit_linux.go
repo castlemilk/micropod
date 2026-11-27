@@ -420,6 +420,14 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 			return nil, status.Error(codes.Unavailable, err.Error())
 		}
 	}
+	// What the build stored (an image, its unpacked layers, BuildKit's cache
+	// records) is on the disk before its Solve answers
+	// (image_durability_linux.go).
+	if err == nil {
+		if err := imageSync.Sync(); err != nil {
+			return nil, status.Error(codes.Unavailable, err.Error())
+		}
+	}
 	return result, err
 }
 

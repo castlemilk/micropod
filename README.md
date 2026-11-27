@@ -414,6 +414,18 @@ another container that uses it reads it copy-on-write (`micropod cache explain` 
 `RUN --mount=type=cache` contents included, lives on the OS disk with the image snapshots it refers to: it survives
 restarts, and `machine install --replace-disk` starts it empty (the dependency stores on the cache disk survive).
 
+An image the machine has answered for is on its OS disk: a `docker pull`, `docker load` or `docker build` (a
+build's Solve, and a scheduler job's pull) answers only after the engine has synced the filesystem that holds
+containerd's store, so a crash of the VMM afterwards leaves the image whole (and a host power loss, under the default
+ordered flushes below, leaves it whole or, if it took the last flushes with it, gone, never broken). containerd
+itself writes an unpacked layer's files without a sync: before this, an image pulled up to about 35 s before a crash
+came back listed but broken (`exec format error`) and stayed broken through every pull. One whose pull,
+load or build had not answered when the machine went down is gone after the restart, or whole: the engine's start
+after an unclean stop removes what containerd committed after the last sync (snapshots, blobs whose file is
+missing, the image records that name them, BuildKit's cache records made since), so the next pull unpacks it again.
+The engine's metrics count the syncs (`image_syncs`, `image_sync_usec_total`), and `scripts/gates/records-crash.sh`
+kills the VMM around each kind.
+
 Stock `docker build` with `DOCKER_HOST=$(micropod machine docker-endpoint)` works when the engine serves BuildKit on
 its Docker socket (`machine status` says `docker build: ready (docker socket)`). For an older engine,
 `micropod machine builder install` adds a docker context `micropod` on the machine's Docker socket and a remote
