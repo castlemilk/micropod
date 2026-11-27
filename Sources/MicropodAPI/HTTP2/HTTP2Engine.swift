@@ -12,7 +12,9 @@ import Network
 ///
 /// Every connection holds one of its listener's kept-connection places for
 /// its whole life (the owner socket's and loopback TCP's stay apart, as for
-/// HTTP/1.1), and at most `HTTP2Limits.maxConnections` per listener are
+/// HTTP/1.1): until the client's connection is cancelled and its descriptor
+/// closed, which can be `HTTP2Limits.closeDrain` after NIO's side closed.
+/// At most `HTTP2Limits.maxConnections` per listener are
 /// HTTP/2. Past either bound the client gets SETTINGS and
 /// GOAWAY(ENHANCE_YOUR_CALM) and the close. `stop()` sends every connection
 /// GOAWAY; streams in flight get `goAwayGrace` to finish.
@@ -54,6 +56,32 @@ final class HTTP2Engine: @unchecked Sendable {
         var handlerCount: Int { lock.withLock { handlers } }
     }
 
+    /// One connection's kept place and its count among its listener's
+    /// HTTP/2 connections, given back once.
+    private final class Place: @unchecked Sendable {
+        private let lock = NSLock()
+        private var held = true
+        private let connection: NWConnection
+        private let kept: HTTPServer.KeptConnections
+        private let counters: ListenerCounters
+
+        init(_ connection: NWConnection, kept: HTTPServer.KeptConnections, counters: ListenerCounters) {
+            self.connection = connection
+            self.kept = kept
+            self.counters = counters
+        }
+
+        func release() {
+            let first = lock.withLock { () -> Bool in
+                defer { held = false }
+                return held
+            }
+            guard first else { return }
+            kept.release(connection)
+            counters.releaseConnection()
+        }
+    }
+
     func connections(_ kind: ListenerKind) -> Int { counters[kind]!.connectionCount }
     func handlers(_ kind: ListenerKind) -> Int { counters[kind]!.handlerCount }
 
@@ -79,13 +107,18 @@ final class HTTP2Engine: @unchecked Sendable {
             counters.releaseConnection()
             return Self.refuse(connection)
         }
-        let release: @Sendable () -> Void = {
-            kept.release(connection)
-            counters.releaseConnection()
-        }
+        let place = Place(connection, kept: kept, counters: counters)
         guard let loop = eventLoop(), let fds = HTTP2Bridge.socketpair() else {
-            release()
+            place.release()
             return Self.refuse(connection)
+        }
+        // The places are held until the client's connection is cancelled,
+        // not until NIO's side closed: the bridge may still be sending the
+        // last bytes then, and the descriptor is open until it is done.
+        connection.stateUpdateHandler = { [weak connection] state in
+            guard case .cancelled = state else { return }
+            place.release()
+            connection?.stateUpdateHandler = nil
         }
         let state = HTTP2ConnectionState(limits: limits, context: context, listener: counters)
         let limits = self.limits
@@ -102,7 +135,7 @@ final class HTTP2Engine: @unchecked Sendable {
             .channelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(
-                        HTTP2BridgeHandler(connection: connection, initial: initial))
+                        HTTP2BridgeHandler(connection: connection, initial: initial, drain: limits.closeDrain))
                 }
             }
             .withConnectedSocket(fds.pump)
@@ -118,17 +151,17 @@ final class HTTP2Engine: @unchecked Sendable {
                 }
                 serverChannel.closeFuture.whenComplete { [weak self] _ in
                     _ = self?.lock.withLock { self?.channels.removeValue(forKey: key) }
+                    // The bridge cancels the client's connection, which
+                    // gives the places back.
                     pumpChannel.close(promise: nil)
-                    release()
                 }
                 if admitted != true { serverChannel.close(promise: nil) }
             case .failure:
                 // Whichever end NIO adopted it closes; the client's
-                // connection and its places go too.
+                // connection goes too, and its places with it.
                 server.whenSuccess { $0.close(promise: nil) }
                 pump.whenSuccess { $0.close(promise: nil) }
                 connection.cancel()
-                release()
             }
         }
     }

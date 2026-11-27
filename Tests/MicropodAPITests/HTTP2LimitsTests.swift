@@ -612,6 +612,57 @@ final class HTTP2LimitsTests: HTTP2TestCase {
         XCTAssertLessThanOrEqual(after, before, "200 connections later, no descriptor is left open")
     }
 
+    /// A client that opened its windows wide, asked for more than its
+    /// socket holds (but no more than the bridge's socketpair does) and
+    /// then stopped reading: the response left NIO, so the connection goes
+    /// idle, gets its GOAWAY and NIO's side closes, while a send to the
+    /// client never completes. The client's connection is cancelled after
+    /// `closeDrain` all the same, and holds its places until then.
+    func testAClientThatStoppedReadingIsCutOffAfterTheCloseDrain() async throws {
+        var policy = Self.policy
+        policy.keepAliveIdle = .milliseconds(200)
+        var limits = HTTP2Limits(policy: policy)
+        limits.goAwayGrace = .milliseconds(200)
+        limits.closeDrain = .seconds(1)
+        let served = try await serve(H2Fixture(), policy: policy, limits: limits)
+        let http2 = try XCTUnwrap(served.server.http2)
+
+        let raw = try await offPool { () -> H2Raw in
+            let raw = try Self.raw(served, settings: [(0x4, 0x7FFF_FFFF)])
+            var one: Int32 = 1
+            setsockopt(raw.wire.fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+            // The connection's window too, as far as it goes.
+            let increment = UInt32(0x7FFF_FFFF - 65_535)
+            try raw.wire.send(H2Raw.frame(type: 0x8, Data(withUnsafeBytes(of: increment.bigEndian) { Array($0) })))
+            try raw.headers(stream: 1, H2Raw.request("/big?bytes=\(128 * 1024)"))
+            return raw
+        }
+        for _ in 0..<100 where http2.openConnections != 1 { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(http2.openConnections, 1)
+        for _ in 0..<250 where http2.openConnections != 0 { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(http2.openConnections, 0, "NIO's side closed")
+        XCTAssertEqual(http2.connections(.owner), 1, "the client's descriptor is still open: so is its place")
+        XCTAssertEqual(served.server.keptConnections, 1)
+
+        // Still nothing read: a write fails once the server closed its descriptor.
+        let closed = try await offPool { () -> Bool in
+            let ping = H2Raw.frame(type: 0x6, Data(count: 8))
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline {
+                let sent = ping.withUnsafeBytes { send(raw.wire.fd, $0.baseAddress, $0.count, MSG_DONTWAIT) }
+                if sent < 0, errno == EPIPE || errno == ECONNRESET { return true }
+                usleep(20_000)
+            }
+            return false
+        }
+        XCTAssertTrue(closed, "the client's connection was cancelled without its reading a byte")
+        for _ in 0..<100 where http2.connections(.owner) != 0 || served.server.keptConnections != 0 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(http2.connections(.owner), 0)
+        XCTAssertEqual(served.server.keptConnections, 0)
+    }
+
     /// A response far larger than the client's windows and the bridge's
     /// buffers arrives whole, over the bridge and NIO's flow control.
     func testALargeResponseArrivesWhole() async throws {
