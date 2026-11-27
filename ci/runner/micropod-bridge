@@ -1,0 +1,21 @@
+#!/bin/sh
+# The default container network's CNI plugin (start.sh names it in
+# /etc/cni/net.d/10-micropod.conflist; containerd's CRI and BuildKit both
+# use it). It is the bridge plugin for every command except DEL.
+#
+# The bridge plugin's DEL releases the address (host-local) and then deletes
+# the pod's veth inside its network namespace. That deletion waits in the
+# kernel for rcu_barrier() (netdev_run_todo): a full RCU grace period, 15 to
+# 35 ms on this machine, on every container's exit path. CRI removes the
+# namespace right after DEL (StopPodSandbox: stop the pause process, DEL,
+# then unmount the namespace), and the kernel then destroys the namespace's
+# devices itself, the veth and its bridge port included, in a batch
+# (cleanup_net) and off anybody's path. So DEL here only releases the
+# address. host-local hands out addresses in turn across 10.88.0.0/16, so a
+# released one is not given out again until 65 000 later allocations, long
+# after its namespace is gone.
+cni=${0%/*}
+if [ "${CNI_COMMAND:-}" = DEL ]; then
+    exec "$cni/host-local"
+fi
+exec "$cni/bridge"

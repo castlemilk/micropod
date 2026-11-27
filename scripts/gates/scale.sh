@@ -237,6 +237,7 @@ if [ "$FROM_TREE" == 1 ]; then
     runner="$STAGE/payload/tools/runner"
     install -m 0644 "$REPO"/ci/runner/*.toml "$REPO"/ci/runner/*.conflist "$runner/" || abort "cannot copy ci/runner's configuration"
     install -m 0755 "$REPO/ci/runner/start.sh" "$REPO/ci/runner/published-ports.sh" "$REPO/ci/runner/rootless.sh" "$runner/" || abort "cannot copy ci/runner's scripts"
+    install -m 0755 "$REPO/ci/runner/micropod-bridge" "$runner/cni/" || abort "cannot copy ci/runner's CNI plugin"
     (cd "$REPO/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath \
         -ldflags "-X main.engineCommit=$(git -C "$REPO" rev-parse HEAD)" -o "$runner/bin/job" .) >"$R/logs/engine-build.log" 2>&1 ||
         { tail -20 "$R/logs/engine-build.log"; abort "the engine did not build"; }

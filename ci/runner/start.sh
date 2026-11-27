@@ -178,7 +178,17 @@ if [ -n "$packages" ]; then
         apk add --no-cache $packages
     fi
 fi
-ln -sf "$tools/runner/10-micropod.conflist" /etc/cni/net.d/10-micropod.conflist
+# The default network's plugin is micropod-bridge (the bridge plugin with a
+# DEL that leaves the veth to the namespace's own teardown) when the bundle
+# has it; a bundle without it keeps the bridge plugin.
+if [ -x "$tools/runner/cni/micropod-bridge" ]; then
+    rm -f /etc/cni/net.d/10-micropod.conflist
+    sed 's/"type": "bridge"/"type": "micropod-bridge"/' "$tools/runner/10-micropod.conflist" >/etc/cni/net.d/10-micropod.conflist.tmp
+    chmod 0644 /etc/cni/net.d/10-micropod.conflist.tmp
+    mv /etc/cni/net.d/10-micropod.conflist.tmp /etc/cni/net.d/10-micropod.conflist
+else
+    ln -sf "$tools/runner/10-micropod.conflist" /etc/cni/net.d/10-micropod.conflist
+fi
 ln -sf "$tools/runner/10-micropod-private.conflist" /etc/cni/micropod-private/10-micropod.conflist
 if [ -x /opt/kata/bin/containerd-shim-kata-v2 ]; then
     if ! [ -x /sbin/ip ] || ! apk info -e iproute2-minimal >/dev/null; then apk add --no-cache iproute2; fi
