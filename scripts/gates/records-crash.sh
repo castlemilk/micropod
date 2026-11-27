@@ -33,6 +33,10 @@
 # and keeps what it had: so this proves the guest syncs (engine and
 # containerd) are where the answers need them, not the host's disk flushes.
 #
+# Before any kill (section C): a container runs (CRI pulls its sandbox image
+# by itself, and nothing syncs that), the machine is stopped and started, and
+# the start must remove no image: a clean stop is never taken for a crash.
+#
 # Then the image trials (section I): each makes an image the engine never had
 # (a pull of a never-pulled public image, or a load and a build of a
 # generated image with a unique layer of 32 MiB, GATE_IMAGE_MIB) and kills the VMM

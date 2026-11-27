@@ -29,6 +29,9 @@ supervisor's relaunch and checks what the engine recovered:
              container started on it runs and reads a resolver
   on-network create attached to that network: present, on that network
 
+Before the trials (section C; see clean_stop_check): a machine stop and start
+removes no image, not even CRI's sandbox image, which nothing had synced.
+
 Then the image trials (GATE_IMAGE_TRIALS, section I; see image_main): a pull,
 a load or a build of an image the engine never had, the VMM killed after the
 answer (after:MS) or before it (before:FRACTION of the kind's duration); the
@@ -795,6 +798,36 @@ def image_main(start_index, kills):
     return all_ok, kills
 
 
+def clean_stop_check():
+    """Section C, on the fresh machine before any kill: a machine stop and
+    start removes no image. The first container makes CRI pull its sandbox
+    image by itself, and nothing syncs that; a stop that the next start took
+    for a crash (guest init records a clean stop only where the shared caches
+    keep their marks, and a machine that never attached one has no such
+    place) removed it, and every image stored since the last sync with it."""
+    body = {"Image": IMAGE, "Cmd": ["true"], "Labels": {"rc-run": RUN, "rc-kind": "clean-stop", "io.micropod.cache": "off"},
+            "HostConfig": {"NetworkMode": "none"}}
+    cid = create("rc-%s-clean-stop" % RUN, body)
+    start(cid)
+    jcall("POST", "/containers/%s/wait" % cid, timeout=120)
+    console = os.path.join(ROOT, "logs", "console.log")
+    mark = os.path.getsize(console)
+    if not restart_machine():
+        record("C", "the machine restarts after a clean stop", "no answer", "up", False)
+        return None
+    with open(console, errors="replace") as f:
+        f.seek(mark)
+        removed = [l.strip() for l in f.read().splitlines() if "image store after an unclean stop: removed" in l]
+    ok = record("C", "a machine stop and start removes no image (CRI's sandbox image, which nothing had synced, is kept)",
+                removed[0][-200:] if removed else "none removed", "none removed", not removed, "logs/console.log")
+    st, _ = call("POST", "/containers/%s/start" % cid)
+    w = jcall("POST", "/containers/%s/wait" % cid, timeout=120) if st == 204 else {}
+    ok &= record("C", "the container created before the stop runs again after it", "start %s, exit %s" % (st, w.get("StatusCode")), "start 204, exit 0",
+                 st == 204 and w.get("StatusCode") == 0)
+    call("DELETE", "/containers/%s?force=1" % cid)
+    return ok
+
+
 def main():
     offsets = [float(x) for x in OFFSETS.split(",") if x]
     if not ping():
@@ -806,6 +839,15 @@ def main():
         return 2
     all_ok = True
     kills = 0
+    try:
+        ok = clean_stop_check()
+    except Exception as e:  # noqa: BLE001 - a harness error is a failed check
+        ok = record("C", "the clean-stop checks ran", str(e)[:200], "ran", False)
+        if not ping() and not wait_engine(None, 120):
+            return 1
+    if ok is None:
+        return 1
+    all_ok &= ok
     for i, off in enumerate(offsets if "records" in SWEEP else [], 1):
         # The supervisor gives up after five failures within a minute of a
         # launch, and a kill is one: a fresh machine every third trial.

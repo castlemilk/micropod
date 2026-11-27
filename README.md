@@ -423,6 +423,10 @@ came back listed but broken (`exec format error`) and stayed broken through ever
 load or build had not answered when the machine went down is gone after the restart, or whole: the engine's start
 after an unclean stop removes what containerd committed after the last sync (snapshots, blobs whose file is
 missing, the image records that name them, BuildKit's cache records made since), so the next pull unpacks it again.
+A stop is never taken for a crash: the engine syncs once more as it stops, so the start after a `machine stop` removes
+nothing. "After the last sync" is read off the guest's clock, which guest init never sets back in ordinary running (it
+slews a backward correction from the host); only a host whose own clock is set back by half a second or more can make
+a layer committed right after look older than it is.
 The engine's metrics count the syncs (`image_syncs`, `image_sync_usec_total`), and `scripts/gates/records-crash.sh`
 kills the VMM around each kind.
 

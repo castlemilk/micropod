@@ -632,6 +632,9 @@ func serveEngine(ctx context.Context, n node) error {
 		// Containers still running keep theirs marked; guest init's
 		// clean-stop record clears them at the next start.
 		cacheDirty.shutdown()
+		// The image store's record then covers everything this boot
+		// committed, whether or not guest init records a clean stop.
+		syncImageStoreAtStop()
 	}
 	return err
 }

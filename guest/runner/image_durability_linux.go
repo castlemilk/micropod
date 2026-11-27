@@ -69,9 +69,14 @@ import (
 //     are never touched.
 //
 // containerd stamps a committed snapshot and a committed blob with the guest's
-// realtime clock when it commits them, after their data was written, and
-// guest init sets that clock once at boot: within a boot it does not step, so
-// "committed at or after the sync began" is exactly "maybe not on the disk".
+// realtime clock when it commits them, after their data was written, and that
+// clock does not go back within a boot: guest init steps it forward to the
+// host's (at boot, every minute and after the host slept) and slews a backward
+// correction (vmm/guest-init backwardSlew). So "committed at or after the sync
+// began" is exactly "maybe not on the disk". The one exception is a host whose
+// own clock was set back by half a second or more, which the guest follows
+// with a step: a layer committed just after it can carry a time before the
+// last sync's, and a crash before the next sync then keeps it unchecked.
 
 const imageStoreSnapshotter = "overlayfs"
 
@@ -174,6 +179,20 @@ func syncImageStore() error {
 	imageSyncs.Add(1)
 	imageSyncUS.Add(time.Since(begin).Microseconds())
 	return nil
+}
+
+// syncImageStoreAtStop is the engine's last sync, as it stops in an orderly
+// way: the record then covers everything containerd committed in this boot.
+// Guest init does not record every clean stop (its record lives with the
+// shared caches: a machine that never attached one has no directory for it,
+// and a boot without its cache disk records none), and recovery treats a stop
+// it did not record as unclean. Without this sync that removed healthy images
+// nothing had synced since they were stored: CRI's own pull of its sandbox
+// image, an image a raw BuildKit client exported.
+func syncImageStoreAtStop() {
+	if err := imageSync.Sync(); err != nil {
+		log.Printf("sync the image store as the engine stops: %v", err)
+	}
 }
 
 func writeImageSyncRecord(r imageSyncRecord) error {

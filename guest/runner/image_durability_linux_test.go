@@ -569,6 +569,63 @@ func TestImageRecoveryRunsOnlyAfterAnUncleanStop(t *testing.T) {
 	}
 }
 
+// An orderly engine stop syncs once more, so a stop guest init did not record
+// as clean (no shared cache was ever attached, or the cache disk was missing)
+// costs no healthy image: what nothing had synced since it was stored (CRI's
+// sandbox image) is covered by the stop's own record.
+func TestAnOrderlyEngineStopCoversWhatNothingHadSynced(t *testing.T) {
+	dir := t.TempDir()
+	oldClean, oldBoot, oldPath, oldNow, oldSync := cleanStopPath, bootIDPath, imageSyncPath, imageSyncNow, imageSync
+	t.Cleanup(func() {
+		cleanStopPath, bootIDPath, imageSyncPath, imageSyncNow, imageSync = oldClean, oldBoot, oldPath, oldNow, oldSync
+	})
+	cleanStopPath, bootIDPath, imageSyncPath = filepath.Join(dir, "clean-stop"), filepath.Join(dir, "boot_id"), filepath.Join(dir, "image-sync")
+	imageSync = newImageSyncer(syncImageStore)
+	const previous, current = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"
+	boot := func(id string) {
+		t.Helper()
+		if err := os.WriteFile(bootIDPath, []byte(id+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The previous boot: a pull's sync, then CRI pulls its sandbox image by
+	// itself (no sync), then the engine stops in an orderly way.
+	pulled := time.Unix(1_800_000_000, 0)
+	boot(previous)
+	imageSyncNow = func() time.Time { return pulled }
+	if err := imageSync.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	f := &storeFixture{blobs: map[string][]byte{}}
+	_, chain := f.fixtureImage("registry.k8s.io/pause:3.10.2", pulled.Add(time.Second), "pause")
+	f.snaps = []*snapshots.Info{committed(chain[0], "", pulled.Add(time.Second))}
+	n := node{snapStore: f, content: storeContent{f: f}, imageStore: storeImages{f: f}}
+	imageSyncNow = func() time.Time { return pulled.Add(time.Minute) }
+	syncImageStoreAtStop()
+	// The next boot finds no clean-stop record at all.
+	boot(current)
+	if _, err := n.discardAfterUncleanStop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.removed)+len(f.imgGone) != 0 {
+		t.Fatalf("after an orderly engine stop recovery removed snapshots %q and images %q", f.removed, f.imgGone)
+	}
+	// Without the stop's sync the same store loses the image (the record
+	// still says the pull's sync): the case the stop's sync is for.
+	boot(previous)
+	imageSyncNow = func() time.Time { return pulled }
+	if err := imageSync.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	boot(current)
+	if _, err := n.discardAfterUncleanStop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.removed) != 1 || len(f.imgGone) != 1 {
+		t.Fatalf("an unrecorded stop without the last sync kept what nothing had synced: removed %q %q", f.removed, f.imgGone)
+	}
+}
+
 type pruneFixture struct {
 	records []*control.UsageRecord
 	filters []string
