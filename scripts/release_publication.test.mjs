@@ -348,8 +348,13 @@ test("the Go module tag is created at the frozen source just before the release 
 test("the workflows token is an environment secret used only from master behind locked protection", () => {
     const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
     const publish = workflowJob(workflow, "publish-qualified");
-    assert.match(publish, /\n    needs: publication-inputs\n/);
+    // Publication waits for the token canary and for the frozen payload's HVF
+    // gate; neither of those jobs is given the environment or the token.
+    assert.match(publish, /\n    needs: \[publication-inputs, qualified-payload\]\n/);
     assert.match(publish, /\n    environment: release-publication\n/);
+    const payload = workflowJob(workflow, "qualified-payload");
+    assert.match(payload, /\n    needs: publication-inputs\n/);
+    assert.doesNotMatch(payload, /environment:|RELEASE_WORKFLOWS_TOKEN/);
     // The canary runs in a job without the environment.
     const inputs = workflowJob(workflow, "publication-inputs");
     assert.doesNotMatch(inputs, /environment:/);
