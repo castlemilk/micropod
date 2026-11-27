@@ -131,24 +131,19 @@ final class HTTP2Engine: @unchecked Sendable {
     }
 
     /// The HTTP/2 server pipeline: NIOHTTP2Handler with the stream handler
-    /// for every inbound stream, the connection manager (idle GOAWAY, the
-    /// graceful close and its grace period), and the deadline for a first
-    /// stream.
+    /// for every inbound stream, the deadline for a first stream, and the
+    /// close on a connection error. Idle GOAWAY and the graceful close are
+    /// `HTTP2ConnectionState`'s.
     static func configure(_ channel: any Channel, limits: HTTP2Limits, state: HTTP2ConnectionState) throws {
-        let manager = NIOHTTP2ServerConnectionManagementHandler(
-            eventLoop: channel.eventLoop,
-            configuration: .init(
-                maxIdleTime: limits.connectionIdle, maxAge: nil, maxGraceTime: limits.goAwayGrace, keepalive: nil))
         let http2 = NIOHTTP2Handler(
             mode: .server, eventLoop: channel.eventLoop, connectionConfiguration: limits.connectionConfiguration,
-            streamConfiguration: limits.streamConfiguration, streamDelegate: manager.http2StreamDelegate
+            streamConfiguration: limits.streamConfiguration
         ) { stream in
             stream.eventLoop.makeCompletedFuture {
                 try stream.pipeline.syncOperations.addHandler(HTTP2StreamHandler(connection: state))
             }
         }
         try channel.pipeline.syncOperations.addHandler(http2)
-        try channel.pipeline.syncOperations.addHandler(manager)
         try channel.pipeline.syncOperations.addHandler(FirstStreamDeadline(limits.firstStreamDeadline, state: state))
         try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors())
     }
@@ -188,7 +183,7 @@ final class HTTP2Engine: @unchecked Sendable {
 }
 
 /// Closes a connection that opened no stream within its deadline. (With
-/// the inline stream multiplexer NIO reports a new stream to the stream
+/// the inline stream multiplexer NIO reports a new stream to a stream
 /// delegate only, not down the pipeline, so the stream handlers say so
 /// through `HTTP2ConnectionState`.)
 final class FirstStreamDeadline: ChannelInboundHandler {
@@ -249,8 +244,9 @@ final class HTTP2ConnectionErrors: ChannelInboundHandler {
     static func streamLevel(_ error: any Error) -> Bool {
         switch error {
         // IOOnClosedConnection: a write (a stream's WINDOW_UPDATE) after a
-        // graceful close went quiet; the connection manager closes it once
-        // the last frames are flushed, and closing here would drop them.
+        // GOAWAY's last stream ended; HTTP2ConnectionState closes the
+        // connection once its last frames are flushed, and closing here
+        // would drop them.
         case is NIOHTTP2Errors.StreamError, is NIOHTTP2Errors.NoSuchStream, is NIOHTTP2Errors.StreamClosed,
             is NIOHTTP2Errors.IOOnClosedConnection,
             is NIOHTTP2Errors.BadStreamStateTransition,

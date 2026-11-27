@@ -16,6 +16,7 @@ final class HTTP2ConnectionState: @unchecked Sendable {
     private var opened = false
     private var closing = false
     private var channel: (any Channel)?
+    private var idle: Scheduled<Void>?
 
     init(limits: HTTP2Limits, context: HTTP2ExchangeContext, listener: HTTP2Engine.ListenerCounters) {
         self.limits = limits
@@ -41,33 +42,57 @@ final class HTTP2ConnectionState: @unchecked Sendable {
 
     var handlersInFlight: Int { lock.withLock { handlers } }
 
-    /// The connection's own channel, once adopted.
-    func attach(_ channel: any Channel) { lock.withLock { self.channel = channel } }
+    /// The connection's own channel, once adopted: its idle clock starts.
+    func attach(_ channel: any Channel) {
+        lock.withLock { self.channel = channel }
+        armIdle()
+    }
 
     func streamOpened() {
-        lock.withLock {
+        let timer = lock.withLock { () -> Scheduled<Void>? in
             streams += 1
             opened = true
+            defer { idle = nil }
+            return idle
         }
+        timer?.cancel()
     }
 
     /// A stream was ever opened on this connection.
     var everOpened: Bool { lock.withLock { opened } }
 
     func streamClosed() {
-        let close = lock.withLock { () -> (any Channel)? in
+        let (close, quiet) = lock.withLock { () -> ((any Channel)?, Bool) in
             streams -= 1
-            return closing && streams == 0 ? channel : nil
+            return (closing && streams == 0 ? channel : nil, !closing && streams == 0)
         }
         if let close { Self.closeSoon(close) }
+        if quiet { armIdle() }
     }
 
-    /// The server is stopping: GOAWAY(NO_ERROR) now, and the close once no
-    /// stream is open. (NIO's connection manager would close as the last
-    /// stream's END_STREAM is written, which can be before its bytes are
-    /// flushed: its last DATA frame was lost.)
+    /// `connectionIdle` with no stream open: GOAWAY.
+    private func armIdle() {
+        lock.withLock {
+            guard let channel, !closing, streams == 0, idle == nil else { return }
+            idle = channel.eventLoop.scheduleTask(in: limits.connectionIdle) { [weak self] in
+                guard let self else { return }
+                let still = self.lock.withLock { () -> Bool in
+                    self.idle = nil
+                    return self.streams == 0
+                }
+                if still { self.goAway() }
+            }
+        }
+    }
+
+    /// GOAWAY(NO_ERROR) now; the close once no stream is open, or after
+    /// `goAwayGrace` whatever is still open. The server's stop and the idle
+    /// bound both end a connection so. (NIO's own connection manager closes
+    /// as the last stream's END_STREAM is written, which can be before its
+    /// bytes are flushed: it lost the final DATA of a call in flight.)
     func goAway() {
-        let (channel, idle) = lock.withLock { () -> ((any Channel)?, Bool) in
+        let (channel, quiet) = lock.withLock { () -> ((any Channel)?, Bool) in
+            guard !closing else { return (nil, false) }
             closing = true
             return (self.channel, streams == 0)
         }
@@ -75,7 +100,8 @@ final class HTTP2ConnectionState: @unchecked Sendable {
         let frame = HTTP2Frame(
             streamID: .rootStream, payload: .goAway(lastStreamID: .maxID, errorCode: .noError, opaqueData: nil))
         channel.writeAndFlush(frame, promise: nil)
-        if idle { Self.closeSoon(channel) }
+        if quiet { Self.closeSoon(channel) }
+        channel.eventLoop.scheduleTask(in: limits.goAwayGrace) { channel.close(promise: nil) }
     }
 
     /// Closes once the frames already written reached the socket: a flush
