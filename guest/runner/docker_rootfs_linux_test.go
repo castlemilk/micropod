@@ -172,7 +172,7 @@ func TestDockerWritableRootFSUnpersistedAcknowledgementLeavesFence(t *testing.T)
 	acknowledged.AttachAcknowledged = true
 	// A time outside JSON's range makes the real record save fail before I/O.
 	c := &dockerContainer{dockerRecord: dockerRecord{RootFSBinding: pending, Created: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)}}
-	if err := saveRootFSBinding(c, &acknowledged); err == nil || c.RootFSBinding != pending {
+	if err := saveRootFSBinding(c, &acknowledged, false); err == nil || c.RootFSBinding != pending {
 		t.Fatalf("failed acknowledgement save replaced the fence: %v", err)
 	}
 	if err := (node{}).cleanupDockerRootFSBinding(t.Context(), *c.RootFSBinding, true); !errors.Is(err, errUnconfirmedRootFSAttach) {

@@ -118,7 +118,10 @@ func (s *dockerEngine) appendDockerOutput(c *dockerContainer, f dockerOutputFile
 		if c.Config.HostConfig.AutoRemove || offset == initialOffset {
 			return 0, false
 		}
-		if err := f.Sync(); err != nil {
+		// The record that holds this offset is saved durably next (the exit's
+		// save). Written out first, the log is durable with that save's one
+		// journal commit, never after the offset that covers it (writeOut).
+		if err := writeOutput(f); err != nil {
 			recordError(err)
 			return 0, false
 		}
@@ -127,13 +130,22 @@ func (s *dockerEngine) appendDockerOutput(c *dockerContainer, f dockerOutputFile
 	return write, seal
 }
 
+// writeOutput is writeOut for the log file, Sync for any other writer.
+func writeOutput(f dockerOutputFile) error {
+	if file, ok := f.(*os.File); ok {
+		return writeOut(file)
+	}
+	return f.Sync()
+}
+
 type dockerOutputFile interface {
 	io.Writer
 	Truncate(int64) error
 	Sync() error
 }
 
-// A completed retained generation syncs its log before persisting its offset.
+// A completed retained generation writes its log out before the durable save
+// of its offset (writeOutput), so the offset never covers bytes a crash lost.
 // Older catalogs have offset zero. Scan only the suffix after a valid offset,
 // using bounded storage, then trim a frame interrupted by a worker crash.
 func (c *dockerContainer) recoverDockerOutput(directory string) error {
