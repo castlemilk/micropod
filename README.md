@@ -391,7 +391,7 @@ the same time on one machine need project names of their own (`-p` or `COMPOSE_P
 there is no other container's to join or mount, not even through the machine's own socket (409), and the engine's own routes
 (`/micropod/*`: caches, metrics, traces, the BuildKit probe, which `GET /version` answers too) are refused (403). What it creates there is never more trusted than it is, gets
 at most the container's own CPU, memory and process limits (a request for more, or for none, is lowered to them; at
-most 64 such containers at a time, HTTP 409 past that), is in its cache scope (naming another is refused, HTTP 403, as is mounting another's alias volume, HTTP 400), may bind only paths inside the container's own binds
+most 256 such containers at a time, HTTP 409 past that), is in its cache scope (naming another is refused, HTTP 403, as is mounting another's alias volume, HTTP 400), may bind only paths inside the container's own binds
 (read-only where it reaches them only read-only, as under a read-only bind nested in a writable one; anything else, the rest of the workspace included, is refused, HTTP 403;
 the create, every start and a `docker cp` into it stopped decide this again by what the bind resolves to, against the running container's own
 binds, so a bind of a renamed parent of one of its read-only binds, or of a symlink to one, is refused while it would reach it writable; a request
@@ -415,10 +415,18 @@ at create (HTTP 403); the Testcontainers reaper still gets only its session's cl
 container's socket reaps only what that container created. As under Docker, every container has an empty `/.dockerenv`,
 and a published port is also reachable from inside the machine at `10.88.0.1:<port>`, the default network's gateway,
 whatever network the published container is on (and at its own network's gateway): that is where an in-container
-Testcontainers dials a sibling's mapped port and its Ryuk reaper. The gateway is the engine's own address, past the
+Testcontainers dials a sibling's mapped port and its Ryuk reaper. A machine whose owner accepts that its jobs share
+one engine can hand a container of any tier such a socket (`micropod cache policy --docker-socket any`; a container
+made on one that binds `docker.sock` in turn, as a GitHub Actions runner's `container:` job does, then shares its
+creator's), give containers that name no limit a Docker daemon's defaults instead of one CPU and 1 GiB
+(`--default-limits none`), and admit work by `micropod machine capacity` (`RigService/GetMachineCapacity`: CPUs,
+memory, containers by family, the guest's PSI, disk space, start latency and a recommended headroom, in one guest
+request); both settings are the owner's, refused over loopback TCP. What that relaxes and what it does not, the
+headroom formula, job families (`io.micropod.family`, `X-Micropod-Family`, `POST /micropod/families/prune`) and the
+measurements are in [docs/shared-engine-rig.md](docs/shared-engine-rig.md). The gateway is the engine's own address, past the
 rules that keep networks apart, so it relays only a container that shares a network with the published one (and could
-reach it anyway) or belongs to the same job (the container holding the socket and what it created), at most 128
-connections a port, 128 for any one job and 512 in all; once one side of a relayed connection closes, the other is
+reach it anyway) or belongs to the same job (the container holding the socket and what it created), at most 512
+connections a port, 512 for any one job and 4096 in all; once one side of a relayed connection closes, the other is
 closed after a minute without a byte. Nor does the machine itself connect into a container network: a connection one of its own
 processes starts out through a network's bridge (a build's `ADD` URL or git context, an image pull, `docker login`,
 whichever socket asked) is refused at once (no route to host), so only the relays, whose rule decided the peer, reach
