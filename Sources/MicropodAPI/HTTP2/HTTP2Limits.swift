@@ -33,6 +33,9 @@ struct HTTP2Limits: Sendable {
     /// rate a grpc-go log flood reaches).
     var controlFrames = RateLimit(count: 6_000, window: .seconds(10))
     var maxConnectionGlitches = 200
+    /// Log each connection's busiest control-frame window at its close
+    /// (`MICROPOD_API_H2_LOG_CONTROL_FRAMES=1`; soak runs).
+    var logControlFrames = false
 
     // The transport's own
     /// Handlers in flight on one connection, counted until each settles (a
@@ -77,7 +80,7 @@ struct HTTP2Limits: Sendable {
     /// overrides (milliseconds or counts) for tests and soak runs:
     /// `MICROPOD_API_H2_CONTROL_FRAMES` (per 10 s, at most 20000),
     /// `MICROPOD_API_H2_FIRST_STREAM_MS`, `MICROPOD_API_H2_WRITE_STALL_MS`,
-    /// `MICROPOD_API_H2_GRACE_MS`.
+    /// `MICROPOD_API_H2_GRACE_MS`, `MICROPOD_API_H2_LOG_CONTROL_FRAMES`.
     init(policy: HTTPServer.ConnectionPolicy, environment: [String: String] = ProcessInfo.processInfo.environment) {
         func amount(_ interval: DispatchTimeInterval) -> TimeAmount {
             switch interval {
@@ -102,6 +105,7 @@ struct HTTP2Limits: Sendable {
         firstStreamDeadline = milliseconds("MICROPOD_API_H2_FIRST_STREAM_MS") ?? firstStreamDeadline
         writeStall = milliseconds("MICROPOD_API_H2_WRITE_STALL_MS") ?? writeStall
         goAwayGrace = milliseconds("MICROPOD_API_H2_GRACE_MS") ?? goAwayGrace
+        logControlFrames = environment["MICROPOD_API_H2_LOG_CONTROL_FRAMES"] == "1"
     }
 
     /// 64, or a quarter of the kept-connection bound when that is less:

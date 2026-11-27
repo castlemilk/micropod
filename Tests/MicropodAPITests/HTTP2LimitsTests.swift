@@ -255,8 +255,27 @@ final class HTTP2LimitsTests: HTTP2TestCase {
                 let reply = HTTP1GoldenBytesTests.kept("200 OK", "application/json", #"{"status":"ok"}"#)
                 XCTAssertEqual(try wire.read(reply.utf8.count).text, reply, "HTTP/1.1 is kept as before")
             }
+            XCTAssertEqual(served.server.keptConnections, 3, "two HTTP/2 connections and the HTTP/1.1 one")
+            wire.shutdownWrite()
         }
-        XCTAssertEqual(served.server.keptConnections, 3, "two HTTP/2 connections and the HTTP/1.1 one")
+    }
+
+    /// The soak meter counts what NIO's control-frame bound counts.
+    func testTheControlFrameMeterCountsAClientsPings() async throws {
+        var limits = HTTP2Limits(policy: Self.policy)
+        limits.logControlFrames = true
+        let served = try await serve(H2Fixture(), limits: limits)
+        try await offPool {
+            let raw = try Self.raw(served)
+            for _ in 0..<40 { try raw.ping() }
+            usleep(200_000)
+            raw.wire.shutdownWrite()
+            _ = raw.drain(timeout: 2)
+        }
+        for _ in 0..<50 where HTTP2ControlFrameMeter.lastPeak.value < 40 {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(HTTP2ControlFrameMeter.lastPeak.value, 42, "40 PINGs, SETTINGS and its ACK")
     }
 
     /// `stop()` sends GOAWAY; the unary call in flight is still answered.

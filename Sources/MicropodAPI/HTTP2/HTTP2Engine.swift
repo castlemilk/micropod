@@ -145,6 +145,9 @@ final class HTTP2Engine: @unchecked Sendable {
         }
         try channel.pipeline.syncOperations.addHandler(http2)
         try channel.pipeline.syncOperations.addHandler(FirstStreamDeadline(limits.firstStreamDeadline, state: state))
+        if limits.logControlFrames {
+            try channel.pipeline.syncOperations.addHandler(HTTP2ControlFrameMeter(window: limits.controlFrames.window))
+        }
         try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors())
     }
 
@@ -263,5 +266,53 @@ final class HTTP2ConnectionErrors: ChannelInboundHandler {
         default:
             return false
         }
+    }
+}
+
+/// Counts the control frames a client sends (PING, SETTINGS, PRIORITY: what
+/// NIO's control-frame bound counts) and logs the busiest window when the
+/// connection closes (`MICROPOD_API_H2_LOG_CONTROL_FRAMES=1`), so a soak can
+/// size `HTTP2Limits.controlFrames` against real clients.
+final class HTTP2ControlFrameMeter: ChannelInboundHandler {
+    typealias InboundIn = HTTP2Frame
+    typealias InboundOut = HTTP2Frame
+
+    private let window: TimeAmount
+    private var recent: [NIODeadline] = []
+    private var peak = 0
+    private var total = 0
+
+    init(window: TimeAmount) { self.window = window }
+
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        switch unwrapInboundIn(data).payload {
+        case .ping, .settings, .priority:
+            let now = NIODeadline.now()
+            recent.append(now)
+            if let first = recent.firstIndex(where: { now - $0 < window }), first > 0 { recent.removeFirst(first) }
+            peak = max(peak, recent.count)
+            total += 1
+        default:
+            break
+        }
+        context.fireChannelRead(data)
+    }
+
+    func channelInactive(context: ChannelHandlerContext) {
+        Self.lastPeak.set(peak)
+        fputs(
+            "HTTP/2 connection closed: \(total) control frames, peak \(peak) per \(window.nanoseconds / 1_000_000_000) s\n",
+            stderr)
+        context.fireChannelInactive()
+    }
+
+    /// The peak of the connection that closed last (tests).
+    static let lastPeak = Peak()
+
+    final class Peak: @unchecked Sendable {
+        private let lock = NSLock()
+        private var stored = 0
+        func set(_ value: Int) { lock.withLock { stored = value } }
+        var value: Int { lock.withLock { stored } }
     }
 }
