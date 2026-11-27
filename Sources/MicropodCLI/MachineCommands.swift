@@ -182,7 +182,7 @@ enum MachineCommands {
                 return try await serve(
                     layout: client.layout, environment: environment, linkSocket: parsed.has("--link-socket"))
             case "autostart":
-                return try await autostart(
+                return try await autostartReportingPlainly(
                     rest, agent: HVFMachineAutostartAgent(layout: client.layout, environment: environment),
                     client: client, environment: environment, json: json)
             case "cache": try cache(rest, client: client, json: json)
@@ -785,6 +785,22 @@ enum MachineCommands {
 
     // MARK: autostart
 
+    /// `autostart`, with a refusal printed without its code prefix
+    /// (`error: deferred: …`, not `error: failedPrecondition: deferred: …`).
+    static func autostartReportingPlainly(
+        _ args: [String], agent: HVFMachineAutostartAgent, client: HVFMachineClient, environment: [String: String],
+        json: Bool
+    ) async throws -> Int32 {
+        do {
+            return try await autostart(args, agent: agent, client: client, environment: environment, json: json)
+        } catch let error as UsageError {
+            throw error
+        } catch {
+            FileHandle.standardError.write(Data("error: \(withoutCode(errorMessage(error)))\n".utf8))
+            return ExitCode.failure
+        }
+    }
+
     static let autostartUsage = "machine autostart on [--no-load] [--program <path>] [--force] | off [--force] | status"
 
     /// `machine autostart on|off|status`.
@@ -855,8 +871,13 @@ enum MachineCommands {
                 String(decoding: try encoder.encode(AutostartReport(actions: lines, autostart: status)), as: UTF8.self))
             return
         }
-        for line in lines where !line.hasPrefix("autostart: ") { print(line) }
-        print("autostart: \(status.summary)")
+        // `on` and `off` say what they did; `status` (no actions) says what is.
+        guard !lines.isEmpty else {
+            print("autostart: \(status.summary)")
+            return
+        }
+        for line in lines { print(line) }
+        if let problem = status.problem { FileHandle.standardError.write(Data("warning: \(problem)\n".utf8)) }
     }
 
     // MARK: serve

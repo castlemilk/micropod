@@ -161,6 +161,27 @@ final class MachineAutostartCommandsTests: XCTestCase {
         _ = await linker.value
     }
 
+    /// A refusal is the command's failure, printed without its code prefix;
+    /// a usage error stays one.
+    func testARefusalIsAFailureNotAThrow() async throws {
+        let launchctl = try recordingLaunchctl()
+        let environment = [
+            "MICROPOD_LAUNCHCTL": launchctl.path, "MICROPOD_LAUNCH_AGENTS_DIR": root.appendingPathComponent("LA").path,
+        ]
+        let code = try await MachineCommands.autostartReportingPlainly(
+            ["on", "--program", "/bin/sh"], agent: HVFMachineAutostartAgent(layout: layout, environment: environment),
+            client: HVFMachineClient(layout: layout, environment: environment), environment: environment, json: false)
+        XCTAssertEqual(code, ExitCode.failure, "not installed")
+        XCTAssertEqual(MachineCommands.withoutCode("failedPrecondition: deferred: 1 running"), "deferred: 1 running")
+        do {
+            _ = try await MachineCommands.autostartReportingPlainly(
+                ["sideways"], agent: HVFMachineAutostartAgent(layout: layout, environment: environment),
+                client: HVFMachineClient(layout: layout, environment: environment), environment: environment,
+                json: false)
+            XCTFail("usage")
+        } catch is UsageError {}
+    }
+
     func testUsage() async throws {
         do {
             _ = try await run(["sideways"], [:])
