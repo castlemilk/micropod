@@ -62,6 +62,8 @@ type volumeMetadata struct {
 }
 
 // Called under the engine lock. Existing named volumes keep their original labels.
+// A new volume is durable when this returns: an answered create survives a
+// crash, with its labels.
 func ensureVolume(name string, labels map[string]string) error {
 	return ensureVolumeBy(name, labels, "")
 }
@@ -84,12 +86,18 @@ func ensureVolumeBy(name string, labels map[string]string, creator string) error
 	metadata := volumeMetadata{formatTime(time.Now()), labels, creator}
 	b, err := json.Marshal(metadata)
 	if err == nil {
-		err = os.WriteFile(volumeMeta(name)+".tmp", b, 0600)
+		// Out on the disk before the rename: a crash never leaves an empty
+		// metadata file (writeOut).
+		err = writeFileOut(volumeMeta(name)+".tmp", b, 0600)
 	}
 	if err == nil {
 		err = os.Rename(volumeMeta(name)+".tmp", volumeMeta(name))
 	}
+	if err == nil {
+		err = syncVolumeNames()
+	}
 	if err != nil {
+		os.Remove(volumeMeta(name))
 		os.Remove(volumePath(name))
 	}
 	return err
@@ -253,12 +261,25 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		return fail(501, "unsupported volume operation")
 	}
 	data, err := s.removeVolumeLocked(name)
+	if err == nil {
+		// Durable before the answer, as the create is: a crash never brings an
+		// answered removal back (whole, with its data: the rename into the
+		// trash was not on the disk). Only this explicit removal pays for it.
+		err = syncVolumeNames()
+	}
 	s.mu.Unlock()
 	if err := errors.Join(err, discardVolumeData(data)); err != nil {
 		return err
 	}
 	w.WriteHeader(204)
 	return nil
+}
+
+// syncVolumeNames makes the volumes' names durable: a created or removed
+// volume's metadata file and directory, by syncing the two directories that
+// name them (on the journaled OS disk the first sync's commit carries both).
+func syncVolumeNames() error {
+	return errors.Join(syncRecordDir(filepath.Join(volumeStore, "volume-meta")), syncRecordDir(filepath.Join(volumeStore, "volumes")))
 }
 
 // volumeTrash holds the data of removed volumes until it is deleted

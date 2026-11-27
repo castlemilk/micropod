@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // The runner bundle's start-up files (ci/runner), as the guest boots them.
@@ -96,5 +103,66 @@ func TestStartScriptStartsTheOCIServiceAfterTheEngineRecovered(t *testing.T) {
 		if !strings.Contains(engineDied[1], step) {
 			t.Fatalf("when the engine dies the wait does not exit with its status (no %s):\n%s", step, engineDied[1])
 		}
+	}
+}
+
+// start.sh serves until containerd, the engine or the OCI service exits, and
+// then ends itself with a failure: guest init reports that and the supervisor
+// relaunches the machine. Run its serving loop as the guest does (BusyBox ash)
+// with three stand-ins, each in turn the one that dies, by exiting and by a
+// SIGKILL from outside the shell (ash's `wait -n` misses that one, and with
+// IDs it waits for all three). A stop's SIGTERM must still end it at once.
+func TestStartScriptEndsWhenAnyServingProcessDies(t *testing.T) {
+	if sh, err := filepath.EvalSymlinks("/bin/sh"); err != nil || filepath.Base(sh) != "busybox" {
+		t.Skip("/bin/sh is not the guest's BusyBox ash")
+	}
+	b, err := os.ReadFile("../../ci/runner/start.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const marker = "\nstep=\"serving ("
+	at := strings.LastIndex(string(b), marker)
+	if at < 0 {
+		t.Fatal("start.sh no longer names its serving step")
+	}
+	serving := string(b)[at:]
+	// The stand-ins, as start.sh names its processes, their PIDs on stdout.
+	const begin = "set -eu\ntrap 'kill $engine $service $api 2>/dev/null || true' EXIT\ntrap 'exit 0' TERM INT\n" +
+		"sleep 60 &\nengine=$!\nsleep 60 &\nservice=$!\nsleep 60 &\napi=$!\necho $engine $service $api\n"
+	run := func(t *testing.T, act func(shell *os.Process, pids []int)) (time.Duration, error) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "/bin/sh", "-c", begin+serving)
+		cmd.WaitDelay = time.Second // the stand-ins outlive a killed shell and hold its output
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		var pids [3]int
+		if _, err := fmt.Fscan(out, &pids[0], &pids[1], &pids[2]); err != nil {
+			t.Fatalf("read the stand-ins' PIDs: %v", err)
+		}
+		time.Sleep(300 * time.Millisecond) // inside the serving loop
+		start := time.Now()
+		act(cmd.Process, pids[:])
+		err = cmd.Wait()
+		return time.Since(start), err
+	}
+	for i, name := range []string{"containerd", "the OCI service", "the engine"} {
+		for _, sig := range []syscall.Signal{syscall.SIGKILL, syscall.SIGTERM} {
+			// SIGTERM ends a sleep as an exit would end a daemon: without a core or a kill.
+			took, err := run(t, func(_ *os.Process, pids []int) { _ = syscall.Kill(pids[i], sig) })
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 1 || took > 5*time.Second {
+				t.Fatalf("start.sh kept serving after %s alone died of %v (after %v: %v), want exit status 1", name, sig, took.Round(time.Millisecond), err)
+			}
+		}
+	}
+	took, err := run(t, func(shell *os.Process, _ []int) { _ = shell.Signal(syscall.SIGTERM) })
+	if err != nil || took > 500*time.Millisecond {
+		t.Fatalf("a stop's SIGTERM ended the serving start.sh with %v after %v, want status 0 at once", err, took.Round(time.Millisecond))
 	}
 }

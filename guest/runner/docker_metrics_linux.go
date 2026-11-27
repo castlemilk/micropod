@@ -162,7 +162,10 @@ func (m *dockerMetrics) record(r result, err error) {
 	m.startMS.Add(r.StartMS)
 }
 func (m *dockerMetrics) snapshot() map[string]any {
-	out := map[string]any{"containers_created": m.creates.Load(), "runs_finished": m.completions.Load(), "runtime_failures": m.failures.Load(), "image_cache_hits": m.imageHits.Load(), "prepared_pods_used": m.prepared.Load(), "shared_cache_attachments": m.sharedMounts.Load(), "pod_ms_total": m.podMS.Load(), "create_ms_total": m.createMS.Load(), "start_ms_total": m.startMS.Load()}
+	out := map[string]any{"containers_created": m.creates.Load(), "runs_finished": m.completions.Load(), "runtime_failures": m.failures.Load(), "image_cache_hits": m.imageHits.Load(), "prepared_pods_used": m.prepared.Load(), "shared_cache_attachments": m.sharedMounts.Load(), "pod_ms_total": m.podMS.Load(), "create_ms_total": m.createMS.Load(), "start_ms_total": m.startMS.Load(),
+		// The container records' saves: durable ones (a journal commit each)
+		// and ones that need only be whole (records_sync_linux.go).
+		"record_commits": recordCommits.Load(), "record_writes": recordWrites.Load()}
 	for k, v := range m.cache.snapshot() {
 		out[k] = v
 	}

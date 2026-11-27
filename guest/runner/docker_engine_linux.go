@@ -261,8 +261,34 @@ func (c *dockerContainer) signal() {
 	c.changed = make(chan struct{})
 }
 func (c *dockerContainer) busy() bool { return c.Phase == "starting" || c.Phase == "running" }
+
+// save makes c's record durable before it returns (only whole, for an
+// AutoRemove container: commitIn).
 func (c *dockerContainer) save() error {
 	return c.dockerRecord.saveIn(c.dir())
+}
+
+// saveVisible replaces c's record whole without waiting for the disk: a crash
+// leaves this record or the one before it, never a torn one. Only for a write
+// that a durable save repeats before anything depends on it surviving a
+// crash, or that recovery does not need; each caller says which.
+func (c *dockerContainer) saveVisible() error {
+	_, err := writeRecord(c.dockerRecord, c.dir(), false)
+	return err
+}
+
+// saveStartIntent saves a start's record (Phase starting). The intent must be
+// durable before the process can run, so that recovery never reports an
+// earlier exit for an interrupted run. A retained rootfs puts it on the disk
+// with its attachment record (bindDockerRootFS), durably and before CRI starts
+// the task, so until then this record need only be whole: losing it in a
+// crash loses a start nobody was told about. Any other container saves it as
+// save does (an AutoRemove one is never durable: recovery removes it).
+func (c *dockerContainer) saveStartIntent() error {
+	if c.retainsRootFS() {
+		return c.saveVisible()
+	}
+	return c.save()
 }
 
 func (r dockerRecord) saveIn(directory string) error {
@@ -271,21 +297,32 @@ func (r dockerRecord) saveIn(directory string) error {
 }
 
 func (r dockerRecord) commitIn(directory string) (bool, error) {
+	// Ephemeral AutoRemove containers are deleted on exit and cleaned up on
+	// crash recovery: their record must be whole, never durable.
+	return writeRecord(r, directory, !r.Config.HostConfig.AutoRemove)
+}
+
+// writeRecord is dockerRecord.writeIn; a variable only so tests can see which
+// saves are durable.
+var writeRecord = dockerRecord.writeIn
+
+// writeIn replaces directory/state with r. The new record's data is on the
+// disk before the rename (writeOut), so a crash leaves the old record or the
+// new one, whole. durable then syncs the directory, so the new one survives a
+// crash: on the journaled OS disk that is the save's only journal commit.
+func (r dockerRecord) writeIn(directory string, durable bool) (bool, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return false, err
 	}
 	path := filepath.Join(directory, "state")
-	// Ephemeral AutoRemove containers are deleted on exit and cleaned up on crash recovery,
-	// so skip synchronous ext4 journal barriers while keeping atomic rename visibility.
-	ephemeral := r.Config.HostConfig.AutoRemove
 	f, err := os.OpenFile(path+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return false, err
 	}
 	_, err = f.Write(b)
-	if err == nil && !ephemeral {
-		err = f.Sync()
+	if err == nil {
+		err = writeOut(f)
 	}
 	err = errors.Join(err, f.Close())
 	if err != nil {
@@ -294,11 +331,17 @@ func (r dockerRecord) commitIn(directory string) (bool, error) {
 	if err = os.Rename(path+".tmp", path); err != nil {
 		return false, err
 	}
-	if ephemeral {
+	if !durable {
+		recordWrites.Add(1)
 		return true, nil
 	}
-	return true, syncDir(directory)
+	recordCommits.Add(1)
+	return true, syncRecordDir(directory)
 }
+
+// syncRecordDir is syncDir for the records' directories; a variable only so
+// tests can see when a record becomes durable.
+var syncRecordDir = syncDir
 
 func syncDir(path string) error {
 	d, err := os.Open(path)
@@ -1231,7 +1274,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 	c.Finished = time.Time{}
 	c.Started = time.Time{}
 	c.Exit = 0
-	if err = c.save(); err != nil {
+	if err = c.saveStartIntent(); err != nil {
 		c.dockerRecord = previous
 		s.mu.Unlock()
 		closeSocket()
@@ -1384,7 +1427,10 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 			hooks.clearRootFS = func() error {
 				s.mu.Lock()
 				defer s.mu.Unlock()
-				return saveRootFSBinding(c, nil)
+				// The exit's save below makes this durable. A crash before it
+				// leaves the attachment recorded, and recovery repeats the
+				// cleanup, which finds nothing left to do.
+				return saveRootFSBinding(c, nil, false)
 			}
 		}
 		res, runErr := s.node.runProcess(ctx, j, "crun", hooks)

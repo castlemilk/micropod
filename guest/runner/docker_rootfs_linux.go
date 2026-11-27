@@ -155,9 +155,10 @@ func (s *dockerEngine) bindDockerRootFS(ctx context.Context, c *dockerContainer,
 
 	// Save the ready layer and the cleanup plan in one durable write before
 	// containerd can attach the layer to a task or remove it during cleanup.
+	// It also puts the start's intent (Phase) on the disk before the task runs.
 	s.mu.Lock()
 	c.RootFS = &dockerRootFS{Parent: root.Parent, Ready: true}
-	err = saveRootFSBinding(c, binding)
+	err = saveRootFSBinding(c, binding, true)
 	s.mu.Unlock()
 	if err != nil {
 		return binding, fmt.Errorf("record writable rootfs attachment: %w", err)
@@ -166,11 +167,13 @@ func (s *dockerEngine) bindDockerRootFS(ctx context.Context, c *dockerContainer,
 		return binding, fmt.Errorf("attach writable rootfs: %w", err)
 	}
 	// Containerd commits the update before replying. Save that acknowledgement
-	// before starting the task or allowing cleanup on this boot.
+	// before starting the task or allowing cleanup on this boot. It need not
+	// survive a crash: on any later boot the binding's boot ID is not the
+	// running one, which permits the cleanup by itself (checkCleanupBoot).
 	acknowledged := *binding
 	acknowledged.AttachAcknowledged = true
 	s.mu.Lock()
-	err = saveRootFSBinding(c, &acknowledged)
+	err = saveRootFSBinding(c, &acknowledged, false)
 	s.mu.Unlock()
 	if err != nil {
 		return binding, fmt.Errorf("record writable rootfs attachment acknowledgement: %w", err)
@@ -211,10 +214,16 @@ func (n node) verifyRootFSCleanup(ctx context.Context, b dockerRootFSBinding) er
 	return errors.New("CRI container remains after rootfs cleanup")
 }
 
-func saveRootFSBinding(c *dockerContainer, binding *dockerRootFSBinding) error {
+// saveRootFSBinding records binding as c's attachment: durably, or only
+// whole (saveVisible) where a later durable save or the boot fence covers it.
+func saveRootFSBinding(c *dockerContainer, binding *dockerRootFSBinding, durable bool) error {
 	previous := c.RootFSBinding
 	c.RootFSBinding = binding
-	if err := c.save(); err != nil {
+	save := c.saveVisible
+	if durable {
+		save = c.save
+	}
+	if err := save(); err != nil {
 		c.RootFSBinding = previous
 		return err
 	}
@@ -236,7 +245,7 @@ func (n node) recoverDockerRootFSBinding(ctx context.Context, c *dockerContainer
 	if err := n.cleanupDockerRootFSBinding(ctx, *b, true); err != nil {
 		return err
 	}
-	return saveRootFSBinding(c, nil)
+	return saveRootFSBinding(c, nil, true)
 }
 
 func (n node) recoverLegacyRootFSBinding(ctx context.Context, c *dockerContainer, b dockerRootFSBinding) (*dockerRootFSBinding, error) {
@@ -259,7 +268,7 @@ func (n node) recoverLegacyRootFSBinding(ctx context.Context, c *dockerContainer
 	if runtime.GetSnapshotKey() != b.ContainerID {
 		return nil, errors.New("refusing to change an unrelated CRI snapshot key")
 	}
-	if err := saveRootFSBinding(c, &b); err != nil {
+	if err := saveRootFSBinding(c, &b, true); err != nil {
 		return nil, err
 	}
 	return nil, errUnconfirmedRootFSAttach
