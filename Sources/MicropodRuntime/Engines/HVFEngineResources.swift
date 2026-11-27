@@ -15,15 +15,19 @@ import MicropodCore
 /// | `POST /volumes/create` with DriverOpts | 400 | refused: no size or options |
 /// | `DELETE /volumes/{name}` | 204 / 404 / 409 in use | delete |
 /// | `POST /volumes/prune` | 404 | unsupported |
-/// | `GET /images/json`, `GET /images/{ref}/json` | 200 / 404 | list, inspect |
-/// | `POST /images/create` (linux/arm64 only) | 200, one status line | pull |
-/// | `DELETE /images/{ref}`, `POST /images/{ref}/tag`, `/images/prune`, push | 501 | unsupported |
+/// | `GET /images/json`, `GET /images/{ref}/json` | 200 / 404 (`Created` from the config) | list, inspect |
+/// | `POST /images/create` (linux/arm64 in any spelling; another platform 400, an image without arm64 404) | 200, one status line | pull |
+/// | `DELETE /images/{ref}` (tag: untag; ID or digest: remove) | 200 / 404 / 409 in use | delete |
+/// | `POST /images/{ref}/tag` | 201 | tag |
+/// | `/images/prune`, push | 501 | unsupported |
 /// | `GET /images/{ref}/get`, `GET /images/get?names=…` | 200 tar (`ctr export`, linux/arm64) | save |
 /// | `POST /images/load` | 200 `{"stream": …}` (`ctr import --local --digests`) | load |
-/// | `GET /system/df`, `POST /build` | 501 (BuildKit has its own socket) | unsupported |
+/// | `GET /system/df` | 200, Docker's API 1.47 shape | not used here |
+/// | `POST /build` | 501 (BuildKit has its own socket) | unsupported |
 ///
-/// Save and load need a guest that implements them (bundles built from
-/// this tree); an older guest's 501 surfaces as the error.
+/// Save, load, removal and tagging need a guest that implements them
+/// (bundles built from this tree); an older guest's 501 surfaces as the
+/// error.
 public struct HVFVolumeStore: EngineVolumeServing {
     let machine: HVFMachineClient
 
@@ -114,8 +118,18 @@ public struct HVFImageStore: EngineImageServing {
         }
     }
 
-    public func delete(_ reference: String, force: Bool) async throws { throw Self.unsupported("image removal") }
-    public func tag(source: String, target: String) async throws { throw Self.unsupported("image tagging") }
+    /// A tag is untagged; an ID or a digest removes the image once nothing
+    /// uses it (409, as `failedPrecondition`, while a container does).
+    public func delete(_ reference: String, force: Bool) async throws {
+        try requireServing("image '\(reference)'")
+        try await DockerResources.deleteImage(docker, reference, force: force)
+    }
+
+    public func tag(source: String, target: String) async throws {
+        try requireServing("image '\(source)'")
+        try await DockerResources.tagImage(docker, source: source, target: target)
+    }
+
     public func prune(danglingOnly: Bool) async throws -> String { throw Self.unsupported("image prune") }
 
     public func inspect(_ reference: String) async throws -> Data {

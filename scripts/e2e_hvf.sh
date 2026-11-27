@@ -15,9 +15,12 @@
 #   a published TCP port carries traffic and shows up in `ps`;
 #   volumes and images on the machine through the micropod CLI: volume
 #   create/ls/rm (and a micropod-made volume mounted by a container), image
-#   pull/ls/inspect, and the operations the guest engine does not implement
-#   (image rm, volume prune, sizes) refused as unsupported, and an image
-#   save/load round trip through the guest;
+#   pull/ls/inspect (with the config's creation time), tag and rmi (a tag
+#   untags; a multi-platform index pulled and run by its digest is removed by
+#   it), platforms (another one refused naming linux/arm64, an image without
+#   arm64 Docker's "no matching manifest"), GET /system/df, the operations the
+#   guest engine does not implement (volume prune, sizes) refused as
+#   unsupported, and an image save/load round trip through the guest;
 #   `machine status --json` capabilities, the BuildKit socket in the VMM argv,
 #   and `machine buildkit-endpoint` refusing a bundle without BuildKit — or,
 #   with a BuildKit bundle, a throwaway remote buildx builder whose
@@ -108,7 +111,7 @@ unset MICROPOD_DEFAULT_RUNTIME
 
 cleanup() {
     if [ -S "$ROOT_DIR/run/docker.sock" ]; then
-        for name in keep vol2 bind port race volm; do
+        for name in keep vol2 bind port race volm dg; do
             "$M" rm --force "e2e-$name-$S" >/dev/null 2>&1 || true
         done
         "$M" volume rm --runtime hvf "e2evm-$S" >/dev/null 2>&1 || true
@@ -250,11 +253,30 @@ check "image inspect --runtime hvf" \
     "$("$M" image inspect --runtime hvf docker.io/library/busybox:1.36 | python3 -c 'import sys,json; print(json.load(sys.stdin)["Id"].startswith("sha256:"))')" "True"
 check "a pulled image runs" "$("$M" run --runtime hvf --name "e2e-volm-$S" busybox:1.36 -- sh -c 'echo ran; sleep 600' >/dev/null && "$M" exec "e2e-volm-$S" -- busybox echo ran)" "ran"
 "$M" rm --force "e2e-volm-$S" >/dev/null
-check "rmi is refused as unsupported (the guest answers 501)" \
-    "$("$M" rmi busybox:1.36 2>&1 | grep -c "runtime 'hvf' does not support image removal")" "1"
-check "…and the image stays" "$(hvf_image docker.io/library/busybox:1.36 "'kept'")" "kept"
-check "another platform is refused by the guest" \
-    "$("$M" pull --runtime hvf --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'unsupported platform')" "1"
+check "listed with the config's creation time" \
+    "$(hvf_image docker.io/library/busybox:1.36 "i.get('createdAt', '')[:2]")" "20"
+check "tag --runtime hvf" "$("$M" tag --runtime hvf busybox:1.36 "e2e-rm:$S" >/dev/null 2>&1 && hvf_image "docker.io/library/e2e-rm:$S" "'tagged'")" "tagged"
+check "rmi of a tag untags it on the guest" \
+    "$("$M" rmi "e2e-rm:$S" >/dev/null 2>&1 && hvf_image "docker.io/library/e2e-rm:$S" "'kept'")" "absent"
+check "…and the image's other tag stays" "$(hvf_image docker.io/library/busybox:1.36 "'kept'")" "kept"
+guest_api() { curl -s -m 120 --unix-socket "$ROOT_DIR/run/docker.sock" "$@"; }
+# A multi-platform index, pulled by its digest with another spelling of
+# linux/arm64, runs by that digest and is removed by it (space reclaimed).
+guest_api -X POST "http://d/images/create?fromImage=busybox&tag=1.37&platform=linux/arm64/v8" >/dev/null
+BB_DIGEST="$(guest_api http://d/images/busybox:1.37/json | python3 -c 'import sys,json; print(json.load(sys.stdin)["RepoDigests"][0].split("@")[1])')"
+check "pull by index digest (platform arm64)" \
+    "$("$M" pull --runtime hvf --platform arm64 "busybox@$BB_DIGEST" 2>&1 | tail -1 | grep -c '^Pulled')" "1"
+check "run by index digest" \
+    "$("$M" run --runtime hvf --name "e2e-dg-$S" "busybox@$BB_DIGEST" -- sleep 600 >/dev/null && "$M" exec "e2e-dg-$S" -- uname -m)" "aarch64"
+"$M" rm --force "e2e-dg-$S" >/dev/null
+check "rmi of a tag, then of the index digest, removes the image" \
+    "$("$M" rmi busybox:1.37 >/dev/null 2>&1; "$M" rmi "docker.io/library/busybox@$BB_DIGEST" >/dev/null 2>&1; guest_api -o /dev/null -w '%{http_code}' "http://d/images/busybox@$BB_DIGEST/json")" "404"
+check "another platform is refused by the guest, naming the one it runs" \
+    "$("$M" pull --runtime hvf --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'unsupported platform linux/amd64: this engine runs linux/arm64')" "1"
+check "an image without linux/arm64 is Docker's no matching manifest" \
+    "$("$M" pull --runtime hvf amd64/alpine:3.20 2>&1 | grep -c 'no matching manifest for linux/arm64')" "1"
+check "system/df measures images, containers, volumes and the build cache" \
+    "$(guest_api http://d/system/df | python3 -c 'import sys,json; d=json.load(sys.stdin); b=[i for i in d["Images"] if "docker.io/library/busybox:1.36" in i["RepoTags"]]; print(d["LayersSize"] > 0 and len(b) == 1 and b[0]["Size"] > 0 and b[0]["Created"] > 0 and all(isinstance(d[k], list) for k in ("Containers", "Volumes", "BuildCache")))')" "True"
 check "save --runtime hvf writes the guest's OCI archive" \
     "$("$M" save --runtime hvf busybox:1.36 -o "$TMP/busybox.tar" >/dev/null 2>&1 && tar -tf "$TMP/busybox.tar" | grep -cx 'index.json')" "1"
 check "…and load --runtime hvf takes it back" \

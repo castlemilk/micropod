@@ -127,6 +127,9 @@ final class ResourceRoutingTests: XCTestCase {
                 return (500, json(["message": "failed to resolve image"]))
             }
             return (200, Data(#"{"status":"Downloaded \#(request.query["fromImage"] ?? "")"}"#.utf8))
+        case ("DELETE", "/images/busybox:1.36"): return (200, json([["Untagged": "busybox:1.36"]]))
+        case ("DELETE", "/images/alpine:3.20"): return (409, json(["message": "image is used by a runtime container"]))
+        case ("POST", "/images/busybox:1.36/tag"): return (201, Data())
         default: return (501, json(["message": "unsupported image operation"]))
         }
     }
@@ -339,12 +342,26 @@ final class ResourceRoutingTests: XCTestCase {
         let applePulls = await apple.calls
         XCTAssertTrue(applePulls.contains("pull alpine:3.20 platform=nil"), "an unnamed pull takes the default")
 
+        // Removal and tagging are the guest's own (DELETE /images/{ref},
+        // POST /images/{ref}/tag), its answers passed on.
+        try await router.delete("busybox:1.36", force: false)
+        let removed = try XCTUnwrap(server.requests.last { $0.method == "DELETE" })
+        XCTAssertEqual(removed.path, "/images/busybox:1.36")
+        XCTAssertEqual(removed.query, [:], "no force unless asked for")
+        let inUse = await failure { try await router.delete("alpine:3.20", force: true, runtime: "hvf") }
+        XCTAssertEqual(inUse?.code, "failed_precondition", inUse?.message ?? "removed an image in use")
+        XCTAssertTrue(inUse?.message.contains("is in use") ?? false, inUse?.message ?? "")
+        let forced = try XCTUnwrap(server.requests.last { $0.method == "DELETE" })
+        XCTAssertEqual(forced.path, "/images/alpine:3.20")
+        XCTAssertEqual(forced.query, ["force": "1"])
+        try await router.tag(source: "busybox:1.36", target: "mine:1")
+        let tagged = try XCTUnwrap(server.requests.last { $0.method == "POST" })
+        XCTAssertEqual(tagged.path, "/images/busybox:1.36/tag")
+        XCTAssertEqual(tagged.query, ["repo": "mine", "tag": "1"])
+
         // The guest answers 501 for these: refused here without a request.
         let sent = server.requests.count
         for (name, call) in [
-            ("rmi", { try await router.delete("busybox:1.36", force: false) }),
-            ("rmi named", { try await router.delete("alpine:3.20", force: true, runtime: "hvf") }),
-            ("tag", { try await router.tag(source: "busybox:1.36", target: "mine:1") }),
             ("prune", { _ = try await router.prune(danglingOnly: true, runtime: "hvf") }),
             ("push", { for try await _ in router.push("busybox:1.36", platform: nil) {} }),
             (
