@@ -13,7 +13,9 @@ import Network
 /// Every connection holds one of its listener's kept-connection places for
 /// its whole life (the owner socket's and loopback TCP's stay apart, as for
 /// HTTP/1.1): until the client's connection is cancelled and its descriptor
-/// closed, which can be `HTTP2Limits.closeDrain` after NIO's side closed.
+/// closed, which can be `HTTP2Limits.closeDrain` after NIO's side closed. A
+/// client that takes no byte of what is sent to it for
+/// `HTTP2Limits.connectionWriteStall` has its connection cancelled and closed.
 /// At most `HTTP2Limits.maxConnections` per listener are
 /// HTTP/2. Past either bound the client gets SETTINGS and
 /// GOAWAY(ENHANCE_YOUR_CALM) and the close. `stop()` sends every connection
@@ -135,7 +137,10 @@ final class HTTP2Engine: @unchecked Sendable {
             .channelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(
-                        HTTP2BridgeHandler(connection: connection, initial: initial, drain: limits.closeDrain))
+                        HTTP2BridgeHandler(
+                            connection: connection, initial: initial, drain: limits.closeDrain,
+                            stall: limits.connectionWriteStall,
+                            onStall: { server.whenSuccess { $0.close(promise: nil) } }))
                 }
             }
             .withConnectedSocket(fds.pump)

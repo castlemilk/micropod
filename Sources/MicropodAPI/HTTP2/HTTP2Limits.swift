@@ -69,6 +69,17 @@ struct HTTP2Limits: Sendable {
     /// A response write the client does not take (flow control, a full
     /// socket) resets its stream and stops its source.
     var writeStall: TimeAmount = .seconds(120)
+    /// Bytes sent to the client of which it takes none for this long (it
+    /// stopped reading its socket) close its connection, whatever its
+    /// streams: with the socket full, a stream's RST_STREAM and the GOAWAY
+    /// cannot be written either, so `writeStall` alone ends nothing. The
+    /// clock restarts whenever the client's socket takes a chunk (at most
+    /// 64 KiB), so a slow reader is not cut off, and it does not run while
+    /// nothing is queued. The same 120 s as `writeStall`: a socket that
+    /// takes nothing gets the patience a stream's write gets. Less would
+    /// cut off a client a stream's deadline still waits for; more would
+    /// hold its place and buffers for a connection no stream can use.
+    var connectionWriteStall: TimeAmount = .seconds(120)
     /// A connection with no stream open gets GOAWAY(NO_ERROR).
     var connectionIdle: TimeAmount = .seconds(120)
     /// Streams in flight at GOAWAY (idle, `stop()`) get this long to finish.
@@ -90,6 +101,7 @@ struct HTTP2Limits: Sendable {
     /// overrides (milliseconds or counts) for tests and soak runs:
     /// `MICROPOD_API_H2_CONTROL_FRAMES` (per 10 s, at most 20000),
     /// `MICROPOD_API_H2_FIRST_STREAM_MS`, `MICROPOD_API_H2_WRITE_STALL_MS`,
+    /// `MICROPOD_API_H2_CONNECTION_WRITE_STALL_MS`,
     /// `MICROPOD_API_H2_GRACE_MS`, `MICROPOD_API_H2_LOG_CONTROL_FRAMES`.
     init(policy: HTTPServer.ConnectionPolicy, environment: [String: String] = ProcessInfo.processInfo.environment) {
         func amount(_ interval: DispatchTimeInterval) -> TimeAmount {
@@ -114,6 +126,7 @@ struct HTTP2Limits: Sendable {
         }
         firstStreamDeadline = milliseconds("MICROPOD_API_H2_FIRST_STREAM_MS") ?? firstStreamDeadline
         writeStall = milliseconds("MICROPOD_API_H2_WRITE_STALL_MS") ?? writeStall
+        connectionWriteStall = milliseconds("MICROPOD_API_H2_CONNECTION_WRITE_STALL_MS") ?? connectionWriteStall
         goAwayGrace = milliseconds("MICROPOD_API_H2_GRACE_MS") ?? goAwayGrace
         logControlFrames = environment["MICROPOD_API_H2_LOG_CONTROL_FRAMES"] == "1"
     }
