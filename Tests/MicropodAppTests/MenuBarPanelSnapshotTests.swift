@@ -85,6 +85,56 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
         }
     }
 
+    /// The machine card at tray width: state, why it failed, engine and
+    /// containers, and the actions that fit the state; the header follows the
+    /// machine when hvf is the default runtime.
+    @MainActor
+    func testMachineCardStates() throws {
+        var running = Micropod_V1_HVFMachineStatus()
+        running.installed = true
+        running.readiness = "running"
+        running.engineVersion = "micropod"
+        running.engineApiVersion = "1.47"
+        running.engineMinApiVersion = "1.44"
+        running.containersTotal = 5
+        running.containersRunning = 3
+        running.updatePending = true
+        running.stagedVersion = "0.9.3"
+        running.diskFlush = "barrier (both disks)"
+        var failed = Micropod_V1_HVFMachineStatus()
+        failed.installed = true
+        failed.readiness = "failed"
+        failed.failureReason = "micropod-vmm exited 5 times within 60 s"
+        for (variant, status) in [("running", running), ("failed", failed)] {
+            for scheme in [ColorScheme.light, .dark] {
+                let store = makeRunningStore(client: AppTestCLI.makeFailing())
+                populatePanel(store)
+                store.hvfMachine.applyForPreview(status)
+                let name = "micropod-tray-machine-\(variant)-\(scheme == .dark ? "dark" : "light")"
+                let size = try render(
+                    MenuBarPanelView(store: store, activateRuntimeObservation: false), scheme: scheme, name: name)
+                XCTAssertLessThanOrEqual(size.width, 360.5, name)
+                XCTAssertLessThanOrEqual(size.height, 760, name)
+                let text = try recognizedText(name)
+                if variant == "running" {
+                    XCTAssertTrue(text.contains("Machine running"), text)
+                    XCTAssertTrue(text.contains("Stop") && text.contains("Restart"), text)
+                    XCTAssertNotNil(text.range(of: #"3 running"#), text)
+                    XCTAssertTrue(text.contains("pending"), "the update badge: \(text)")
+                } else {
+                    XCTAssertTrue(text.contains("Machine failed"), text)
+                    XCTAssertTrue(text.contains("Start"), text)
+                    XCTAssertNotNil(text.range(of: #"exited 5 times"#), text)
+                }
+            }
+        }
+        // Apple the default: the card shows, the header stays the runtime's.
+        let store = makeRunningStore(client: AppTestCLI.makeFailing())
+        store.hvfMachine.applyForPreview(running, defaultRuntime: "apple")
+        XCTAssertTrue(store.hvfMachine.isShown)
+        XCTAssertFalse(store.hvfMachine.drivesHeader)
+    }
+
     @MainActor
     func testRunnerCapacityDoesNotMasqueradeAsActiveJobs() throws {
         // A listening persistent runner is running compute even at zero

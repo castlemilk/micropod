@@ -181,6 +181,31 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 }
+                Section("Machine") {
+                    settingValueRow("State", value: store.hvfMachine.headline)
+                    Toggle("Start the machine at login", isOn: machineAutostartBinding)
+                        .toggleStyle(.checkbox)
+                        .disabled(store.hvfMachine.status?.installed != true || store.hvfMachine.autostartPending)
+                        .accessibilityIdentifier("machine.autostart")
+                    Text(
+                        store.hvfMachine.autostartSummary
+                            ?? "A LaunchAgent starts the machine at login and stops it cleanly at logout (`micropod machine autostart`)."
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    if let reason = store.hvfMachine.reason {
+                        Text(reason).font(.caption).foregroundStyle(Tokens.Palette.danger)
+                    }
+                }
+                .confirmationDialog(
+                    "Restart the machine under launchd?", isPresented: machineDeferralShown, titleVisibility: .visible,
+                    presenting: store.hvfMachine.deferral
+                ) { _ in
+                    Button("Restart it now", role: .destructive) { Task { await store.hvfMachine.confirmDeferral() } }
+                    Button("Cancel", role: .cancel) { store.hvfMachine.cancelDeferral() }
+                } message: { deferral in
+                    Text("This interrupts \(deferral.reason).")
+                }
                 Section("Runtime") {
                     settingValueRow("Dependency", value: store.runtimeDependencyStatus.state.title)
                     settingValueRow("CLI path", value: store.dependencies.client.executableURL.path, monospaced: true)
@@ -490,6 +515,22 @@ struct SettingsView: View {
 
     /// Existing volume names not already listed as goldens — suggestions
     /// for the picker menu.
+    /// Settings' autostart toggle: a change goes to `SetMachineAutostart`;
+    /// a deferral (containers would be interrupted) asks first.
+    private var machineAutostartBinding: Binding<Bool> {
+        Binding(
+            get: { store.hvfMachine.autostartEnabled },
+            set: { enabled in Task { await store.hvfMachine.setAutostart(enabled) } })
+    }
+
+    private var machineDeferralShown: Binding<Bool> {
+        Binding(
+            get: {
+                if case .autostart? = store.hvfMachine.deferral?.request { return true }
+                return false
+            }, set: { if !$0 { store.hvfMachine.cancelDeferral() } })
+    }
+
     private var availableGoldenNames: [String] {
         store.volumes.map(\.id).filter { !volumePolicy.goldenVolumes.contains($0) }.sorted()
     }

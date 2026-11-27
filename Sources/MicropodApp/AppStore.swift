@@ -128,6 +128,10 @@ final class AppStore {
     let dependencies: AppDependencies
     let cacheStore = CacheStore()
     let ciCacheStore = CICacheStore()
+    /// The shared hvf machine over the local API (RigService): the
+    /// menu-bar card, the header when hvf is the default runtime, and
+    /// Settings' "Start the machine at login".
+    let hvfMachine: MachineModel
     @ObservationIgnored private let ciCacheHistory = CICacheHistoryConsumer()
     var workloadInspectionRequest: UInt64 = 0
     var runtimeStopConfirmationRequested = false
@@ -414,9 +418,13 @@ final class AppStore {
     @ObservationIgnored private var machinesRefreshEpoch: UInt64 = 0
     @ObservationIgnored private var machinesRefreshedAt = Date.distantPast
 
-    init(dependencies: AppDependencies = AppDependencies.shared, runtimeDefaults: UserDefaults = .standard) {
+    init(
+        dependencies: AppDependencies = AppDependencies.shared, runtimeDefaults: UserDefaults = .standard,
+        machineClient: (any MachineControlling)? = nil
+    ) {
         self.dependencies = dependencies
         self.runtimeDefaults = runtimeDefaults
+        hvfMachine = MachineModel(client: machineClient ?? LocalAPIMachineClient())
         runtimeAutoStartEnabled = runtimeDefaults.bool(forKey: UserDefaultsKeys.runtimeAutoStart)
         runtimeAutomationPaused = runtimeDefaults.bool(forKey: UserDefaultsKeys.runtimeAutomationPaused)
         // Restore the last visited tab (macOS convention: return to where
@@ -578,6 +586,8 @@ final class AppStore {
         {
             Task { await agentSupervisor.start() }
         }
+        // Unit tests drive the machine model with a stand-in client.
+        if NSClassFromString("XCTestCase") == nil { hvfMachine.startPolling() }
         if NSClassFromString("XCTestCase") == nil {
             UpdateController.shared.restartIsSafe = { [weak self] in
                 guard let self else { return false }
@@ -837,6 +847,7 @@ final class AppStore {
 
     private func syncVisibility() {
         let anyVisible = mainWindowVisible || panelVisible
+        hvfMachine.setVisible(anyVisible)
         if anyVisible != wasVisible {
             wasVisible = anyVisible
             // Both pollers restart: a hidden containers loop sits in a 30s

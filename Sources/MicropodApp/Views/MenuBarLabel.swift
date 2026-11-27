@@ -49,6 +49,9 @@ struct MenuBarLabel: View {
     private var accessibilityLabel: String {
         let count = "\(runningCount) compute workload\(runningCount == 1 ? "" : "s")"
         let cpu = cpuLabel.map { ", \($0.dropLast()) consumed guest CPU cores" } ?? ""
+        if store.hvfMachine.drivesHeader {
+            return "Micropod: \(store.hvfMachine.headline.lowercased()), \(count) running\(cpu)"
+        }
         if !store.clientAvailable { return "Micropod: runtime unavailable, \(count) last seen running" }
         if store.isHealingRuntime { return "Micropod: recovering runtime, \(count) last seen running" }
         if store.isStartingRuntime || store.isRestartingRuntime { return "Micropod: starting runtime" }
@@ -67,6 +70,7 @@ struct MenuBarLabel: View {
     }
 
     private var healthColor: Color {
+        if store.hvfMachine.drivesHeader { return store.hvfMachine.color }
         if !store.clientAvailable { return Tokens.Palette.danger }
         if store.runtimeHealth == .wedged || store.isHealingRuntime || store.isStartingRuntime
             || store.isRestartingRuntime || store.isInstallingKernel || helpersDegraded
