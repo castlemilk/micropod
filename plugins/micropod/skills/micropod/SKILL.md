@@ -130,6 +130,13 @@ buildx plugin, a credential helper not on `PATH`, a stopped machine.
 machine and never runs sudo (`--system-socket` only prints the
 `/var/run/docker.sock` link command). In scripts, point `DOCKER_CONFIG` at a
 temporary directory so the user's `~/.docker` is not changed.
+`micropod status [--json]` shows the machine (state and why it failed, engine,
+containers, cache disk, disk flush, pending update, autostart) from RigService
+`GetMachineStatus`, or in-process with no API. `micropod machine autostart
+on|off|status` makes launchd start the machine at login and stop it cleanly
+at logout (deferred while containers run unless `--force`); never run it
+against the user's real launchd from a test: set `MICROPOD_LAUNCHCTL` and
+`MICROPOD_LAUNCH_AGENTS_DIR` to stand-ins.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP

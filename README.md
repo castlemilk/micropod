@@ -517,6 +517,71 @@ Clients that ignore docker contexts and only try `/var/run/docker.sock` need a l
 (Docker Desktop, OrbStack, …) and runs nothing; `uninstall` prints the `sudo rm` line when the link still leads here.
 `scripts/e2e_docker_wiring.sh` runs all of it against a throwaway machine with a temporary `DOCKER_CONFIG`.
 
+#### Start at login, stop at logout, and see the machine's state
+
+`micropod machine autostart on` hands the machine to launchd: a per-user LaunchAgent runs `micropod machine serve
+--link-socket` in the foreground, so launchd starts the machine at login and, at logout or shutdown, sends the
+supervisor SIGTERM and waits for the guest to power off before it kills anything:
+
+```bash
+micropod machine autostart on            # load the job now (it starts the machine) and at every login
+micropod machine autostart on --no-load  # write the LaunchAgent only; launchd loads it at the next login
+micropod machine autostart status        # on/off, loaded, the program it runs, launchd's exit timeout
+micropod machine autostart off           # unload it (stops the machine), then start the machine again outside launchd
+```
+
+```
+autostart: on (launchd com.skunkworq.micropod.machine, loaded, program /Users/me/.local/bin/micropod, exit timeout 25 s)
+```
+
+The job (`~/Library/LaunchAgents/com.skunkworq.micropod.machine.plist`, recorded in `<root>/autostart.json`) has
+`RunAtLoad`, `KeepAlive {Crashed: true}` (a `machine stop` or a supervisor that gave up after repeated crashes stays
+down), `ExitTimeOut` = the machine's `shutdownTimeoutSeconds` + 15 s, and `ProcessType Interactive`; its log is
+`<root>/logs/supervisor.log`. While it is loaded, `machine start`, `micropod run --runtime hvf …` and the API start the
+machine with `launchctl kickstart`, so the machine launchd stops at logout is the one that runs; if the kickstart starts
+nothing within 10 s, they fall back to the detached supervisor they launch without autostart. A root without
+`autostart.json` never runs launchctl. Loading the job restarts a machine already running outside launchd, and
+unloading it stops the machine, so `on` and `off` are deferred while containers run (`error: deferred: 2 running
+container(s) on the machine; …`) unless `--force`. The program is `--program`, else `MICROPOD_CLI`, else
+`~/.local/bin/micropod` for a CLI inside the app bundle, else the CLI's own path; `autostart status` says when it is
+gone. Without autostart, the machine starts on demand from micropod and the API as before, and nothing stops it
+cleanly at logout.
+
+A root other than `~/.micropod/hvf` gets its own label (`com.skunkworq.micropod.machine.<8 hex digits of its path's
+SHA-256>`) and is loaded into launchd only with `MICROPOD_AUTOSTART_ANY_ROOT=1`. `MICROPOD_LAUNCHCTL` names the
+launchctl to run and `MICROPOD_LAUNCH_AGENTS_DIR` the directory for the plist, which is how the tests and
+`scripts/e2e_machine_lifecycle.sh` keep away from your launchd and `~/Library/LaunchAgents`.
+
+`micropod status` shows the machine first, read from the API's `RigService/GetMachineStatus` when an API answers for
+the same machine root within two seconds and in-process otherwise; it pings the Apple runtime only when Apple is the
+default or enabled (its lines then follow under `apple:`; `micropod system status` is the old command):
+
+```
+runtime:     hvf (default); also enabled: sandbox
+machine:     running
+engine:      micropod (Docker API 1.44–1.47)
+containers:  1 running, 1 total
+docker:      unix:///Users/me/.micropod/hvf/run/docker.sock (context micropod, selected)
+cache disk:  mounted, 21.4 GiB free of 32.0 GiB
+disk flush:  barrier (both disks)
+update:      none (payload 0.9.2)
+autostart:   on (loaded)
+api:         running (/Users/me/.micropod/api.sock)
+apple:       not enabled
+```
+
+The machine line also reads `starting`, `failed: <why>`, `stopped (on request)` or `not installed: missing … (micropod
+machine install)`. `GetMachineStatus` carries the same facts for any client: `readiness` and `failure_reason`, the
+engine's version and API range, `containers_total` and `containers_running`, `disk_flush`, `cache_disk`, `autostart`,
+`docker_endpoint` and the payload versions. It never boots the machine; while the machine runs it asks the guest
+(one second each). `SetMachineAutostart {enabled, force}` turns the LaunchAgent on or off as the CLI does, and
+`ControlMachine start` links the canonical Docker socket as `machine start` does.
+
+The menu-bar panel shows a machine card (state and why it failed, engine, containers, cache disk, disk flush, an
+"Update pending" badge, and Start, Stop or Restart) from those RPCs; a stop or restart the API defers asks first and
+then forces. With hvf the default runtime, the header and the menu-bar dot follow the machine. Settings → Machine has
+"Start the machine at login".
+
 Sandbox VMs are owned by the process that boots them: long-lived sandbox
 containers live in the API daemon; the CLI's `run --runtime sandbox` runs in
 the foreground to completion. API sandboxes get a network unless labelled
