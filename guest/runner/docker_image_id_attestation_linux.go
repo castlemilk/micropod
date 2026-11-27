@@ -67,6 +67,80 @@ func imageBlobReadError(kind string, err error) error {
 	return fmt.Errorf("read %s: %w", kind, err)
 }
 
+// platformIndexMaxManifests bounds the entries of a registry's multi-platform
+// index that removal accepts (busybox's has 16, most fewer).
+const platformIndexMaxManifests = 256
+
+// verifyImageIDIndex checks an index image before its ID is removed, by its
+// shape: an index naming any platform other than linux/arm64 (and the
+// unknown/unknown of attestations) is a registry's multi-platform image
+// (verifyImageIDPlatformIndex); any other is Buildx's single-platform index
+// with its attestations (verifyImageIDAttestationIndex).
+func (n node) verifyImageIDIndex(ctx context.Context, id string, target *types.Descriptor) (string, error) {
+	data, err := n.readVerifiedImageBlob(ctx, target, "image index")
+	if err != nil {
+		return "", err
+	}
+	var index ocispec.Index
+	if json.Unmarshal(data, &index) == nil {
+		for _, m := range index.Manifests {
+			if m.Platform != nil && !buildxIndexPlatform(m.Platform, "linux", "arm64") &&
+				!buildxIndexPlatform(m.Platform, "unknown", "unknown") {
+				return n.verifyImageIDPlatformIndex(ctx, id, target, index)
+			}
+		}
+	}
+	return n.verifyImageIDAttestationIndex(ctx, id, target)
+}
+
+// verifyImageIDPlatformIndex admits a registry's multi-platform index (an OCI
+// index or a Docker manifest list), as a pull by tag or by the index's digest
+// stores it: exactly one runnable linux/arm64 manifest, whose config is the
+// image ID, and entries for other platforms and attestations. CRI fetched
+// only the arm64 manifest, so the others are checked as descriptors and never
+// read: no container here can run one, and none holds content this removal
+// could take from a container. The usage checks that follow cover the ID,
+// the index and the runnable manifest, as for a Buildx index.
+func (n node) verifyImageIDPlatformIndex(ctx context.Context, id string, target *types.Descriptor, index ocispec.Index) (string, error) {
+	if index.SchemaVersion != 2 || index.ArtifactType != "" || index.Subject != nil ||
+		index.MediaType != "" && index.MediaType != target.GetMediaType() ||
+		len(index.Manifests) == 0 || len(index.Manifests) > platformIndexMaxManifests {
+		return "", fail(http.StatusConflict, "image index could not be verified for removal")
+	}
+	var native *ocispec.Descriptor
+	seen := make(map[string]bool, len(index.Manifests))
+	for i := range index.Manifests {
+		descriptor := &index.Manifests[i]
+		if !localImageDescriptor(*descriptor) || isIndexMediaType(descriptor.MediaType) ||
+			descriptor.MediaType != ocispec.MediaTypeImageManifest && descriptor.MediaType != "application/vnd.docker.distribution.manifest.v2+json" {
+			return "", fail(http.StatusConflict, "image index has an incompatible manifest descriptor")
+		}
+		if seen[descriptor.Digest.String()] {
+			return "", fail(http.StatusConflict, "image index repeats a manifest descriptor")
+		}
+		seen[descriptor.Digest.String()] = true
+		if buildxIndexPlatform(descriptor.Platform, "linux", "arm64") &&
+			descriptor.Annotations[attestation.DockerAnnotationReferenceType] == "" &&
+			descriptor.Annotations[attestation.DockerAnnotationReferenceDigest] == "" {
+			if native != nil {
+				return "", fail(http.StatusConflict, "image index contains multiple runnable manifests")
+			}
+			native = descriptor
+		}
+	}
+	if native == nil {
+		return "", fail(http.StatusConflict, "image index has no linux/arm64 manifest")
+	}
+	configID, err := n.manifestConfigID(ctx, imageBlobDescriptor(*native))
+	if err != nil {
+		return "", err
+	}
+	if configID != id {
+		return "", fail(http.StatusConflict, "image manifest does not match the requested config ID")
+	}
+	return native.Digest.String(), nil
+}
+
 // verifyImageIDAttestationIndex admits the stock Buildx shape of one runnable
 // Linux ARM64 image and its provenance manifests. The existing deletion path
 // still removes references to the original index descriptor.

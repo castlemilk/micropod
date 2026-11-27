@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"slices"
 	"testing"
 
 	content "github.com/containerd/containerd/api/services/content/v1"
@@ -268,6 +270,102 @@ func TestDockerBuildxImageIDRemovalPreservesReferences(t *testing.T) {
 			}
 			if err != nil || f.store.refs[f.id] != nil || len(f.store.deleted) != 1 || f.store.deleted[0] != f.id {
 				t.Fatalf("unused index removal = %v, remaining index = %v, deleted = %v", err, f.store.refs[f.id], f.store.deleted)
+			}
+		})
+	}
+}
+
+// registryIndex is a registry's multi-platform index as a pull stores it:
+// only the linux/arm64 manifest (and its config) is in the store; the other
+// platforms' manifests and the attestations were never fetched.
+func registryIndex(t *testing.T, store *buildxDeleteContent, mediaType, manifestType string) (ocispec.Index, ocispec.Descriptor, string) {
+	t.Helper()
+	config := store.json(t, ocispec.MediaTypeImageConfig, ocispec.Image{
+		Platform: ocispec.Platform{OS: "linux", Architecture: "arm64"},
+		RootFS:   ocispec.RootFS{Type: "layers", DiffIDs: []digest.Digest{digest.FromString("registry layer")}},
+	})
+	native := store.json(t, manifestType, ocispec.Manifest{
+		Versioned: specs.Versioned{SchemaVersion: 2}, MediaType: manifestType, Config: config,
+		Layers: []ocispec.Descriptor{{MediaType: ocispec.MediaTypeImageLayerGzip, Size: 100, Digest: digest.FromString("registry blob")}},
+	})
+	native.Platform = &ocispec.Platform{OS: "linux", Architecture: "arm64", Variant: "v8"}
+	entry := func(name string, platform ocispec.Platform) ocispec.Descriptor {
+		return ocispec.Descriptor{MediaType: manifestType, Digest: digest.FromString(name), Size: 500, Platform: &platform}
+	}
+	amd64 := entry("amd64 manifest", ocispec.Platform{OS: "linux", Architecture: "amd64"})
+	armv7 := entry("arm v7 manifest", ocispec.Platform{OS: "linux", Architecture: "arm", Variant: "v7"})
+	attest := func(name string, of ocispec.Descriptor) ocispec.Descriptor {
+		d := entry(name, ocispec.Platform{OS: "unknown", Architecture: "unknown"})
+		d.Annotations = map[string]string{
+			attestation.DockerAnnotationReferenceType:   attestation.DockerAnnotationReferenceTypeDefault,
+			attestation.DockerAnnotationReferenceDigest: of.Digest.String(),
+		}
+		return d
+	}
+	return ocispec.Index{
+		Versioned: specs.Versioned{SchemaVersion: 2}, MediaType: mediaType,
+		Manifests: []ocispec.Descriptor{amd64, attest("amd64 attestation", amd64), armv7, native, attest("arm64 attestation", native)},
+	}, native, config.Digest.String()
+}
+
+// A multi-platform image pulled from a registry (an OCI index or a Docker
+// manifest list) can be removed by its ID: the arm64 manifest is verified
+// against the ID, and the entries for other platforms are never read.
+func TestVerifiedRegistryPlatformIndex(t *testing.T) {
+	for _, tc := range []struct{ name, index, manifest string }{
+		{"oci index", ocispec.MediaTypeImageIndex, ocispec.MediaTypeImageManifest},
+		{"docker manifest list", "application/vnd.docker.distribution.manifest.list.v2+json", "application/vnd.docker.distribution.manifest.v2+json"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &buildxDeleteContent{blobs: make(map[string][]byte)}
+			index, native, id := registryIndex(t, store, tc.index, tc.manifest)
+			target := imageBlobDescriptor(store.json(t, tc.index, index))
+			store.reads = nil
+			got, err := node{content: store}.verifyImageIDManifest(t.Context(), id, target)
+			if err != nil || got != native.Digest.String() {
+				t.Fatalf("verify registry index: native %q, error %v", got, err)
+			}
+			if !slices.Equal(store.reads, []string{target.GetDigest(), native.Digest.String()}) {
+				t.Fatalf("read %v, want only the index and its arm64 manifest", store.reads)
+			}
+		})
+	}
+}
+
+func TestRejectUnverifiedRegistryPlatformIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(index *ocispec.Index, id *string)
+	}{
+		{"no arm64 manifest", func(i *ocispec.Index, _ *string) { i.Manifests = slices.Delete(i.Manifests, 3, 4) }},
+		{"two arm64 manifests", func(i *ocispec.Index, _ *string) {
+			second := i.Manifests[3]
+			second.Digest = digest.FromString("second arm64")
+			i.Manifests = append(i.Manifests, second)
+		}},
+		{"wrong config ID", func(_ *ocispec.Index, id *string) { *id = digest.FromString("other config").String() }},
+		{"nested index", func(i *ocispec.Index, _ *string) { i.Manifests[0].MediaType = ocispec.MediaTypeImageIndex }},
+		{"repeated entry", func(i *ocispec.Index, _ *string) { i.Manifests = append(i.Manifests, i.Manifests[0]) }},
+		{"remote entry", func(i *ocispec.Index, _ *string) { i.Manifests[0].URLs = []string{"https://example.test/blob"} }},
+		{"subject", func(i *ocispec.Index, _ *string) { i.Subject = &i.Manifests[0] }},
+		{"over the entry limit", func(i *ocispec.Index, _ *string) {
+			for n := range platformIndexMaxManifests {
+				extra := i.Manifests[0]
+				extra.Digest = digest.FromString(fmt.Sprint("extra ", n))
+				i.Manifests = append(i.Manifests, extra)
+			}
+		}},
+		{"arm64 manifest missing", func(i *ocispec.Index, _ *string) { i.Manifests[3].Digest = digest.FromString("absent arm64") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &buildxDeleteContent{blobs: make(map[string][]byte)}
+			index, _, id := registryIndex(t, store, ocispec.MediaTypeImageIndex, ocispec.MediaTypeImageManifest)
+			tc.mutate(&index, &id)
+			target := imageBlobDescriptor(store.json(t, ocispec.MediaTypeImageIndex, index))
+			_, err := node{content: store}.verifyImageIDManifest(t.Context(), id, target)
+			var conflict apiError
+			if !errors.As(err, &conflict) || conflict.code != http.StatusConflict {
+				t.Fatalf("verify %s = %v, want conflict", tc.name, err)
 			}
 		})
 	}

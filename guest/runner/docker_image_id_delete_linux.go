@@ -400,8 +400,8 @@ func (s *dockerEngine) imageIDRemovalUsage(ctx context.Context, id string, allow
 }
 
 func (n node) verifyImageIDManifest(ctx context.Context, id string, target *types.Descriptor) (string, error) {
-	if target.GetMediaType() == ocispec.MediaTypeImageIndex {
-		return n.verifyImageIDAttestationIndex(ctx, id, target)
+	if isIndexMediaType(target.GetMediaType()) {
+		return n.verifyImageIDIndex(ctx, id, target)
 	}
 	if target.GetMediaType() != ocispec.MediaTypeImageManifest && target.GetMediaType() != "application/vnd.docker.distribution.manifest.v2+json" {
 		return "", fail(http.StatusConflict, "image ID removal requires a single image manifest")
