@@ -43,7 +43,9 @@ final class DockerTCPConnectionTests: XCTestCase {
             XCTAssertTrue(error.localizedDescription.contains("timed out"))
         }
         let elapsed = ContinuousClock.now - started
-        XCTAssertEqual(entered.wait(timeout: .now()), .success)
+        // The lookup runs on another thread, which a busy host may not have
+        // scheduled yet when the 80 ms deadline returns: wait for it.
+        XCTAssertEqual(entered.wait(timeout: .now() + .seconds(5)), .success)
         XCTAssertGreaterThanOrEqual(elapsed, timeout)
         XCTAssertLessThan(elapsed, .seconds(1))
     }
