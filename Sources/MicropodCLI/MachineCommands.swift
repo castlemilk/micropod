@@ -19,13 +19,17 @@ enum MachineCommands {
                                    [--tools <dir>] [--cpus N] [--memory-mib N] [--workspace <dir>|""]
                                    [--disk-from <ext4> | --disk-image <ref>|default [--disk-size 64g]]
                                    [--cache-disk-size 32g | --no-cache-disk] [--replace-disk]
+                                   [--amd64 auto|off]
                                                   copy the assets into the machine root; the disk is
                                                   an APFS clone of --disk-from, or a fresh sparse ext4
                                                   unpacked from an OCI image; flags left out keep
                                                   what is installed. Missing runtime files come
                                                   from the app bundle or the extracted CLI package.
                                                   --no-cache-disk: stop expecting a cache disk
-                                                  (caches.ext4) that is gone
+                                                  (caches.ext4) that is gone. --amd64 off: no
+                                                  linux/amd64 containers (x86-64 emulation through
+                                                  the bundle's qemu-x86_64 is on by default); at
+                                                  the next boot
           micropod machine start [--timeout S]    boot it (detached supervisor) and wait for Docker
           micropod machine stop                   power the guest off gracefully
           micropod machine restart
@@ -229,7 +233,7 @@ enum MachineCommands {
             args, boolFlags: ["--replace-disk", "--no-cache-disk"],
             valueFlags: [
                 "--vmm", "--kernel", "--initrd", "--tools", "--disk-from", "--disk-image", "--disk-size",
-                "--cache-disk-size", "--cpus", "--memory-mib", "--workspace",
+                "--cache-disk-size", "--cpus", "--memory-mib", "--workspace", "--amd64",
             ],
             commandName: "machine install")
         guard parsed.positionals.isEmpty else {
@@ -245,6 +249,9 @@ enum MachineCommands {
         }
         let image = parsed.value("--disk-image").map { $0 == "default" ? HVFMachineInstaller.defaultDiskImage : $0 }
         let cacheDiskBytes = try parsed.value("--cache-disk-size").map { try diskBytes($0) }
+        if let amd64 = parsed.value("--amd64"), !HVFMachineConfig.amd64Settings.contains(amd64) {
+            throw UsageError(message: "--amd64 wants auto or off, got '\(amd64)'")
+        }
         if cacheDiskBytes != nil, parsed.has("--no-cache-disk") {
             throw UsageError(message: "machine install: --no-cache-disk and --cache-disk-size contradict each other")
         }
@@ -255,7 +262,8 @@ enum MachineCommands {
             cacheDiskBytes: cacheDiskBytes, noCacheDisk: parsed.has("--no-cache-disk"),
             replaceDisk: parsed.has("--replace-disk"),
             cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
-            workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath })
+            workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath },
+            amd64: parsed.value("--amd64"))
         let warnings = try await HVFMachineInstaller.install(
             request, layout: layout, packagedExecutable: CLIInstall.currentExecutable()
         ) {

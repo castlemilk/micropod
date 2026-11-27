@@ -30,6 +30,8 @@ public struct HVFInstallRequest: Sendable, Equatable {
     public var cpus: Int?
     public var memoryMiB: Int?
     public var workspace: String?
+    /// machine.json `amd64`: "auto" or "off"; nil keeps what is set.
+    public var amd64: String?
     /// Where missing runtime files come from, instead of the running
     /// executable's package: an app bundle (`Contents/MacOS/micropod-vmm`,
     /// `Contents/Resources/{vmlinux-hvf,mp-hvf-init.cpio,micropod-oci-tools,
@@ -44,7 +46,8 @@ public struct HVFInstallRequest: Sendable, Equatable {
         vmm: URL? = nil, kernel: URL? = nil, initrd: URL? = nil, tools: URL? = nil, diskFrom: URL? = nil,
         diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, cacheDiskBytes: UInt64? = nil,
         noCacheDisk: Bool = false, replaceDisk: Bool = false, cpus: Int? = nil, memoryMiB: Int? = nil,
-        workspace: String? = nil, distribution: URL? = nil, copyDiskAcrossVolumes: Bool = false
+        workspace: String? = nil, distribution: URL? = nil, copyDiskAcrossVolumes: Bool = false,
+        amd64: String? = nil
     ) {
         self.vmm = vmm
         self.kernel = kernel
@@ -61,6 +64,7 @@ public struct HVFInstallRequest: Sendable, Equatable {
         self.workspace = workspace
         self.distribution = distribution
         self.copyDiskAcrossVolumes = copyDiskAcrossVolumes
+        self.amd64 = amd64
     }
 }
 
@@ -138,6 +142,8 @@ public enum HVFMachineInstaller {
         var config = try HVFMachineConfig.load(from: layout.config)
         if let cpus = request.cpus { config.cpus = cpus }
         if let memoryMiB = request.memoryMiB { config.memoryMiB = memoryMiB }
+        // "auto" is the default: saved as absent, as a machine.json without the key reads.
+        if let amd64 = request.amd64 { config.amd64 = amd64 == "auto" ? nil : amd64 }
         if let workspace = request.workspace {
             config.workspace = workspace.isEmpty ? nil : HVFMachineLayout.canonicalPath(workspace)
         }
