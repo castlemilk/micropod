@@ -31,6 +31,7 @@ enum SetupCommands {
         (`micropod docker install`), --use also selects it. Nothing is selected or loaded
         without them. Re-running keeps what is there.
         --dry-run prints the steps without changing anything (exit 1 when one would fail).
+        --cpus and --memory-mib size a new machine (`micropod machine install` resizes one).
         """
 
     /// The setup command in a whole `micropod` argv, if it is one, with the
@@ -174,9 +175,9 @@ enum SetupCommands {
             // follows it under the same rules (a note says when it does not).
             MachineCommands.autoLink(HVFMachineClient(layout: bootstrap.layout, environment: environment))
         }
-        var failed = steps.first { $0.state == .failed }
+        let failedStep = steps.first { $0.state == .failed }
         var extra: [Extra] = []
-        if failed == nil {
+        if failedStep == nil {
             if parsed.autostart {
                 let item = await autostartStep(
                     bootstrap.layout, environment: environment,
@@ -191,22 +192,23 @@ enum SetupCommands {
             }
         }
         let stopped = steps.contains { $0.id == .start && $0.state == .skipped } && parsed.options.startedBy == nil
+        // Where setup stopped, and why: a step, else an extra step.
+        let failure =
+            failedStep.map { "\($0.id.title): \($0.detail)" }
+            ?? extra.first { $0.state == .failed }.map { "\($0.id): \($0.detail)" }
         let next =
-            failed == nil
+            failure == nil
             ? nextSteps(bootstrap.layout, parsed: parsed, environment: environment, stopped: stopped) : []
-        if failed == nil, let broken = extra.first(where: { $0.state == .failed }) {
-            failed = HVFMachineBootstrap.Step(.defaultRuntime, .failed, "\(broken.id): \(broken.detail)")
-        }
         if json {
             emit(
-                Report(ok: failed == nil, root: bootstrap.layout.root.path, steps: steps, extra: extra, next: next),
+                Report(ok: failure == nil, root: bootstrap.layout.root.path, steps: steps, extra: extra, next: next),
                 out: out)
-        } else if let failed {
-            err("error: setup stopped at \(failed.id.title): \(failed.detail)")
+        } else if let failure {
+            err("error: setup stopped at \(failure)")
         } else if !next.isEmpty {
             out("next: " + next.joined(separator: "    "))
         }
-        return failed == nil ? ExitCode.ok : ExitCode.failure
+        return failure == nil ? ExitCode.ok : ExitCode.failure
     }
 
     static func line(_ step: HVFMachineBootstrap.Step, total: Int) -> String {

@@ -144,6 +144,29 @@ final class SetupCommandsTests: XCTestCase {
         XCTAssertEqual((object["steps"] as? [[String: Any]])?.count, 5)
     }
 
+    func testAFailedExtraStepIsNamedAsSuch() async throws {
+        let layout = try installedRoot()
+        // No docker CLI at all: the docker step fails, the machine steps stand.
+        let parsed = try SetupCommands.parse(["--no-start", "--docker"])
+        let bootstrap = HVFMachineBootstrap(
+            layout: layout, options: parsed.options, environment: ["MICROPOD_HVF_ROOT": layout.root.path],
+            packagedExecutable: nil, runtimes: .init(defaultName: { "hvf" }, origin: { .fresh }))
+        let out = Lines()
+        let err = Lines()
+        let code = await SetupCommands.run(
+            bootstrap, parsed: parsed,
+            environment: [
+                "MICROPOD_HVF_ROOT": layout.root.path, "PATH": base.path,
+                "MICROPOD_DOCKER_CLI": base.appendingPathComponent("no-docker").path,
+                "DOCKER_CONFIG": base.appendingPathComponent("docker").path,
+            ],
+            json: false, out: { out.append($0) }, err: { err.append($0) })
+        XCTAssertEqual(code, ExitCode.failure)
+        XCTAssertTrue(out.lines.contains { $0.hasPrefix("[6/6] docker          failed: ") }, "\(out.lines)")
+        XCTAssertEqual(err.lines.last?.hasPrefix("error: setup stopped at docker: "), true, "\(err.lines)")
+        XCTAssertFalse(out.lines.contains { $0.hasPrefix("next:") }, "no suggestions after a failure")
+    }
+
     // MARK: runtime ls
 
     private func runtime(
