@@ -82,6 +82,9 @@ struct MicropodCLI {
         if let docker = DockerCommands.route(args) {
             exit(await DockerCommands.main(docker.args, json: docker.json))
         }
+        if let status = StatusCommand.route(args) {
+            exit(await StatusCommand.main(status.args, json: status.json, cliPath: status.cliPath))
+        }
         let globals = GlobalArguments(args)
         jsonOutput = globals.json
         if globals.noColor || ProcessInfo.processInfo.environment["NO_COLOR"] != nil || jsonOutput || !isTTY() {
@@ -123,7 +126,6 @@ struct MicropodCLI {
 
     static func dispatch(_ command: String, _ args: [String], _ services: Services) async throws {
         switch command {
-        case "status": try await SystemCommands.status(args, services)
         case "ps", "list", "ls": try await ContainerCommands.ps(args, services)
         case "run": try await ContainerCommands.run(args, services, create: false)
         case "create": try await ContainerCommands.run(args, services, create: true)
@@ -246,6 +248,7 @@ struct MicropodCLI {
           runtime ls|use|enable|disable      execution engines: apple, docker, sandbox, ci, hvf
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
           machine install|start|stop|restart|status|logs|serve|docker-endpoint|buildkit-endpoint
+          machine autostart on|off|status    start the machine at login and stop it cleanly at logout
           machine cache policy|builder install|status|rm
                                              the shared hvf Linux machine behind --runtime hvf
                                              (`micropod machine help`)
@@ -260,7 +263,10 @@ struct MicropodCLI {
           storage [show|volumes|set <dir>]  where runtime data lives; move it to another volume
           storage dev-volume                create and manage a development APFS volume
           metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
-          status / version                   runtime + version info
+          status [--json]                    the hvf machine (state, engine, containers, cache disk,
+                                             disk flush, update, autostart), its docker endpoint and
+                                             the API; the Apple runtime too when it is enabled
+          version                            version info
 
         Global flags:
           --json                             machine-readable output where supported

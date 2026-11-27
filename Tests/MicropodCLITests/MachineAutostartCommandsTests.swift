@@ -149,7 +149,7 @@ final class MachineAutostartCommandsTests: XCTestCase {
         let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
         defer { held.release() }
         try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
-        let server = try PingServer(path: layout.dockerSocket.path)
+        let server = try UnixHTTPServer(path: layout.dockerSocket.path)
         defer { server.stop() }
         let deadline = ContinuousClock.now + .seconds(5)
         while (try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) == nil,
@@ -167,57 +167,6 @@ final class MachineAutostartCommandsTests: XCTestCase {
             XCTFail("usage")
         } catch let error as UsageError {
             XCTAssertTrue(error.message.contains("autostart on"), error.message)
-        }
-    }
-}
-
-/// Answers every HTTP request on a unix socket with 200 OK, one per connection.
-final class PingServer: @unchecked Sendable {
-    private let path: String
-    private let fd: Int32
-    private let lock = NSLock()
-    private var stopped = false
-
-    init(path: String) throws {
-        self.path = path
-        unlink(path)
-        fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        var address = sockaddr_un()
-        address.sun_family = sa_family_t(AF_UNIX)
-        withUnsafeMutableBytes(of: &address.sun_path) { raw in
-            raw.copyBytes(from: path.utf8)
-            raw[path.utf8.count] = 0
-        }
-        let bound = withUnsafePointer(to: &address) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard fd >= 0, bound == 0, listen(fd, 16) == 0 else {
-            throw MicropodError.message("bind \(path): \(String(cString: strerror(errno)))")
-        }
-        Thread.detachNewThread { [self] in serve() }
-    }
-
-    func stop() { lock.withLock { stopped = true } }
-
-    private func serve() {
-        defer {
-            close(fd)
-            unlink(path)
-        }
-        while !lock.withLock({ stopped }) {
-            var poll = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
-            guard Darwin.poll(&poll, 1, 20) > 0 else { continue }
-            let client = accept(fd, nil, nil)
-            guard client >= 0 else { continue }
-            var one: Int32 = 1
-            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
-            var buffer = [UInt8](repeating: 0, count: 4096)
-            _ = read(client, &buffer, buffer.count)
-            let reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"
-            _ = reply.withCString { write(client, $0, strlen($0)) }
-            close(client)
         }
     }
 }
