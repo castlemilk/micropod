@@ -10,6 +10,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 )
 
 // RetryPolicy controls unary-call retry behavior.
@@ -27,14 +29,16 @@ type RetryPolicy struct {
 	RetryableCodes []connect.Code
 	// Idempotent reports whether a procedure (e.g.
 	// "/micropod.v1.ContainerService/GetContainer") may be replayed. nil
-	// means every unary procedure is retried (previous behaviour). Return
-	// false for procedures whose replay is unsafe — CreateContainer,
-	// RunContainer, CommitVolumeClone — because the server cannot observe a
-	// client that gave up: a timed-out attempt still completes server-side.
+	// means every unary procedure is retried. Return false for procedures
+	// whose replay is unsafe — CreateContainer, RunContainer,
+	// CommitVolumeClone — because the server cannot observe a client that
+	// gave up: a timed-out attempt still completes server-side.
+	// DefaultRetryPolicy sets ReplaySafe.
 	Idempotent func(procedure string) bool
 }
 
-// DefaultRetryPolicy: 3 attempts, 100ms → ~2s backoff with ±25% jitter.
+// DefaultRetryPolicy: 3 attempts, 100ms → ~2s backoff with ±25% jitter;
+// every unary procedure but the machine lifecycle ones (ReplaySafe).
 func DefaultRetryPolicy() RetryPolicy {
 	return RetryPolicy{
 		MaxAttempts:    3,
@@ -47,8 +51,25 @@ func DefaultRetryPolicy() RetryPolicy {
 			connect.CodeResourceExhausted,
 			connect.CodeAborted,
 		},
+		Idempotent: ReplaySafe,
 	}
 }
+
+// neverReplayed are the procedures that stop or restart the shared hvf
+// machine. A replay repeats that: an activation that rolled back would stop
+// the machine, boot the failed payload and roll back again (killing what
+// ran on known-good in between), and a stop or restart that timed out
+// after it began would be sent again.
+var neverReplayed = map[string]bool{
+	micropodv1connect.RigServiceApplyHVFUpdateProcedure:    true,
+	micropodv1connect.RigServiceRollbackHVFUpdateProcedure: true,
+	micropodv1connect.RigServiceControlMachineProcedure:    true,
+}
+
+// ReplaySafe is DefaultRetryPolicy's Idempotent: true for every procedure
+// except the machine lifecycle ones (RigService ApplyHVFUpdate,
+// RollbackHVFUpdate and ControlMachine), which are sent once.
+func ReplaySafe(procedure string) bool { return !neverReplayed[procedure] }
 
 func (p RetryPolicy) retryable(code connect.Code) bool {
 	for _, c := range p.RetryableCodes {

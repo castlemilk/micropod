@@ -43,10 +43,15 @@ public actor RuntimeDefaultInitImage {
         return cached.value
     }
 
-    public func value() async -> String? {
+    /// The kept value while it is fresh, else a read (shared with any read
+    /// in flight). A failure kept for `failureTTL` answers nil without a
+    /// read, unless `retryingFailure`: GetSystem, which says it reads the
+    /// property, asks again (a runtime that came up meanwhile answers),
+    /// while Ping keeps the failure.
+    public func value(retryingFailure: Bool = false) async -> String? {
         let now = ContinuousClock.now
         if let cached, now - cached.at < ttl { return cached.value }
-        if let failedAt, now - failedAt < failureTTL { return nil }
+        if !retryingFailure, let failedAt, now - failedAt < failureTTL { return nil }
         if let reading { return await reading.value }
         let read = self.read
         let task = Task { try? await read() }

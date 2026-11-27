@@ -48,6 +48,35 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertTrue(HVFMachineLayout(environment: [:]).root.path.hasSuffix("/.micropod/hvf"))
     }
 
+    /// GetCachePolicy decoded machine.json on every call; `loadKept` decodes
+    /// it again only when the file changed (replaced, or rewritten in place).
+    func testAKeptConfigIsDecodedAgainOnlyWhenTheFileChanges() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        var config = HVFMachineConfig()
+        config.cpus = 3
+        try config.save(to: layout.config)
+        let before = HVFMachineConfig.keptConfigDecodes
+        for _ in 0..<20 { XCTAssertEqual(try HVFMachineConfig.loadKept(from: layout.config).cpus, 3) }
+        XCTAssertEqual(HVFMachineConfig.keptConfigDecodes - before, 1, "an unchanged file is decoded once")
+
+        config.cpus = 5
+        try config.save(to: layout.config)
+        XCTAssertEqual(try HVFMachineConfig.loadKept(from: layout.config).cpus, 5, "a saved config is read afresh")
+
+        // Rewritten in place, same size: a new modification time.
+        var text = try String(contentsOf: layout.config, encoding: .utf8)
+        text = text.replacingOccurrences(of: "\"cpus\" : 5", with: "\"cpus\" : 6")
+        usleep(2_000)
+        let handle = try FileHandle(forWritingTo: layout.config)
+        try handle.write(contentsOf: Data(text.utf8))
+        try handle.close()
+        XCTAssertEqual(try HVFMachineConfig.loadKept(from: layout.config).cpus, 6, "rewritten in place")
+        XCTAssertEqual(HVFMachineConfig.keptConfigDecodes - before, 3)
+
+        try FileManager.default.removeItem(at: layout.config)
+        XCTAssertEqual(try HVFMachineConfig.loadKept(from: layout.config), HVFMachineConfig(), "gone: the defaults")
+    }
+
     func testMissingAssetsNamesEachPiece() throws {
         XCTAssertEqual(layout.missingAssets(), ["micropod-vmm", "Image", "mp-hvf-init.cpio", "disk.ext4", "tools/"])
         try installPlaceholders()

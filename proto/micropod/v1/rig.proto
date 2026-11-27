@@ -35,7 +35,9 @@ service RigService {
   rpc GetMachineStatus(Empty) returns (HVFMachineStatus);
   // Start (returns once the guest answers), stop (a stop on request: Ping and
   // GetSystem then say stopped and nothing restarts it on demand) or restart
-  // the machine; replies with its status afterwards.
+  // the machine; replies with its status afterwards. Stop and restart are
+  // deferred (`failed_precondition`, nothing stopped) while containers run on
+  // a serving machine or its idleness cannot be confirmed, unless `force`.
   rpc ControlMachine(ControlMachineRequest) returns (HVFMachineStatus);
 }
 
@@ -213,4 +215,6 @@ message HVFMachineStatus {
 
 message ControlMachineRequest {
   string action = 1 [(buf.validate.field).string = {in: ["start", "stop", "restart"]}];
+  // Stop or restart even while containers run (interrupts them).
+  bool force = 2;
 }

@@ -56,15 +56,23 @@ extension HTTPServer {
         /// Milliseconds from `MICROPOD_API_READ_IDLE_TIMEOUT_MS` (30 s),
         /// `MICROPOD_API_READ_DEADLINE_MS` (120 s) and
         /// `MICROPOD_API_KEEPALIVE_IDLE_MS` (120 s), so tests need not wait.
-        init(environment: [String: String]) {
+        /// The kept-connection bound follows the open-file limit
+        /// (`keptConnections(fileLimit:)`).
+        init(environment: [String: String], fileLimit: Int = FileDescriptorLimit.soft()) {
             func milliseconds(_ key: String, _ fallback: Int) -> DispatchTimeInterval {
                 .milliseconds(max(1, environment[key].flatMap { Int($0) } ?? fallback))
             }
             requestIdle = milliseconds("MICROPOD_API_READ_IDLE_TIMEOUT_MS", 30_000)
             requestDeadline = milliseconds("MICROPOD_API_READ_DEADLINE_MS", 120_000)
             keepAliveIdle = milliseconds("MICROPOD_API_KEEPALIVE_IDLE_MS", 120_000)
-            maxKeptConnections = 256
+            maxKeptConnections = Self.keptConnections(fileLimit: fileLimit)
         }
+
+        /// 256, or an eighth of the open-file limit when that is less: kept
+        /// connections never take the descriptors the listeners, the
+        /// metrics database and `container` children need. (A LaunchAgent
+        /// starts with a soft limit of 256, which `main` raises.)
+        static func keptConnections(fileLimit: Int) -> Int { min(256, max(0, fileLimit / 8)) }
 
         init(
             requestIdle: DispatchTimeInterval, requestDeadline: DispatchTimeInterval,
@@ -137,6 +145,44 @@ extension HTTPServer {
     }
 }
 
+/// The process's open-file limit (`RLIMIT_NOFILE`). launchd starts a
+/// LaunchAgent with a soft limit of 256, which kept connections, listeners,
+/// SQLite files and `container` children all share.
+enum FileDescriptorLimit {
+    /// macOS refuses a soft `RLIMIT_NOFILE` above `OPEN_MAX`.
+    static let target = 10_240
+
+    /// The soft limit in force.
+    static func soft() -> Int {
+        var limit = rlimit()
+        guard getrlimit(RLIMIT_NOFILE, &limit) == 0 else { return 256 }
+        return Int(clamping: limit.rlim_cur)
+    }
+
+    /// Raises the soft limit to `target`, or to the hard limit when that is
+    /// lower; never lowers it. Returns the soft limit in force afterwards.
+    @discardableResult
+    static func raise(to target: Int = target) -> Int {
+        var limit = rlimit()
+        guard getrlimit(RLIMIT_NOFILE, &limit) == 0 else { return 256 }
+        let wanted = min(rlim_t(target), limit.rlim_max)
+        if limit.rlim_cur < wanted {
+            var raised = limit
+            raised.rlim_cur = wanted
+            _ = setrlimit(RLIMIT_NOFILE, &raised)
+        }
+        return soft()
+    }
+}
+
+/// A count shared across threads.
+final class LiveCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func add(_ delta: Int) { lock.withLock { count += delta } }
+    var value: Int { lock.withLock { count } }
+}
+
 /// Chunked framing for a stream on a connection that persists, which a
 /// client asks for with `X-Micropod-Stream-Framing: chunked` (the server
 /// echoes it). Without it a stream is delimited by the close that ends it,
@@ -161,14 +207,20 @@ enum HTTPStreamFraming {
 
 /// What a chunked stream's connection reader saw: the client closing while
 /// the stream runs stops it; once the stream ended, the bytes go to whoever
-/// `end` names (the next request's reader). Bytes before the end mark the
-/// connection as unusable after the stream.
+/// `end` names (the next request's reader).
+///
+/// Bytes that arrive before the end are the start of the next request: a
+/// client may send it as soon as it has read the last chunk, before the
+/// server has finished ending the stream. They are held, not read past (one
+/// receive, at most 64 KiB), and handed to `end`'s reader first, so that
+/// request is served in order after the stream.
 final class StreamWatch: @unchecked Sendable {
-    enum Verdict { case watch, hangUp, handedOff }
+    /// `held`: bytes of the next request arrived; stop reading until `end`.
+    enum Verdict { case watch, hangUp, handedOff, held }
 
     private let lock = NSLock()
-    private var early = false
     private var closed = false
+    private var early: Data?
     private var next: (@Sendable (Data?, Bool, Bool) -> Void)?
 
     /// One receive: `data`, and whether the peer closed or the read failed.
@@ -184,19 +236,34 @@ final class StreamWatch: @unchecked Sendable {
             lock.unlock()
             return .hangUp
         }
-        if let data, !data.isEmpty { early = true }
+        if let data, !data.isEmpty {
+            early = data
+            lock.unlock()
+            return .held
+        }
         lock.unlock()
         return .watch
     }
 
-    /// The stream ended: later bytes go to `next`. False when the
-    /// connection cannot serve another request (the client closed it or
-    /// sent before the end).
+    /// The stream ended: the bytes held so far, then later ones, go to
+    /// `next` (the held ones before this returns). False when the client
+    /// closed the connection.
     func end(_ next: @escaping @Sendable (Data?, Bool, Bool) -> Void) -> Bool {
-        lock.withLock {
-            guard !early, !closed else { return false }
+        lock.lock()
+        guard !closed else {
+            lock.unlock()
+            return false
+        }
+        guard let early else {
             self.next = next
+            lock.unlock()
             return true
         }
+        // No receive is outstanding once bytes are held: the reader that
+        // takes them posts the next one.
+        self.early = nil
+        lock.unlock()
+        next(early, false, false)
+        return true
     }
 }

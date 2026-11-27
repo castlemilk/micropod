@@ -83,7 +83,8 @@ extension APIHandlers {
     /// A machine.json that does not load is an error, never the defaults
     /// presented as the policy in force.
     func cachePolicyInForce() throws -> HVFMachineCachePolicy {
-        try HVFMachineConfig.load(from: hvfMachineClient().layout.config).effectiveCachePolicy
+        // Decoded again only when machine.json changed.
+        try HVFMachineConfig.loadKept(from: hvfMachineClient().layout.config).effectiveCachePolicy
     }
 
     /// `PUT /v1/caches/policy`'s body: checked before machine.json is read,

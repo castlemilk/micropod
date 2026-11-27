@@ -66,7 +66,10 @@
 # standalone sandbox is the fallback without one), the VMM from
 # vmm/target/release (vmm/build.sh), the newest ~/.micropod/kernels/*/Image
 # (read only) and --tools a guest bundle (ci/build-runner-tools.sh OUT, then
-# OUT/guest). Ports: --port and --port+1 (the replay proxy), both 19530-19629.
+# OUT/guest). Ports: --port and --port+1 (the replay proxy), both inside
+# B25_PORT_RANGE (LO-HI, default 19530-19629). Without --port (or B25_PORT)
+# the first free pair in that range is taken, so runs given separate ranges
+# never collide.
 #
 # Safety: everything lives under the throwaway root (absent, empty or marked
 # by an earlier run of this gate; removed at exit unless --keep). Every
@@ -86,7 +89,8 @@ GATE=$HERE/control-plane
 REPO=$(cd "$HERE/../.." && pwd)
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 ROOT=${B25_ROOT:-/tmp/mpg-b25}
-PORT=${B25_PORT:-19530}
+PORT=${B25_PORT:-}
+PORT_RANGE=${B25_PORT_RANGE:-19530-19629}
 RECEIPT=${B25_RECEIPT_DIR:-$HOME/.micropod/gates/b25/$TS}
 SECTIONS=${B25_SECTIONS:-L T M}
 SABOTAGE=${B25_SABOTAGE:-}
@@ -145,9 +149,32 @@ for sock in "$ROOT/hvf/run/docker.sock" "$ROOT/hvf/run/buildkit.sock" "$ROOT/api
     long="/private${sock#/private}"
     [ ${#long} -lt 104 ] || refuse "socket path $long is ${#long} bytes; Unix sockets need < 104"
 done
+PORT_LO=${PORT_RANGE%%-*} PORT_HI=${PORT_RANGE#*-}
+case "$PORT_LO:$PORT_HI" in *[!0-9:]* | :* | *:) refuse "B25_PORT_RANGE must be LO-HI (got '$PORT_RANGE')" ;; esac
+[ "$PORT_LO" -ge 1024 ] && [ "$PORT_HI" -le 65535 ] && [ "$PORT_LO" -lt "$PORT_HI" ] ||
+    refuse "B25_PORT_RANGE must be LO-HI within 1024-65535 (got '$PORT_RANGE')"
+if [ -z "$PORT" ]; then
+    # The first pair in the range where nothing listens on either port.
+    PORT=$(python3 -c '
+import socket, sys
+lo, hi = int(sys.argv[1]), int(sys.argv[2])
+def free(p):
+    s = socket.socket()
+    try:
+        s.bind(("127.0.0.1", p))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+print(next((p for p in range(lo, hi) if free(p) and free(p + 1)), ""))
+' "$PORT_LO" "$PORT_HI")
+    [ -n "$PORT" ] || refuse "no free pair of ports in $PORT_RANGE (B25_PORT_RANGE)"
+fi
 case "$PORT" in '' | *[!0-9]*) refuse "--port must be a number" ;; esac
 PROXY_PORT=$((PORT + 1))
-[ "$PORT" -ge 19530 ] && [ "$PROXY_PORT" -le 19629 ] || refuse "--port must leave --port and --port+1 within 19530-19629"
+[ "$PORT" -ge "$PORT_LO" ] && [ "$PROXY_PORT" -le "$PORT_HI" ] ||
+    refuse "--port must leave --port and --port+1 within $PORT_RANGE (B25_PORT_RANGE)"
 for p in "$PORT" "$PROXY_PORT"; do
     python3 -c "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1', int(sys.argv[1])))" "$p" 2>/dev/null ||
         refuse "127.0.0.1:$p is in use; pick another --port"

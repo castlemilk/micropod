@@ -17,10 +17,12 @@ import Foundation
 enum CORSPolicy {
     static let hostedDocsOrigin = "https://castlemilk.github.io"
 
-    private static func configuredOrigins() -> [String] {
-        if let raw = ProcessInfo.processInfo.environment["MICROPOD_API_CORS_ORIGINS"],
-            !raw.isEmpty
-        {
+    /// `MICROPOD_API_CORS_ORIGINS`, read once: every request that carries
+    /// an Origin asks.
+    static let configuredOrigins = origins(from: ProcessInfo.processInfo.environment)
+
+    static func origins(from environment: [String: String]) -> [String] {
+        if let raw = environment["MICROPOD_API_CORS_ORIGINS"], !raw.isEmpty {
             return raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         }
         return [hostedDocsOrigin]
@@ -33,7 +35,7 @@ enum CORSPolicy {
         guard let origin = request.headers["origin"], !origin.isEmpty else {
             return nil
         }
-        for allowed in configuredOrigins() {
+        for allowed in configuredOrigins {
             if allowed == "*" || allowed.caseInsensitiveCompare(origin) == .orderedSame {
                 return origin
             }

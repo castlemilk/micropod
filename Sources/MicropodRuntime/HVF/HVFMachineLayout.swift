@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import MicropodCore
+import Synchronization
 
 /// Where the shared hvf machine keeps its assets, disk, runtime state and
 /// logs. One root holds one machine; `MICROPOD_HVF_ROOT` overrides the
@@ -395,6 +396,39 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         try config.validate()
         return config
     }
+
+    /// `load(from:)`, decoded again only when the file changed: the same
+    /// device, inode, size and modification time (nanoseconds) reuse the
+    /// last decode of that path. `save` replaces the file (a new inode), so
+    /// a saved config is read afresh. For hot read paths (GetCachePolicy).
+    public static func loadKept(from url: URL) throws -> HVFMachineConfig {
+        var info = stat()
+        guard stat(url.path, &info) == 0 else { return try load(from: url) }
+        let identity = FileIdentity(info)
+        if let kept = keptConfigs.withLock({ $0[url.path] }), kept.identity == identity { return kept.config }
+        let config = try load(from: url)
+        keptConfigs.withLock { $0[url.path] = (identity, config) }
+        keptDecodes.withLock { $0 += 1 }
+        return config
+    }
+
+    /// Decodes `loadKept` has made (tests).
+    static var keptConfigDecodes: Int { keptDecodes.withLock { $0 } }
+    private static let keptDecodes = Mutex(0)
+
+    struct FileIdentity: Equatable {
+        var device: Int64, inode: UInt64, size: Int64, seconds: Int, nanoseconds: Int
+
+        init(_ info: stat) {
+            device = Int64(info.st_dev)
+            inode = UInt64(info.st_ino)
+            size = Int64(info.st_size)
+            seconds = info.st_mtimespec.tv_sec
+            nanoseconds = info.st_mtimespec.tv_nsec
+        }
+    }
+
+    private static let keptConfigs = Mutex<[String: (identity: FileIdentity, config: HVFMachineConfig)]>([:])
 
     public func save(to url: URL) throws {
         try validate()

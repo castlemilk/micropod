@@ -557,7 +557,9 @@ deleted with it, including deletions made outside Micropod.
 `MICROPOD_METRICS_DB` names another database. Without it, a process whose
 `MICROPOD_API_SOCK` names a socket keeps `metrics.sqlite` beside that socket
 (an API started for a throwaway root never opens the rig's database); with
-the socket at its default that is the same `~/.micropod/metrics.sqlite`.
+the socket at its default that is the same `~/.micropod/metrics.sqlite`. A
+socket in a directory other users may write (directly in `/tmp`) gets its own
+database in your temporary directory (`$TMPDIR/micropod-metrics/`) instead.
 
 - **In the app:** the dashboard, container and machine graphs open with
   that history, and add 6 h, 24 h and 7 d windows.

@@ -316,6 +316,9 @@ final class APIConnection: @unchecked Sendable {
     private var fd: Int32 = -1
     private var lastUsed = ContinuousClock.now
     private var dialed = 0
+    /// The send and receive timeout `fd` has, so a call with the same one
+    /// sets nothing.
+    private var fdTimeout = 0
 
     init(_ endpoint: APIEndpoint) { self.endpoint = endpoint }
 
@@ -350,10 +353,12 @@ final class APIConnection: @unchecked Sendable {
             case .failure(let error): return error.localizedDescription
             case .success(let connected):
                 fd = connected
+                fdTimeout = timeoutSeconds
                 lock.withLock { dialed += 1 }
             }
-        } else {
+        } else if fdTimeout != timeoutSeconds {
             try? RuntimeUnixSocket.timeout(fd, seconds: timeoutSeconds)
+            fdTimeout = timeoutSeconds
         }
         return nil
     }
@@ -466,8 +471,15 @@ enum APIStream {
                 } catch {
                     return (.lost("a stream message did not decode (\(error.localizedDescription))"), false)
                 }
-            case .timedOut, .closed:
+            case .timedOut:
+                // The deadline, or `quiet` after the last message: the
+                // caller's own end (a log tail), not the server's.
                 return (.finished(nil), false)
+            case .closed:
+                // A server ends every stream with its end-of-stream frame;
+                // a close before it is an API (or the runtime behind it)
+                // that went away mid-stream, never a success.
+                return (.lost("the stream ended without its end-of-stream frame"), false)
             case .failed(let detail):
                 return (.lost(detail), false)
             }

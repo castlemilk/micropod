@@ -44,6 +44,9 @@ final class FakeLocalAPI: @unchecked Sendable {
         case drop
         /// Answer, then close the connection (as a server stopping would).
         case thenClose(Data)
+        /// A close-delimited stream of these envelopes, cut off before its
+        /// end-of-stream frame (an API that exited mid-stream).
+        case streamCutShort([Data])
     }
 
     static func unary(_ message: some Message) -> Reply { .unary((try? message.serializedData()) ?? Data()) }
@@ -220,6 +223,13 @@ final class FakeLocalAPI: @unchecked Sendable {
                 send(replyHead(status, "application/json", body.count, close: closing) + body)
                 if closing { return }
             case .drop:
+                return
+            case .streamCutShort(let messages):
+                var frames = Data()
+                for message in messages { frames += Self.envelope(message, flags: 0) }
+                send(
+                    Data("HTTP/1.1 200 X\r\nContent-Type: application/connect+proto\r\nConnection: close\r\n\r\n".utf8)
+                        + frames)
                 return
             case .stream(let messages, let code, let message):
                 var frames = Data()

@@ -21,7 +21,9 @@ public struct HVFMachineReadiness: Sendable, Equatable {
         case stopping
         /// No supervisor: `machine start` (or the first run) boots it.
         case stopped
-        /// The supervisor gave up; the next run retries.
+        /// The supervisor gave up. A container call or `machine start`
+        /// retries at once; a status read of the default machine starts it
+        /// on demand once `HVFMachineAutostart.retryAfter` has passed.
         case failed
         /// `running` is published, but the guest Docker API is not answering.
         case notReady = "not-ready"
@@ -147,30 +149,51 @@ extension HVFMachineClient {
     /// treats only `running` as leasable waiting on a machine nothing
     /// starts.
     ///
-    /// A machine stopped on request (`machine stop`, or an update that left
-    /// it as it found it) stays `stopped`: only `machine start` or a
-    /// container call boots it. Starts are single-flight per root, and one
+    /// While that start runs, every read says why it was started ("starting
+    /// on demand (failed: …)"), also once the new supervisor has published
+    /// its own state, which knows nothing of the last one's crashes.
+    ///
+    /// A machine whose supervisor gave up (`failed`) is reported `failed`,
+    /// with the supervisor's reason, for `HVFMachineAutostart.retryAfter`
+    /// after it gave up, and only then started on demand: a crash loop is
+    /// not rebooted by the very next status read, and its reason stays
+    /// visible. A machine stopped on request (`machine stop`, or an update
+    /// that left it as it found it) stays `stopped`: only `machine start` or
+    /// a container call boots it. Starts are single-flight per root, and one
     /// that failed is not retried for `HVFMachineAutostart.retryAfter`.
     /// `MICROPOD_HVF_AUTOSTART=0` turns this off (plain `readiness()`).
     public func readinessStartingWhenDown(
         start: (@Sendable () async throws -> Void)? = nil
     ) async -> HVFMachineReadiness {
         let ready = await readiness()
-        guard environment["MICROPOD_HVF_AUTOSTART"] != "0", [.stopped, .failed].contains(ready.status),
-            !stoppedOnRequest
-        else { return ready }
-        guard HVFMachineAutostart.begin(layout.root.path) else {
-            if let failure = HVFMachineAutostart.lastFailure(layout.root.path) {
-                var failed = ready
-                failed.detail = "\(ready.detail); the last start on demand failed: \(failure)"
-                return failed
+        guard environment["MICROPOD_HVF_AUTOSTART"] != "0" else { return ready }
+        let root = layout.root.path
+        func onDemand(_ status: HVFMachineReadiness.Status, _ detail: String) -> HVFMachineReadiness {
+            HVFMachineReadiness(status: status, detail: detail, version: ready.version, revision: ready.revision)
+        }
+        if let cause = HVFMachineAutostart.inFlightCause(root) {
+            switch ready.status {
+            case .stopped, .failed: return onDemand(.starting, "starting on demand (\(cause))")
+            case .starting, .notReady: return onDemand(ready.status, "starting on demand (\(cause)): \(ready.detail)")
+            default: return ready
             }
-            return HVFMachineReadiness(
-                status: .starting, detail: "starting on demand (\(ready.detail))", version: ready.version,
-                revision: ready.revision)
+        }
+        guard [.stopped, .failed].contains(ready.status), !stoppedOnRequest else { return ready }
+        if let failure = HVFMachineAutostart.lastFailure(root) {
+            var failed = ready
+            failed.detail = "\(ready.detail); the last start on demand failed: \(failure)"
+            return failed
+        }
+        if ready.status == .failed, let wait = gaveUpRecently() {
+            var failed = ready
+            failed.detail = "\(ready.detail); started on demand again in \(wait) s"
+            return failed
+        }
+        guard HVFMachineAutostart.begin(root, cause: ready.detail) else {
+            // Another reader began it between the two looks.
+            return onDemand(.starting, "starting on demand (\(ready.detail))")
         }
         let client = self
-        let root = layout.root.path
         let start = start ?? { try await client.ensureRunning() }
         Task.detached {
             do {
@@ -180,9 +203,18 @@ extension HVFMachineClient {
                 HVFMachineAutostart.finish(root, failure: error.localizedDescription)
             }
         }
-        return HVFMachineReadiness(
-            status: .starting, detail: "starting on demand (\(ready.detail))", version: ready.version,
-            revision: ready.revision)
+        return onDemand(.starting, "starting on demand (\(ready.detail))")
+    }
+
+    /// Seconds until a supervisor that gave up (the state it left says
+    /// `failed`) is `HVFMachineAutostart.retryAfter` behind; nil once it is.
+    func gaveUpRecently(now: Date = Date()) -> Int? {
+        guard let state = try? HVFMachineState.load(from: layout.state), state.phase == .failed else { return nil }
+        let age = now.timeIntervalSince(state.updatedAt)
+        let window = Double(HVFMachineAutostart.retryAfter.components.seconds)
+        // A clock set back since then holds nothing up.
+        guard age >= 0, age < window else { return nil }
+        return Int((window - age).rounded(.up))
     }
 
     /// No supervisor, and the last one recorded a stop it was asked for.
@@ -199,21 +231,33 @@ public enum HVFMachineAutostart {
 
     private struct Entry {
         var inFlight = false
+        /// Why the start in flight began: the readiness detail then.
+        var cause: String?
         var failedAt: ContinuousClock.Instant?
         var failure: String?
     }
 
     private static let entries = Mutex<[String: Entry]>([:])
 
-    /// True when the caller should start the machine now.
-    static func begin(_ root: String, now: ContinuousClock.Instant = .now) -> Bool {
+    /// True when the caller should start the machine now. `cause`: why
+    /// (the readiness detail), reported while it runs.
+    static func begin(_ root: String, cause: String = "", now: ContinuousClock.Instant = .now) -> Bool {
         entries.withLock { all in
             var entry = all[root] ?? Entry()
             if entry.inFlight { return false }
             if let failedAt = entry.failedAt, now - failedAt < retryAfter { return false }
             entry.inFlight = true
+            entry.cause = cause
             all[root] = entry
             return true
+        }
+    }
+
+    /// Why the start on demand in flight began; nil when none runs.
+    static func inFlightCause(_ root: String) -> String? {
+        entries.withLock { all in
+            guard let entry = all[root], entry.inFlight else { return nil }
+            return entry.cause ?? ""
         }
     }
 

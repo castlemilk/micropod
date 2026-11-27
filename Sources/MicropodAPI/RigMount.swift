@@ -48,13 +48,19 @@ extension APIHandlers {
             case "ControlMachine":
                 let req = try decode(Micropod_V1_ControlMachineRequest.self, body, binary: binary)
                 let client = hvfMachineClient()
+                guard ["start", "stop", "restart"].contains(req.action) else {
+                    throw ConnectDecodeError(
+                        code: .invalidArgument, message: "action must be start, stop or restart, got '\(req.action)'")
+                }
+                if req.action != "start", !req.force, let busy = await Self.machineBusy(client) {
+                    throw ConnectDecodeError(
+                        code: .failedPrecondition,
+                        message: "deferred: \(busy); nothing was stopped (force: true to \(req.action) anyway)")
+                }
                 switch req.action {
                 case "start": try await client.ensureRunning()
                 case "stop": try await client.stop()
-                case "restart": try await client.restart()
-                default:
-                    throw ConnectDecodeError(
-                        code: .invalidArgument, message: "action must be start, stop or restart, got '\(req.action)'")
+                default: try await client.restart()
                 }
                 return unary(RigProto.machineStatus(client.status()), binary: binary)
 
@@ -106,14 +112,33 @@ extension APIHandlers {
 
     /// Success for noop, activated and (for a rollback) rolled_back. A
     /// deferral changed nothing: `failed_precondition`. An activation that
-    /// returned to known-good did not take: `aborted`. A failed boot with no
-    /// way back: `internal`.
+    /// returned to known-good did not take, and taking it again would only
+    /// repeat the stop, the failed trial boot and the rollback, so it is
+    /// `failed_precondition` too (the message says `rolled_back`): never
+    /// `aborted`, which retry policies (the Go SDK's default among them)
+    /// replay. A failed boot with no way back: `internal`.
     static func updateFailure(_ action: HVFActivationResult.Action, applying: Bool) -> ConnectWireCode? {
         switch action {
         case .noop, .activated: return nil
-        case .rolledBack: return applying ? .aborted : nil
+        case .rolledBack: return applying ? .failedPrecondition : nil
         case .deferred: return .failedPrecondition
         case .failedRollback, .failed: return .internal
+        }
+    }
+
+    /// What a stop or restart of `client`'s machine would interrupt, as the
+    /// payload activation's drain check sees it: running containers or live
+    /// reaper sessions, or a serving guest that cannot say. nil for a machine
+    /// that is not serving (stopped, failed, booting): nothing runs on it.
+    static func machineBusy(
+        _ client: HVFMachineClient, drain: (any HVFDrainCoordinating)? = nil
+    ) async -> String? {
+        guard client.isServing else { return nil }
+        do {
+            let workloads = try await (drain ?? HVFGuestWorkloadDrain(client: client)).activeWorkloads()
+            return workloads.total > 0 ? "\(workloads.summary) on the machine" : nil
+        } catch {
+            return "could not confirm the machine is idle (\(error.localizedDescription))"
         }
     }
 

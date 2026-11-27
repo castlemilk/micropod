@@ -53,6 +53,11 @@ public struct ContainerCLIClient: Sendable {
         return runtimeGate
     }
 
+    /// Tells this client's gate that the apiserver just answered (see
+    /// ``ContainerRuntimeGate/runtimeAnswered()``); nothing for an ungated
+    /// client.
+    public func runtimeAnswered() { runtimeGate?.runtimeAnswered() }
+
     /// True when this client's gate knows, without waiting, that the
     /// apiserver is down; always false for an ungated client.
     public var runtimeKnownDown: Bool {

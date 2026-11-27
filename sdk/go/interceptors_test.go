@@ -312,3 +312,73 @@ func TestWithConnectOptionsProtoJSON(t *testing.T) {
 		t.Fatalf("expected application/json request Content-Type, got %v", ct)
 	}
 }
+
+// failingRig answers ApplyHVFUpdate and RollbackHVFUpdate with aborted (a
+// server from before rolled_back became failed_precondition),
+// ControlMachine with deadline_exceeded (a stop that outlived its wait) and
+// GetRigHealth with unavailable, counting the calls.
+type failingRig struct {
+	micropodv1connect.UnimplementedRigServiceHandler
+	apply, rollback, control, health atomic.Int32
+}
+
+func (f *failingRig) ApplyHVFUpdate(context.Context, *connect.Request[micropodv1.HVFUpdateRequest]) (*connect.Response[micropodv1.HVFUpdateResult], error) {
+	f.apply.Add(1)
+	return nil, connect.NewError(connect.CodeAborted, errors.New("rolled_back: the trial boot failed its probes"))
+}
+
+func (f *failingRig) RollbackHVFUpdate(context.Context, *connect.Request[micropodv1.HVFUpdateRequest]) (*connect.Response[micropodv1.HVFUpdateResult], error) {
+	f.rollback.Add(1)
+	return nil, connect.NewError(connect.CodeAborted, errors.New("aborted"))
+}
+
+func (f *failingRig) ControlMachine(context.Context, *connect.Request[micropodv1.ControlMachineRequest]) (*connect.Response[micropodv1.HVFMachineStatus], error) {
+	f.control.Add(1)
+	return nil, connect.NewError(connect.CodeDeadlineExceeded, errors.New("supervisor still running"))
+}
+
+func (f *failingRig) GetRigHealth(context.Context, *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.RigHealth], error) {
+	f.health.Add(1)
+	return nil, connect.NewError(connect.CodeUnavailable, errors.New("down"))
+}
+
+// The README's client (WithRetry(DefaultRetryPolicy())) sends a machine
+// lifecycle call once whatever its error: a replayed ApplyHVFUpdate that had
+// rolled back stopped the machine, booted the failed payload and rolled back
+// again, twice more. Reads are still retried.
+func TestDefaultRetryPolicyNeverReplaysMachineLifecycleCalls(t *testing.T) {
+	rig := &failingRig{}
+	mux := http.NewServeMux()
+	mux.Handle(micropodv1connect.NewRigServiceHandler(rig))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	client := NewClient(srv.URL, WithRetry(DefaultRetryPolicy()))
+	ctx := context.Background()
+
+	if _, err := client.ApplyHVFUpdate(ctx, connect.NewRequest(&micropodv1.HVFUpdateRequest{Force: true})); connect.CodeOf(err) != connect.CodeAborted {
+		t.Fatalf("ApplyHVFUpdate: %v", err)
+	}
+	if _, err := client.RollbackHVFUpdate(ctx, connect.NewRequest(&micropodv1.HVFUpdateRequest{})); connect.CodeOf(err) != connect.CodeAborted {
+		t.Fatalf("RollbackHVFUpdate: %v", err)
+	}
+	if _, err := client.ControlMachine(ctx, connect.NewRequest(&micropodv1.ControlMachineRequest{Action: "restart"})); connect.CodeOf(err) != connect.CodeDeadlineExceeded {
+		t.Fatalf("ControlMachine: %v", err)
+	}
+	if _, err := client.GetRigHealth(ctx, connect.NewRequest(&micropodv1.Empty{})); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("GetRigHealth: %v", err)
+	}
+	for name, got := range map[string]int32{
+		"ApplyHVFUpdate": rig.apply.Load(), "RollbackHVFUpdate": rig.rollback.Load(), "ControlMachine": rig.control.Load(),
+	} {
+		if got != 1 {
+			t.Errorf("%s was sent %d times, want exactly once", name, got)
+		}
+	}
+	if got := rig.health.Load(); got != 3 {
+		t.Errorf("GetRigHealth was tried %d times, want 3 (reads are still retried)", got)
+	}
+	if !ReplaySafe(micropodv1connect.ContainerServiceGetContainerProcedure) ||
+		ReplaySafe(micropodv1connect.RigServiceControlMachineProcedure) {
+		t.Error("ReplaySafe: reads replay, the machine lifecycle does not")
+	}
+}

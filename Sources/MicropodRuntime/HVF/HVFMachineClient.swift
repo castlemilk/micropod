@@ -430,6 +430,11 @@ public struct HVFMachineClient: Sendable {
     /// poweroff budget plus the supervisor's SIGKILL escalation, and does
     /// not depend on machine.json still being valid: the running
     /// supervisor loaded its configuration when it started.
+    ///
+    /// With no supervisor, a machine whose last one gave up (`failed`) or
+    /// died without stopping it is recorded as stopped on request, so a
+    /// status read does not start it again (`stoppedOnRequest`); only
+    /// `machine start` or a container call boots it.
     @discardableResult
     public func stop(timeout: Duration? = nil) async throws -> Bool {
         // Nothing under this root has ever started (and nothing is created).
@@ -439,7 +444,11 @@ public struct HVFMachineClient: Sendable {
         // visible. Proceed regardless if a starter is wedged.
         var start = try await Self.lock(layout.startLock, until: ContinuousClock.now + Self.startHandoverWait)
         defer { start?.release() }
-        guard HVFFileLock.isHeld(layout.supervisorLock) else { return false }
+        guard HVFFileLock.isHeld(layout.supervisorLock) else {
+            // start.lock held: no starter can publish a state meanwhile.
+            if start != nil { try recordStopWithoutSupervisor() }
+            return false
+        }
         let grace =
             (try? HVFMachineConfig.load(from: layout.config))?.stopGrace
             ?? HVFMachineConfig(shutdownTimeoutSeconds: 600).stopGrace
@@ -460,6 +469,22 @@ public struct HVFMachineClient: Sendable {
             try await stopPollSleep(Self.stopPollInterval)
         }
         return true
+    }
+
+    /// The stop asked for while no supervisor runs: the state the last
+    /// supervisor left (`failed`, or a phase it died in) becomes `stopped`,
+    /// keeping why it was down. A state that already says stopped, or none,
+    /// is left alone.
+    private func recordStopWithoutSupervisor() throws {
+        guard var state = try? HVFMachineState.load(from: layout.state), state.phase != .stopped else { return }
+        let before =
+            state.phase == .failed
+            ? "failed: \(state.lastExitReason ?? "unknown reason")"
+            : "\(state.phase.rawValue) (supervisor pid \(state.supervisorPID) exited without stopping the machine)"
+        state.phase = .stopped
+        state.lastExitReason = "stopped on request after: \(before)"
+        state.updatedAt = Date()
+        try state.save(to: layout.state)
     }
 
     /// How often `stop` looks for the supervisor's lock to be released. A

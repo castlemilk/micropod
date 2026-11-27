@@ -31,6 +31,18 @@ private struct JSONRPCError: Codable {
 private struct MCPToolCall: Codable {
     let name: String
     let arguments: [String: JSONValue]?
+
+    /// From `tools/call` params as decoded, without encoding them again to
+    /// decode this: `name` a string, `arguments` an object, null or absent.
+    init?(_ params: [String: JSONValue]) {
+        guard case .string(let name)? = params["name"] else { return nil }
+        switch params["arguments"] {
+        case nil, .null?: arguments = nil
+        case .object(let arguments)?: self.arguments = arguments
+        default: return nil
+        }
+        self.name = name
+    }
 }
 
 // MARK: - Server entry
@@ -176,10 +188,11 @@ actor MCPServer {
                 let lineData = buffer[..<newline]
                 buffer.removeSubrange(...newline)
                 guard let line = String(data: lineData, encoding: .utf8), !line.isEmpty else { continue }
-                let response = await handle(line: line)
-                if let response {
+                if var response = await handle(line: line) {
+                    // One write: the reply and its newline reach the client
+                    // together.
+                    response.append(0x0A)
                     try? stdout.write(contentsOf: response)
-                    try? stdout.write(contentsOf: Data("\n".utf8))
                 }
             }
         }
@@ -223,10 +236,7 @@ actor MCPServer {
             return respond(id: id, result: .object(["tools": .array(MCPToolCatalog.tools.map(\.listing))]))
 
         case "tools/call":
-            guard let params = request.params,
-                let paramsData = try? JSONEncoder().encode(params),
-                let toolCall = try? JSONDecoder().decode(MCPToolCall.self, from: paramsData)
-            else {
+            guard let params = request.params, let toolCall = MCPToolCall(params) else {
                 return respondError(id: id, code: -32602, message: "Invalid tool call payload")
             }
             return await callTool(id: id, toolCall)

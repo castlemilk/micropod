@@ -23,6 +23,9 @@ resp, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 - **`WithRetry(RetryPolicy)`** — exponential backoff + ±25% jitter on
   `unavailable` / `deadline_exceeded` / `resource_exhausted` / `aborted`.
   Unary only; server streams are never replayed mid-flight.
+  `DefaultRetryPolicy()` never replays the machine lifecycle calls
+  (RigService `ApplyHVFUpdate`, `RollbackHVFUpdate`, `ControlMachine`; see
+  `ReplaySafe`): a replay would stop or restart the shared machine again.
 - **`WithTimeout(d)`** — applies a deadline when the caller's context has
   none or a later one. Never widens an earlier deadline.
 - **`WithInterceptors(...)`** — append your own `connect.Interceptor`s.

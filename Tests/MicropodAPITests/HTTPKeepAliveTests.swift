@@ -370,6 +370,34 @@ final class HTTPKeepAliveTests: XCTestCase {
         XCTAssertEqual(server.keptConnections, 0)
     }
 
+    /// Requests that were answered leave no timer behind: a client
+    /// pipelining over one kept connection used to leave two or three timers
+    /// per request, each holding its read and its connection, for up to
+    /// 120 s.
+    func testAnsweredRequestsLeaveNoTimerScheduled() async throws {
+        let server = server()
+        let path = try await ownerSocket(server)
+        let before = HTTPServer.liveReads.value
+        let client = try await blocking { () -> RawConnection in
+            let client = try RawConnection.unix(path)
+            for _ in 0..<20 {
+                try client.write(String(repeating: Self.get("/echo"), count: 50))
+                for _ in 0..<50 { XCTAssertEqual(try client.reply().status, 200) }
+            }
+            try client.write(Self.get("/echo"))
+            XCTAssertEqual(try client.reply().status, 200)
+            return client
+        }
+        var live = HTTPServer.liveReads.value - before
+        for _ in 0..<100 where live > 1 {
+            try await Task.sleep(for: .milliseconds(20))
+            live = HTTPServer.liveReads.value - before
+        }
+        XCTAssertEqual(live, 1, "only the kept connection's wait for its next request is scheduled")
+        XCTAssertEqual(server.keptConnections, 1)
+        client.close()
+    }
+
     func testKeptConnectionsAreBounded() async throws {
         var policy = Self.quick
         policy.maxKeptConnections = 1
@@ -393,6 +421,34 @@ final class HTTPKeepAliveTests: XCTestCase {
             let third = try RawConnection.unix(path)
             try third.write(Self.get("/echo"))
             XCTAssertNil(try third.reply().headers["connection"], "the freed place is used again")
+        }
+    }
+
+    /// Loopback TCP, which any local process reaches, holding every place
+    /// it may keep does not cost the owner socket its kept connections.
+    func testTCPConnectionsCannotTakeTheOwnerSocketsPlaces() async throws {
+        var policy = Self.quick
+        policy.maxKeptConnections = 1
+        let server = server(policy, port: try RawConnection.freePort())
+        let path = try await ownerSocket(server)
+        try server.startListening()
+        try await blocking {
+            let tcp = try RawConnection.tcp(server.port)
+            try tcp.write(Self.get("/echo", host: "127.0.0.1:\(server.port)"))
+            XCTAssertNil(try tcp.reply().headers["connection"], "TCP keeps its one place")
+            let other = try RawConnection.tcp(server.port)
+            try other.write(Self.get("/echo", host: "127.0.0.1:\(server.port)"))
+            XCTAssertEqual(try other.reply().headers["connection"], "close", "TCP is at its bound")
+            let owner = try RawConnection.unix(path)
+            for _ in 0..<3 {
+                try owner.write(Self.get("/echo"))
+                let reply = try owner.reply()
+                XCTAssertEqual(reply.status, 200)
+                XCTAssertNil(reply.headers["connection"], "the owner socket keeps its connection")
+            }
+            XCTAssertEqual(server.keptConnections, 2)
+            tcp.close()
+            owner.close()
         }
     }
 
@@ -667,5 +723,55 @@ final class RawConnection: @unchecked Sendable {
             }
         }
         return false
+    }
+}
+
+/// The kept-connection bound and the open-file limit: launchd starts the
+/// API with a soft limit of 256, which used to equal the bound, so the fd
+/// table filled (EMFILE on every listener) before the bound applied.
+final class FileDescriptorLimitTests: XCTestCase {
+    func testTheKeptBoundLeavesMostDescriptorsToEverythingElse() {
+        XCTAssertEqual(HTTPServer.ConnectionPolicy(environment: [:], fileLimit: 256).maxKeptConnections, 32)
+        XCTAssertEqual(HTTPServer.ConnectionPolicy(environment: [:], fileLimit: 10_240).maxKeptConnections, 256)
+        XCTAssertEqual(HTTPServer.ConnectionPolicy(environment: [:], fileLimit: 0).maxKeptConnections, 0)
+    }
+
+    func testStartUpRaisesALaunchdSoftLimit() throws {
+        var saved = rlimit()
+        XCTAssertEqual(getrlimit(RLIMIT_NOFILE, &saved), 0)
+        defer { _ = setrlimit(RLIMIT_NOFILE, &saved) }
+        var low = saved
+        low.rlim_cur = 256
+        XCTAssertEqual(setrlimit(RLIMIT_NOFILE, &low), 0)
+        XCTAssertEqual(FileDescriptorLimit.soft(), 256)
+        let raised = FileDescriptorLimit.raise()
+        XCTAssertEqual(raised, Int(clamping: min(rlim_t(FileDescriptorLimit.target), saved.rlim_max)))
+        XCTAssertEqual(FileDescriptorLimit.soft(), raised)
+        XCTAssertEqual(
+            HTTPServer.ConnectionPolicy(environment: [:], fileLimit: raised).maxKeptConnections, 256,
+            "a raised limit leaves room for the full bound")
+        // Never lowered.
+        XCTAssertEqual(FileDescriptorLimit.raise(to: 300), raised)
+    }
+}
+
+/// What every request used to rebuild `ProcessInfo.environment` (a dictionary
+/// of the whole environment) to learn: read once when the server starts.
+final class PerRequestEnvironmentTests: XCTestCase {
+    func testTheIsolatedRuntimeFlagAndTheCORSOriginsAreReadOnce() {
+        let before = CORSPolicy.configuredOrigins
+        setenv("MICROPOD_ISOLATED_RUNTIME", "1", 1)
+        setenv("MICROPOD_API_CORS_ORIGINS", "https://later.example", 1)
+        defer {
+            unsetenv("MICROPOD_ISOLATED_RUNTIME")
+            unsetenv("MICROPOD_API_CORS_ORIGINS")
+        }
+        let started = HTTPServer(port: 45454, isolatedRuntime: false) { _ in .text(200, "ok") }
+        XCTAssertFalse(started.isolatedRuntime, "fixed when the server is made, whatever the environment says later")
+        XCTAssertTrue(HTTPServer(port: 45454) { _ in .text(200, "ok") }.isolatedRuntime, "the default reads it")
+        XCTAssertEqual(CORSPolicy.configuredOrigins, before, "kept from start-up")
+        XCTAssertEqual(
+            CORSPolicy.origins(from: ["MICROPOD_API_CORS_ORIGINS": "a, b"]), ["a", "b"])
+        XCTAssertEqual(CORSPolicy.origins(from: [:]), [CORSPolicy.hostedDocsOrigin])
     }
 }
