@@ -170,6 +170,26 @@ final class FreshInstallDefaultsTests: XCTestCase {
         XCTAssertEqual(calls, [], "Apple was never asked")
     }
 
+    func testAnIdNoEngineOwnsIsNotFoundInsteadOfAskingApple() async throws {
+        try write(.fresh)
+        let containers = CallLog()
+        let router = RuntimeRouter(apple: apple(containers), registry: registry())
+        do {
+            try await router.delete("ghost", force: true)
+            XCTFail("no engine owns it")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found", "\(error)")
+            XCTAssertTrue(error.localizedDescription.contains("no such container 'ghost'"), "\(error)")
+        }
+        let calls = await containers.calls
+        XCTAssertEqual(calls, [], "the Apple runtime was not asked")
+        // An existing install falls back to Apple as before.
+        try write(.existing)
+        let existing = RuntimeRouter(apple: apple(containers), registry: registry())
+        let owner = await existing.owner("ghost")
+        XCTAssertEqual(owner.name, "apple")
+    }
+
     // MARK: Docker endpoint
 
     func testADockerEndpointOnTheMachinesOwnSocketIsRefused() throws {

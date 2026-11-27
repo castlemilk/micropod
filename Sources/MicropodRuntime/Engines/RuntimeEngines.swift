@@ -483,6 +483,56 @@ public struct AppleEngine: RuntimeEngine {
     public func owns(_ id: String) async -> Bool { true }
 }
 
+/// What an id-based call reaches when no enabled engine owns the id and
+/// the Apple runtime is not asked: every call says it is not found.
+struct UnownedContainer: RuntimeEngine, ContainerServing, LogStreaming {
+    let id: String
+    let searched: [String]
+
+    var name: String { "none" }
+    var kind: String { "none" }
+    var summary: String { "no engine owns this container" }
+    var capabilities: [String] { [] }
+    var containers: any ContainerServing { self }
+    var logs: any LogStreaming { self }
+    var stats: (any StatsSampling)? { nil }
+    func probe() async -> EngineProbe { EngineProbe(available: false, reason: summary) }
+    func owns(_ id: String) async -> Bool { false }
+
+    var notFound: MicropodError {
+        let where_ = searched.isEmpty ? "no runtime is enabled" : "not on \(searched.joined(separator: ", "))"
+        return .message(
+            "notFound: no such container '\(id)' (\(where_); the Apple runtime is not enabled: "
+                + "`micropod runtime enable apple`)")
+    }
+
+    func list() async throws -> [Micropod_V1_Container] { [] }
+    func inspect(_ id: String) async throws -> Data { throw notFound }
+    func create(_ request: ContainerRunRequest) async throws -> String { throw notFound }
+    func run(_ request: ContainerRunRequest) async throws -> String { throw notFound }
+    func exec(_ request: ContainerExecRequest) async throws -> String { throw notFound }
+    func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult { throw notFound }
+    func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
+    { throw notFound }
+    func start(_ id: String) async throws { throw notFound }
+    func stop(_ id: String, timeout: Int) async throws { throw notFound }
+    func restart(_ id: String) async throws { throw notFound }
+    func stopAll() async throws {}
+    func kill(_ id: String, signal: String) async throws { throw notFound }
+    func delete(_ id: String, force: Bool) async throws { throw notFound }
+    func deleteAll(force: Bool) async throws {}
+    func prune() async throws -> String { "" }
+    func export(_ id: String, to outputPath: String) async throws { throw notFound }
+    func copy(from: String, to: String) async throws { throw notFound }
+    func state(of id: String) async -> String { "unknown" }
+    func stream(id: String, tail: Int?, boot: Bool) -> AsyncThrowingStream<LogLine, Error> {
+        let error = notFound
+        return AsyncThrowingStream { $0.finish(throwing: error) }
+    }
+    func tail(id: String, lines: Int, boot: Bool) async throws -> [LogLine] { throw notFound }
+}
+
 // MARK: - Router
 
 /// `ContainerServing` over every enabled engine. `run`/`create` go to the
@@ -559,8 +609,15 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     /// enabled engines (a guest round trip for hvf); a caller that observes
     /// one container repeatedly resolves it once.
     public func owner(_ id: String) async -> any RuntimeEngine {
-        for engine in registry.extraEngines() where await engine.owns(id) {
+        let engines = registry.extraEngines()
+        for engine in engines where await engine.owns(id) {
             return engine
+        }
+        // Apple's runtime is the fallback only when it may be asked: with it
+        // disabled (a fresh install) an id no engine owns is not found,
+        // rather than a `container` command against a runtime that is off.
+        if registry.skipsApple(installed: apple.isInstalled) {
+            return UnownedContainer(id: id, searched: engines.map(\.name))
         }
         return apple
     }
