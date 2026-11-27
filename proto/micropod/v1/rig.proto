@@ -47,6 +47,14 @@ service RigService {
   // machine, so it is deferred (`failed_precondition`, nothing changed)
   // while containers run, unless `force`. Replies with the machine status.
   rpc SetMachineAutostart(SetMachineAutostartRequest) returns (HVFMachineStatus);
+  // The machine's first run (`micropod setup`): its runtime files from the
+  // API's own app bundle or CLI package (or `payload_path`), its disk from
+  // `disk_from` or the package's base disk, and its cache disk; then a start
+  // when `start`. Local sources only: nothing is downloaded. Re-running
+  // keeps what is there. A step that cannot be done is a failed step in the
+  // reply (`ok` false), never a partial install: every source is checked
+  // before anything is written.
+  rpc SetupMachine(SetupMachineRequest) returns (SetupMachineResult);
 }
 
 message RigModeOption {
@@ -264,6 +272,41 @@ message SetMachineAutostartRequest {
   bool enabled = 1;
   // Restart a machine that runs containers (interrupts them).
   bool force = 2;
+}
+
+message SetupMachineRequest {
+  // An app bundle, or a directory holding micropod-vmm, vmlinux-hvf,
+  // mp-hvf-init.cpio and micropod-oci-tools (and maybe hvf-base-disk.ext4);
+  // empty: the API's own package.
+  string payload_path = 1;
+  // A local ext4 image the disk is cloned (or copied) from; empty: the
+  // package's base disk.
+  string disk_from = 2;
+  // The cache disk's size; 0: 32 GiB for a new machine.
+  uint64 cache_disk_bytes = 3;
+  // No cache disk: the dependency caches live on the OS disk.
+  bool no_cache_disk = 4;
+  // Boot the machine once it is installed (returns once the guest answers).
+  bool start = 5;
+}
+
+// One setup step.
+message SetupMachineStep {
+  // runtime-files, disk, cache-disk, start or default-runtime.
+  string id = 1;
+  // done, kept (already there), skipped (not asked for), failed, or pending
+  // (not reached: an earlier step failed).
+  string state = 2;
+  // What it did, or why it failed.
+  string detail = 3;
+}
+
+message SetupMachineResult {
+  // No step failed.
+  bool ok = 1;
+  repeated SetupMachineStep steps = 2;
+  // The machine afterwards.
+  HVFMachineStatus machine = 3;
 }
 
 message ControlMachineRequest {

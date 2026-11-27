@@ -113,6 +113,11 @@ func (c *controlPlane) SetMachineAutostart(_ context.Context, r *connect.Request
 	return connect.NewResponse(&micropodv1.HVFMachineStatus{Autostart: &micropodv1.HVFMachineAutostart{Enabled: r.Msg.GetEnabled()}}), nil
 }
 
+func (c *controlPlane) SetupMachine(_ context.Context, r *connect.Request[micropodv1.SetupMachineRequest]) (*connect.Response[micropodv1.SetupMachineResult], error) {
+	c.saw(r.Spec().Procedure)
+	return connect.NewResponse(&micropodv1.SetupMachineResult{Ok: true, Steps: []*micropodv1.SetupMachineStep{{Id: "disk", State: "kept", Detail: r.Msg.GetDiskFrom()}}}), nil
+}
+
 func (c *controlPlane) GetTelemetryHealth(_ context.Context, r *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.TelemetryHealth], error) {
 	c.saw(r.Spec().Procedure)
 	return connect.NewResponse(&micropodv1.TelemetryHealth{Verdict: "healthy"}), nil
@@ -237,6 +242,11 @@ func TestClientReachesEveryControlPlaneRPC(t *testing.T) {
 			must(err)
 			if !autostart.Msg.GetAutostart().GetEnabled() {
 				t.Fatalf("SetMachineAutostart: %v", autostart.Msg)
+			}
+			setup, err := c.SetupMachine(ctx, connect.NewRequest(&micropodv1.SetupMachineRequest{DiskFrom: "/base.ext4"}))
+			must(err)
+			if !setup.Msg.GetOk() || setup.Msg.GetSteps()[0].GetDetail() != "/base.ext4" {
+				t.Fatalf("SetupMachine: %v", setup.Msg)
 			}
 
 			_, err = c.GetTelemetryHealth(ctx, empty())

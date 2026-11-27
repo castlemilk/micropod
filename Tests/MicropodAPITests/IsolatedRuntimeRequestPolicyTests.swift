@@ -19,7 +19,7 @@ final class IsolatedRuntimeRequestPolicyTests: XCTestCase {
         // SetDefaultRuntime does; the machine's payload and lifecycle.
         for method in [
             "GetRigMode", "SetRigMode", "GetHVFUpdateStatus", "ApplyHVFUpdate", "RollbackHVFUpdate", "ControlMachine",
-            "SetMachineAutostart",
+            "SetMachineAutostart", "SetupMachine",
         ] {
             for service in ["RigService", "SystemService"] {
                 XCTAssertFalse(

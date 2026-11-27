@@ -945,6 +945,82 @@ public nonisolated struct Micropod_V1_SetMachineAutostartRequest: Sendable {
   public init() {}
 }
 
+public nonisolated struct Micropod_V1_SetupMachineRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// An app bundle, or a directory holding micropod-vmm, vmlinux-hvf,
+  /// mp-hvf-init.cpio and micropod-oci-tools (and maybe hvf-base-disk.ext4);
+  /// empty: the API's own package.
+  public var payloadPath: String = String()
+
+  /// A local ext4 image the disk is cloned (or copied) from; empty: the
+  /// package's base disk.
+  public var diskFrom: String = String()
+
+  /// The cache disk's size; 0: 32 GiB for a new machine.
+  public var cacheDiskBytes: UInt64 = 0
+
+  /// No cache disk: the dependency caches live on the OS disk.
+  public var noCacheDisk: Bool = false
+
+  /// Boot the machine once it is installed (returns once the guest answers).
+  public var start: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One setup step.
+public nonisolated struct Micropod_V1_SetupMachineStep: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// runtime-files, disk, cache-disk, start or default-runtime.
+  public var id: String = String()
+
+  /// done, kept (already there), skipped (not asked for), failed, or pending
+  /// (not reached: an earlier step failed).
+  public var state: String = String()
+
+  /// What it did, or why it failed.
+  public var detail: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_SetupMachineResult: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// No step failed.
+  public var ok: Bool = false
+
+  public var steps: [Micropod_V1_SetupMachineStep] = []
+
+  /// The machine afterwards.
+  public var machine: Micropod_V1_HVFMachineStatus {
+    get {_machine ?? Micropod_V1_HVFMachineStatus()}
+    set {_machine = newValue}
+  }
+  /// Returns true if `machine` has been explicitly set.
+  public var hasMachine: Bool {self._machine != nil}
+  /// Clears the value of `machine`. Subsequent reads from it will return its default value.
+  public mutating func clearMachine() {self._machine = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _machine: Micropod_V1_HVFMachineStatus? = nil
+}
+
 public nonisolated struct Micropod_V1_ControlMachineRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2180,6 +2256,140 @@ nonisolated extension Micropod_V1_SetMachineAutostartRequest: SwiftProtobuf.Mess
   public static func ==(lhs: Micropod_V1_SetMachineAutostartRequest, rhs: Micropod_V1_SetMachineAutostartRequest) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
     if lhs.force != rhs.force {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetupMachineRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupMachineRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}payload_path\0\u{3}disk_from\0\u{3}cache_disk_bytes\0\u{3}no_cache_disk\0\u{1}start\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.payloadPath) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.diskFrom) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.cacheDiskBytes) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.noCacheDisk) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.start) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.payloadPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.payloadPath, fieldNumber: 1)
+    }
+    if !self.diskFrom.isEmpty {
+      try visitor.visitSingularStringField(value: self.diskFrom, fieldNumber: 2)
+    }
+    if self.cacheDiskBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.cacheDiskBytes, fieldNumber: 3)
+    }
+    if self.noCacheDisk != false {
+      try visitor.visitSingularBoolField(value: self.noCacheDisk, fieldNumber: 4)
+    }
+    if self.start != false {
+      try visitor.visitSingularBoolField(value: self.start, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetupMachineRequest, rhs: Micropod_V1_SetupMachineRequest) -> Bool {
+    if lhs.payloadPath != rhs.payloadPath {return false}
+    if lhs.diskFrom != rhs.diskFrom {return false}
+    if lhs.cacheDiskBytes != rhs.cacheDiskBytes {return false}
+    if lhs.noCacheDisk != rhs.noCacheDisk {return false}
+    if lhs.start != rhs.start {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetupMachineStep: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupMachineStep"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}state\0\u{1}detail\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.state) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.detail) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.state.isEmpty {
+      try visitor.visitSingularStringField(value: self.state, fieldNumber: 2)
+    }
+    if !self.detail.isEmpty {
+      try visitor.visitSingularStringField(value: self.detail, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetupMachineStep, rhs: Micropod_V1_SetupMachineStep) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.state != rhs.state {return false}
+    if lhs.detail != rhs.detail {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetupMachineResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupMachineResult"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}steps\0\u{1}machine\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.steps) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._machine) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.ok != false {
+      try visitor.visitSingularBoolField(value: self.ok, fieldNumber: 1)
+    }
+    if !self.steps.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.steps, fieldNumber: 2)
+    }
+    try { if let v = self._machine {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetupMachineResult, rhs: Micropod_V1_SetupMachineResult) -> Bool {
+    if lhs.ok != rhs.ok {return false}
+    if lhs.steps != rhs.steps {return false}
+    if lhs._machine != rhs._machine {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

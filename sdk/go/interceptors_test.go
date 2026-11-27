@@ -319,7 +319,7 @@ func TestWithConnectOptionsProtoJSON(t *testing.T) {
 // GetRigHealth with unavailable, counting the calls.
 type failingRig struct {
 	micropodv1connect.UnimplementedRigServiceHandler
-	apply, rollback, control, autostart, health atomic.Int32
+	apply, rollback, control, autostart, setup, health atomic.Int32
 }
 
 func (f *failingRig) ApplyHVFUpdate(context.Context, *connect.Request[micropodv1.HVFUpdateRequest]) (*connect.Response[micropodv1.HVFUpdateResult], error) {
@@ -340,6 +340,11 @@ func (f *failingRig) ControlMachine(context.Context, *connect.Request[micropodv1
 func (f *failingRig) SetMachineAutostart(context.Context, *connect.Request[micropodv1.SetMachineAutostartRequest]) (*connect.Response[micropodv1.HVFMachineStatus], error) {
 	f.autostart.Add(1)
 	return nil, connect.NewError(connect.CodeDeadlineExceeded, errors.New("launchctl bootout still waiting"))
+}
+
+func (f *failingRig) SetupMachine(context.Context, *connect.Request[micropodv1.SetupMachineRequest]) (*connect.Response[micropodv1.SetupMachineResult], error) {
+	f.setup.Add(1)
+	return nil, connect.NewError(connect.CodeDeadlineExceeded, errors.New("still booting the machine"))
 }
 
 func (f *failingRig) GetRigHealth(context.Context, *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.RigHealth], error) {
@@ -372,12 +377,15 @@ func TestDefaultRetryPolicyNeverReplaysMachineLifecycleCalls(t *testing.T) {
 	if _, err := client.SetMachineAutostart(ctx, connect.NewRequest(&micropodv1.SetMachineAutostartRequest{Enabled: true})); connect.CodeOf(err) != connect.CodeDeadlineExceeded {
 		t.Fatalf("SetMachineAutostart: %v", err)
 	}
+	if _, err := client.SetupMachine(ctx, connect.NewRequest(&micropodv1.SetupMachineRequest{Start: true})); connect.CodeOf(err) != connect.CodeDeadlineExceeded {
+		t.Fatalf("SetupMachine: %v", err)
+	}
 	if _, err := client.GetRigHealth(ctx, connect.NewRequest(&micropodv1.Empty{})); connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Fatalf("GetRigHealth: %v", err)
 	}
 	for name, got := range map[string]int32{
 		"ApplyHVFUpdate": rig.apply.Load(), "RollbackHVFUpdate": rig.rollback.Load(), "ControlMachine": rig.control.Load(),
-		"SetMachineAutostart": rig.autostart.Load(),
+		"SetMachineAutostart": rig.autostart.Load(), "SetupMachine": rig.setup.Load(),
 	} {
 		if got != 1 {
 			t.Errorf("%s was sent %d times, want exactly once", name, got)

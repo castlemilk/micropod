@@ -1586,6 +1586,217 @@ func (x *SetMachineAutostartRequest) GetForce() bool {
 	return false
 }
 
+type SetupMachineRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An app bundle, or a directory holding micropod-vmm, vmlinux-hvf,
+	// mp-hvf-init.cpio and micropod-oci-tools (and maybe hvf-base-disk.ext4);
+	// empty: the API's own package.
+	PayloadPath string `protobuf:"bytes,1,opt,name=payload_path,json=payloadPath,proto3" json:"payload_path,omitempty"`
+	// A local ext4 image the disk is cloned (or copied) from; empty: the
+	// package's base disk.
+	DiskFrom string `protobuf:"bytes,2,opt,name=disk_from,json=diskFrom,proto3" json:"disk_from,omitempty"`
+	// The cache disk's size; 0: 32 GiB for a new machine.
+	CacheDiskBytes uint64 `protobuf:"varint,3,opt,name=cache_disk_bytes,json=cacheDiskBytes,proto3" json:"cache_disk_bytes,omitempty"`
+	// No cache disk: the dependency caches live on the OS disk.
+	NoCacheDisk bool `protobuf:"varint,4,opt,name=no_cache_disk,json=noCacheDisk,proto3" json:"no_cache_disk,omitempty"`
+	// Boot the machine once it is installed (returns once the guest answers).
+	Start         bool `protobuf:"varint,5,opt,name=start,proto3" json:"start,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupMachineRequest) Reset() {
+	*x = SetupMachineRequest{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupMachineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupMachineRequest) ProtoMessage() {}
+
+func (x *SetupMachineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupMachineRequest.ProtoReflect.Descriptor instead.
+func (*SetupMachineRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SetupMachineRequest) GetPayloadPath() string {
+	if x != nil {
+		return x.PayloadPath
+	}
+	return ""
+}
+
+func (x *SetupMachineRequest) GetDiskFrom() string {
+	if x != nil {
+		return x.DiskFrom
+	}
+	return ""
+}
+
+func (x *SetupMachineRequest) GetCacheDiskBytes() uint64 {
+	if x != nil {
+		return x.CacheDiskBytes
+	}
+	return 0
+}
+
+func (x *SetupMachineRequest) GetNoCacheDisk() bool {
+	if x != nil {
+		return x.NoCacheDisk
+	}
+	return false
+}
+
+func (x *SetupMachineRequest) GetStart() bool {
+	if x != nil {
+		return x.Start
+	}
+	return false
+}
+
+// One setup step.
+type SetupMachineStep struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// runtime-files, disk, cache-disk, start or default-runtime.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// done, kept (already there), skipped (not asked for), failed, or pending
+	// (not reached: an earlier step failed).
+	State string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	// What it did, or why it failed.
+	Detail        string `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupMachineStep) Reset() {
+	*x = SetupMachineStep{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupMachineStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupMachineStep) ProtoMessage() {}
+
+func (x *SetupMachineStep) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupMachineStep.ProtoReflect.Descriptor instead.
+func (*SetupMachineStep) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SetupMachineStep) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SetupMachineStep) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *SetupMachineStep) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type SetupMachineResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// No step failed.
+	Ok    bool                `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Steps []*SetupMachineStep `protobuf:"bytes,2,rep,name=steps,proto3" json:"steps,omitempty"`
+	// The machine afterwards.
+	Machine       *HVFMachineStatus `protobuf:"bytes,3,opt,name=machine,proto3" json:"machine,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupMachineResult) Reset() {
+	*x = SetupMachineResult{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupMachineResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupMachineResult) ProtoMessage() {}
+
+func (x *SetupMachineResult) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupMachineResult.ProtoReflect.Descriptor instead.
+func (*SetupMachineResult) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SetupMachineResult) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *SetupMachineResult) GetSteps() []*SetupMachineStep {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+func (x *SetupMachineResult) GetMachine() *HVFMachineStatus {
+	if x != nil {
+		return x.Machine
+	}
+	return nil
+}
+
 type ControlMachineRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Action string                 `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
@@ -1597,7 +1808,7 @@ type ControlMachineRequest struct {
 
 func (x *ControlMachineRequest) Reset() {
 	*x = ControlMachineRequest{}
-	mi := &file_micropod_v1_rig_proto_msgTypes[16]
+	mi := &file_micropod_v1_rig_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1609,7 +1820,7 @@ func (x *ControlMachineRequest) String() string {
 func (*ControlMachineRequest) ProtoMessage() {}
 
 func (x *ControlMachineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_rig_proto_msgTypes[16]
+	mi := &file_micropod_v1_rig_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1622,7 +1833,7 @@ func (x *ControlMachineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlMachineRequest.ProtoReflect.Descriptor instead.
 func (*ControlMachineRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{16}
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ControlMachineRequest) GetAction() string {
@@ -1846,10 +2057,24 @@ const file_micropod_v1_rig_proto_rawDesc = "" +
 	"\b_problem\"L\n" +
 	"\x1aSetMachineAutostartRequest\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force\"b\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\"\xb9\x01\n" +
+	"\x13SetupMachineRequest\x12!\n" +
+	"\fpayload_path\x18\x01 \x01(\tR\vpayloadPath\x12\x1b\n" +
+	"\tdisk_from\x18\x02 \x01(\tR\bdiskFrom\x12(\n" +
+	"\x10cache_disk_bytes\x18\x03 \x01(\x04R\x0ecacheDiskBytes\x12\"\n" +
+	"\rno_cache_disk\x18\x04 \x01(\bR\vnoCacheDisk\x12\x14\n" +
+	"\x05start\x18\x05 \x01(\bR\x05start\"P\n" +
+	"\x10SetupMachineStep\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\"\x92\x01\n" +
+	"\x12SetupMachineResult\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x123\n" +
+	"\x05steps\x18\x02 \x03(\v2\x1d.micropod.v1.SetupMachineStepR\x05steps\x127\n" +
+	"\amachine\x18\x03 \x01(\v2\x1d.micropod.v1.HVFMachineStatusR\amachine\"b\n" +
 	"\x15ControlMachineRequest\x123\n" +
 	"\x06action\x18\x01 \x01(\tB\x1b\xbaH\x18r\x16R\x05startR\x04stopR\arestartR\x06action\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force2\xa8\x05\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force2\xfb\x05\n" +
 	"\n" +
 	"RigService\x12:\n" +
 	"\fGetRigHealth\x12\x12.micropod.v1.Empty\x1a\x16.micropod.v1.RigHealth\x126\n" +
@@ -1862,7 +2087,8 @@ const file_micropod_v1_rig_proto_rawDesc = "" +
 	"\x11RollbackHVFUpdate\x12\x1d.micropod.v1.HVFUpdateRequest\x1a\x1c.micropod.v1.HVFUpdateResult\x12E\n" +
 	"\x10GetMachineStatus\x12\x12.micropod.v1.Empty\x1a\x1d.micropod.v1.HVFMachineStatus\x12S\n" +
 	"\x0eControlMachine\x12\".micropod.v1.ControlMachineRequest\x1a\x1d.micropod.v1.HVFMachineStatus\x12]\n" +
-	"\x13SetMachineAutostart\x12'.micropod.v1.SetMachineAutostartRequest\x1a\x1d.micropod.v1.HVFMachineStatusBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\x13SetMachineAutostart\x12'.micropod.v1.SetMachineAutostartRequest\x1a\x1d.micropod.v1.HVFMachineStatus\x12Q\n" +
+	"\fSetupMachine\x12 .micropod.v1.SetupMachineRequest\x1a\x1f.micropod.v1.SetupMachineResultBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_rig_proto_rawDescOnce sync.Once
@@ -1876,7 +2102,7 @@ func file_micropod_v1_rig_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_rig_proto_rawDescData
 }
 
-var file_micropod_v1_rig_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_micropod_v1_rig_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_micropod_v1_rig_proto_goTypes = []any{
 	(*RigModeOption)(nil),              // 0: micropod.v1.RigModeOption
 	(*RigMode)(nil),                    // 1: micropod.v1.RigMode
@@ -1894,9 +2120,12 @@ var file_micropod_v1_rig_proto_goTypes = []any{
 	(*HVFMachineStatus)(nil),           // 13: micropod.v1.HVFMachineStatus
 	(*HVFMachineAutostart)(nil),        // 14: micropod.v1.HVFMachineAutostart
 	(*SetMachineAutostartRequest)(nil), // 15: micropod.v1.SetMachineAutostartRequest
-	(*ControlMachineRequest)(nil),      // 16: micropod.v1.ControlMachineRequest
-	nil,                                // 17: micropod.v1.HVFPayloadManifest.DigestsEntry
-	(*Empty)(nil),                      // 18: micropod.v1.Empty
+	(*SetupMachineRequest)(nil),        // 16: micropod.v1.SetupMachineRequest
+	(*SetupMachineStep)(nil),           // 17: micropod.v1.SetupMachineStep
+	(*SetupMachineResult)(nil),         // 18: micropod.v1.SetupMachineResult
+	(*ControlMachineRequest)(nil),      // 19: micropod.v1.ControlMachineRequest
+	nil,                                // 20: micropod.v1.HVFPayloadManifest.DigestsEntry
+	(*Empty)(nil),                      // 21: micropod.v1.Empty
 }
 var file_micropod_v1_rig_proto_depIdxs = []int32{
 	0,  // 0: micropod.v1.RigMode.modes:type_name -> micropod.v1.RigModeOption
@@ -1904,7 +2133,7 @@ var file_micropod_v1_rig_proto_depIdxs = []int32{
 	4,  // 2: micropod.v1.RigHealth.hvf:type_name -> micropod.v1.RigHVFHealth
 	5,  // 3: micropod.v1.RigHealth.cache_policy:type_name -> micropod.v1.RigCachePolicySummary
 	6,  // 4: micropod.v1.RigHealth.depproxy:type_name -> micropod.v1.RigDepproxy
-	17, // 5: micropod.v1.HVFPayloadManifest.digests:type_name -> micropod.v1.HVFPayloadManifest.DigestsEntry
+	20, // 5: micropod.v1.HVFPayloadManifest.digests:type_name -> micropod.v1.HVFPayloadManifest.DigestsEntry
 	8,  // 6: micropod.v1.HVFUpdateStatus.current:type_name -> micropod.v1.HVFPayloadManifest
 	8,  // 7: micropod.v1.HVFUpdateStatus.previous:type_name -> micropod.v1.HVFPayloadManifest
 	8,  // 8: micropod.v1.HVFUpdateStatus.staged:type_name -> micropod.v1.HVFPayloadManifest
@@ -1912,29 +2141,33 @@ var file_micropod_v1_rig_proto_depIdxs = []int32{
 	12, // 10: micropod.v1.HVFMachineStatus.state:type_name -> micropod.v1.HVFMachineState
 	3,  // 11: micropod.v1.HVFMachineStatus.cache_disk:type_name -> micropod.v1.RigCacheDisk
 	14, // 12: micropod.v1.HVFMachineStatus.autostart:type_name -> micropod.v1.HVFMachineAutostart
-	18, // 13: micropod.v1.RigService.GetRigHealth:input_type -> micropod.v1.Empty
-	18, // 14: micropod.v1.RigService.GetRigMode:input_type -> micropod.v1.Empty
-	2,  // 15: micropod.v1.RigService.SetRigMode:input_type -> micropod.v1.SetRigModeRequest
-	18, // 16: micropod.v1.RigService.GetHVFUpdateStatus:input_type -> micropod.v1.Empty
-	10, // 17: micropod.v1.RigService.ApplyHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
-	10, // 18: micropod.v1.RigService.RollbackHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
-	18, // 19: micropod.v1.RigService.GetMachineStatus:input_type -> micropod.v1.Empty
-	16, // 20: micropod.v1.RigService.ControlMachine:input_type -> micropod.v1.ControlMachineRequest
-	15, // 21: micropod.v1.RigService.SetMachineAutostart:input_type -> micropod.v1.SetMachineAutostartRequest
-	7,  // 22: micropod.v1.RigService.GetRigHealth:output_type -> micropod.v1.RigHealth
-	1,  // 23: micropod.v1.RigService.GetRigMode:output_type -> micropod.v1.RigMode
-	1,  // 24: micropod.v1.RigService.SetRigMode:output_type -> micropod.v1.RigMode
-	9,  // 25: micropod.v1.RigService.GetHVFUpdateStatus:output_type -> micropod.v1.HVFUpdateStatus
-	11, // 26: micropod.v1.RigService.ApplyHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
-	11, // 27: micropod.v1.RigService.RollbackHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
-	13, // 28: micropod.v1.RigService.GetMachineStatus:output_type -> micropod.v1.HVFMachineStatus
-	13, // 29: micropod.v1.RigService.ControlMachine:output_type -> micropod.v1.HVFMachineStatus
-	13, // 30: micropod.v1.RigService.SetMachineAutostart:output_type -> micropod.v1.HVFMachineStatus
-	22, // [22:31] is the sub-list for method output_type
-	13, // [13:22] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	17, // 13: micropod.v1.SetupMachineResult.steps:type_name -> micropod.v1.SetupMachineStep
+	13, // 14: micropod.v1.SetupMachineResult.machine:type_name -> micropod.v1.HVFMachineStatus
+	21, // 15: micropod.v1.RigService.GetRigHealth:input_type -> micropod.v1.Empty
+	21, // 16: micropod.v1.RigService.GetRigMode:input_type -> micropod.v1.Empty
+	2,  // 17: micropod.v1.RigService.SetRigMode:input_type -> micropod.v1.SetRigModeRequest
+	21, // 18: micropod.v1.RigService.GetHVFUpdateStatus:input_type -> micropod.v1.Empty
+	10, // 19: micropod.v1.RigService.ApplyHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
+	10, // 20: micropod.v1.RigService.RollbackHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
+	21, // 21: micropod.v1.RigService.GetMachineStatus:input_type -> micropod.v1.Empty
+	19, // 22: micropod.v1.RigService.ControlMachine:input_type -> micropod.v1.ControlMachineRequest
+	15, // 23: micropod.v1.RigService.SetMachineAutostart:input_type -> micropod.v1.SetMachineAutostartRequest
+	16, // 24: micropod.v1.RigService.SetupMachine:input_type -> micropod.v1.SetupMachineRequest
+	7,  // 25: micropod.v1.RigService.GetRigHealth:output_type -> micropod.v1.RigHealth
+	1,  // 26: micropod.v1.RigService.GetRigMode:output_type -> micropod.v1.RigMode
+	1,  // 27: micropod.v1.RigService.SetRigMode:output_type -> micropod.v1.RigMode
+	9,  // 28: micropod.v1.RigService.GetHVFUpdateStatus:output_type -> micropod.v1.HVFUpdateStatus
+	11, // 29: micropod.v1.RigService.ApplyHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
+	11, // 30: micropod.v1.RigService.RollbackHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
+	13, // 31: micropod.v1.RigService.GetMachineStatus:output_type -> micropod.v1.HVFMachineStatus
+	13, // 32: micropod.v1.RigService.ControlMachine:output_type -> micropod.v1.HVFMachineStatus
+	13, // 33: micropod.v1.RigService.SetMachineAutostart:output_type -> micropod.v1.HVFMachineStatus
+	18, // 34: micropod.v1.RigService.SetupMachine:output_type -> micropod.v1.SetupMachineResult
+	25, // [25:35] is the sub-list for method output_type
+	15, // [15:25] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_rig_proto_init() }
@@ -1957,7 +2190,7 @@ func file_micropod_v1_rig_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_rig_proto_rawDesc), len(file_micropod_v1_rig_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

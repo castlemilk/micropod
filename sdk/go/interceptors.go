@@ -60,18 +60,22 @@ func DefaultRetryPolicy() RetryPolicy {
 // the machine, boot the failed payload and roll back again (killing what
 // ran on known-good in between), and a stop or restart that timed out
 // after it began would be sent again. SetMachineAutostart loads or unloads
-// the machine's LaunchAgent, which restarts a running machine.
+// the machine's LaunchAgent, which restarts a running machine. SetupMachine
+// can run for minutes (a copy, a boot): a replay after a client deadline
+// would race the setup still running and report its install lock as a
+// failed step.
 var neverReplayed = map[string]bool{
 	micropodv1connect.RigServiceApplyHVFUpdateProcedure:      true,
 	micropodv1connect.RigServiceRollbackHVFUpdateProcedure:   true,
 	micropodv1connect.RigServiceControlMachineProcedure:      true,
 	micropodv1connect.RigServiceSetMachineAutostartProcedure: true,
+	micropodv1connect.RigServiceSetupMachineProcedure:        true,
 }
 
 // ReplaySafe is DefaultRetryPolicy's Idempotent: true for every procedure
 // except the machine lifecycle ones (RigService ApplyHVFUpdate,
-// RollbackHVFUpdate, ControlMachine and SetMachineAutostart), which are sent
-// once.
+// RollbackHVFUpdate, ControlMachine, SetMachineAutostart and SetupMachine),
+// which are sent once.
 func ReplaySafe(procedure string) bool { return !neverReplayed[procedure] }
 
 func (p RetryPolicy) retryable(code connect.Code) bool {

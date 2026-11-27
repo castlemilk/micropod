@@ -86,6 +86,10 @@ extension APIHandlers {
                 }
                 return unary(await machineStatus(client, autostart: agent), binary: binary)
 
+            case "SetupMachine":
+                let req = try decode(Micropod_V1_SetupMachineRequest.self, body, binary: binary)
+                return unary(await setupMachine(req), binary: binary)
+
             case "GetTelemetryHealth":
                 return unary(RigProto.telemetryHealth(try await ciHealth()), binary: binary)
 
@@ -129,6 +133,41 @@ extension APIHandlers {
             }
         } catch let error as BadRequest {
             throw ConnectDecodeError(code: .invalidArgument, message: error.message)
+        }
+    }
+
+    /// `SetupMachine`: `micropod setup` for the API's machine. Its package
+    /// is this process's app bundle or CLI package unless `payload_path`
+    /// names one; nothing is downloaded (the request has no image).
+    func setupMachine(_ req: Micropod_V1_SetupMachineRequest) async -> Micropod_V1_SetupMachineResult {
+        let client = hvfMachineClient()
+        func url(_ path: String) -> URL? {
+            path.isEmpty ? nil : URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+        }
+        let options = HVFMachineBootstrap.Options(
+            payload: url(req.payloadPath), diskFrom: url(req.diskFrom),
+            cacheDiskBytes: req.cacheDiskBytes == 0 ? nil : req.cacheDiskBytes, noCacheDisk: req.noCacheDisk,
+            start: req.start)
+        let steps = await HVFMachineBootstrap(
+            layout: client.layout, options: options, environment: client.environment,
+            packagedExecutable: CLIInstall.currentExecutable(), runtimes: .registry(engineRegistry)
+        ).run()
+        if steps.contains(where: { $0.id == .start && $0.state == .done }) {
+            // A start asked for, as `machine start`: the canonical socket
+            // follows it under the same rules.
+            _ = client.autoLinkCanonicalDockerSocket()
+        }
+        let machine = await machineStatus(client)
+        return .with {
+            $0.ok = !steps.contains { $0.state == .failed }
+            $0.steps = steps.map { step in
+                .with {
+                    $0.id = step.id.rawValue
+                    $0.state = step.state.rawValue
+                    $0.detail = step.detail
+                }
+            }
+            $0.machine = machine
         }
     }
 

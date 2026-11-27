@@ -28,6 +28,7 @@ const (
 	RigService_GetMachineStatus_FullMethodName    = "/micropod.v1.RigService/GetMachineStatus"
 	RigService_ControlMachine_FullMethodName      = "/micropod.v1.RigService/ControlMachine"
 	RigService_SetMachineAutostart_FullMethodName = "/micropod.v1.RigService/SetMachineAutostart"
+	RigService_SetupMachine_FullMethodName        = "/micropod.v1.RigService/SetupMachine"
 )
 
 // RigServiceClient is the client API for RigService service.
@@ -74,6 +75,14 @@ type RigServiceClient interface {
 	// machine, so it is deferred (`failed_precondition`, nothing changed)
 	// while containers run, unless `force`. Replies with the machine status.
 	SetMachineAutostart(ctx context.Context, in *SetMachineAutostartRequest, opts ...grpc.CallOption) (*HVFMachineStatus, error)
+	// The machine's first run (`micropod setup`): its runtime files from the
+	// API's own app bundle or CLI package (or `payload_path`), its disk from
+	// `disk_from` or the package's base disk, and its cache disk; then a start
+	// when `start`. Local sources only: nothing is downloaded. Re-running
+	// keeps what is there. A step that cannot be done is a failed step in the
+	// reply (`ok` false), never a partial install: every source is checked
+	// before anything is written.
+	SetupMachine(ctx context.Context, in *SetupMachineRequest, opts ...grpc.CallOption) (*SetupMachineResult, error)
 }
 
 type rigServiceClient struct {
@@ -174,6 +183,16 @@ func (c *rigServiceClient) SetMachineAutostart(ctx context.Context, in *SetMachi
 	return out, nil
 }
 
+func (c *rigServiceClient) SetupMachine(ctx context.Context, in *SetupMachineRequest, opts ...grpc.CallOption) (*SetupMachineResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetupMachineResult)
+	err := c.cc.Invoke(ctx, RigService_SetupMachine_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RigServiceServer is the server API for RigService service.
 // All implementations must embed UnimplementedRigServiceServer
 // for forward compatibility.
@@ -218,6 +237,14 @@ type RigServiceServer interface {
 	// machine, so it is deferred (`failed_precondition`, nothing changed)
 	// while containers run, unless `force`. Replies with the machine status.
 	SetMachineAutostart(context.Context, *SetMachineAutostartRequest) (*HVFMachineStatus, error)
+	// The machine's first run (`micropod setup`): its runtime files from the
+	// API's own app bundle or CLI package (or `payload_path`), its disk from
+	// `disk_from` or the package's base disk, and its cache disk; then a start
+	// when `start`. Local sources only: nothing is downloaded. Re-running
+	// keeps what is there. A step that cannot be done is a failed step in the
+	// reply (`ok` false), never a partial install: every source is checked
+	// before anything is written.
+	SetupMachine(context.Context, *SetupMachineRequest) (*SetupMachineResult, error)
 	mustEmbedUnimplementedRigServiceServer()
 }
 
@@ -254,6 +281,9 @@ func (UnimplementedRigServiceServer) ControlMachine(context.Context, *ControlMac
 }
 func (UnimplementedRigServiceServer) SetMachineAutostart(context.Context, *SetMachineAutostartRequest) (*HVFMachineStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetMachineAutostart not implemented")
+}
+func (UnimplementedRigServiceServer) SetupMachine(context.Context, *SetupMachineRequest) (*SetupMachineResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetupMachine not implemented")
 }
 func (UnimplementedRigServiceServer) mustEmbedUnimplementedRigServiceServer() {}
 func (UnimplementedRigServiceServer) testEmbeddedByValue()                    {}
@@ -438,6 +468,24 @@ func _RigService_SetMachineAutostart_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RigService_SetupMachine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetupMachineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RigServiceServer).SetupMachine(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RigService_SetupMachine_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RigServiceServer).SetupMachine(ctx, req.(*SetupMachineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RigService_ServiceDesc is the grpc.ServiceDesc for RigService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -480,6 +528,10 @@ var RigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetMachineAutostart",
 			Handler:    _RigService_SetMachineAutostart_Handler,
+		},
+		{
+			MethodName: "SetupMachine",
+			Handler:    _RigService_SetupMachine_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

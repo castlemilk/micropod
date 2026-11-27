@@ -624,6 +624,86 @@ final class ControlPlaneServiceTests: XCTestCase {
         XCTAssertTrue(HVFFileLock.isHeld(layout.supervisorLock), "nothing was stopped")
     }
 
+    /// A package for SetupMachine: an ad-hoc signed, entitled copy of a
+    /// system binary as the VMM (never run), stand-in boot files, a tool
+    /// bundle and an ext4 base disk.
+    private func setupPackage() throws -> URL {
+        let fm = FileManager.default
+        let dist = root.appendingPathComponent("dist")
+        try fm.createDirectory(
+            at: dist.appendingPathComponent("micropod-oci-tools/runner"), withIntermediateDirectories: true)
+        let vmm = dist.appendingPathComponent("micropod-vmm")
+        try fm.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: vmm)
+        let plist = root.appendingPathComponent("ent.plist")
+        try Data(
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0"><dict><key>com.apple.security.hypervisor</key><true/></dict></plist>
+            """.utf8
+        ).write(to: plist)
+        let sign = Process()
+        sign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        sign.arguments = ["--sign", "-", "--force", "--entitlements", plist.path, vmm.path]
+        sign.standardOutput = FileHandle.nullDevice
+        sign.standardError = FileHandle.nullDevice
+        try sign.run()
+        sign.waitUntilExit()
+        guard sign.terminationStatus == 0 else { throw XCTSkip("ad-hoc codesign unavailable") }
+        for name in ["vmlinux-hvf", "mp-hvf-init.cpio", "micropod-oci-tools/runner/start.sh"] {
+            XCTAssertTrue(fm.createFile(atPath: dist.appendingPathComponent(name).path, contents: Data(name.utf8)))
+        }
+        var disk = Data(count: 4096)
+        disk[1024 + 0x38] = 0x53
+        disk[1024 + 0x39] = 0xEF
+        try disk.write(to: dist.appendingPathComponent(HVFMachineInstaller.baseDiskName))
+        return dist
+    }
+
+    /// SetupMachine installs from a local package (the request names no
+    /// image, so nothing can be downloaded) and keeps everything on a
+    /// second call.
+    func testSetupMachineInstallsFromALocalPackageThenKeepsIt() async throws {
+        let dist = try setupPackage()
+        let api = await makeHandlers()
+        let request = Micropod_V1_SetupMachineRequest.with {
+            $0.payloadPath = dist.path
+            $0.cacheDiskBytes = 256 << 20
+            $0.start = false
+        }
+        let first = try decoded(
+            Micropod_V1_SetupMachineResult.self, try await rpc(api, "RigService", "SetupMachine", request))
+        XCTAssertTrue(first.ok, "\(first)")
+        XCTAssertEqual(
+            first.steps.map { "\($0.id)=\($0.state)" },
+            ["runtime-files=done", "disk=done", "cache-disk=done", "start=skipped", "default-runtime=kept"])
+        XCTAssertTrue(first.machine.installed)
+        XCTAssertEqual(first.machine.phase, "stopped", "start: false boots nothing")
+        XCTAssertEqual(layout.missingAssets(), [])
+
+        let again = try decoded(
+            Micropod_V1_SetupMachineResult.self,
+            try await rpc(api, "RigService", "SetupMachine", request, binary: false))
+        XCTAssertTrue(again.ok)
+        XCTAssertEqual(again.steps.prefix(3).map(\.state), ["kept", "kept", "kept"])
+    }
+
+    /// A step that cannot be done is a failed step, with nothing written.
+    func testSetupMachineReportsAMissingSourceAsAFailedStep() async throws {
+        let api = await makeHandlers()
+        let result = try decoded(
+            Micropod_V1_SetupMachineResult.self,
+            try await rpc(api, "RigService", "SetupMachine", Micropod_V1_SetupMachineRequest.with { $0.start = true }))
+        XCTAssertFalse(result.ok)
+        XCTAssertEqual(result.steps.first?.state, "failed")
+        XCTAssertTrue(result.steps.first?.detail.contains("--payload") ?? false, "\(result.steps)")
+        XCTAssertEqual(result.steps[1].state, "failed")
+        XCTAssertTrue(result.steps[1].detail.hasPrefix("no base disk"), result.steps[1].detail)
+        XCTAssertEqual(result.steps[3].state, "pending", "never started")
+        XCTAssertFalse(HVFMachineLayout.isRegularFile(layout.disk))
+        XCTAssertFalse(HVFFileLock.isHeld(layout.supervisorLock))
+    }
+
     func testMachineStatusSaysAStopWasAskedFor() throws {
         let client = HVFMachineClient(layout: layout)
         XCTAssertFalse(RigProto.machineStatus(client.status()).stoppedOnRequest, "never started")

@@ -61,7 +61,7 @@ public struct HVFMachineClient: Sendable {
     public static let apiVersion = "v1.44"
 
     public let layout: HVFMachineLayout
-    let environment: [String: String]
+    public let environment: [String: String]
     let inspector: any HVFProcessInspecting
     /// launchd, for a machine whose autostart LaunchAgent is on
     /// (`HVFMachineAutostartAgent`); nil: `MICROPOD_LAUNCHCTL` or
