@@ -4,8 +4,9 @@ import MicropodCore
 import MicropodRuntime
 import Network
 
-// MicropodAPI — a local HTTP/1.1 JSON API over the same service layer the
-// desktop app and MCP server use. Docker-shaped routes where it makes sense:
+// MicropodAPI — a local HTTP/1.1 and HTTP/2 (h2c) API over the same service
+// layer the desktop app and MCP server use: REST, Connect, and gRPC over
+// HTTP/2 (see HTTP2/). Docker-shaped routes where it makes sense:
 //
 //   GET  /health
 //   GET  /v1/system                      status + disk usage
@@ -212,6 +213,10 @@ enum HTTPResponse {
 /// `HTTPStreamFraming`) on a connection that may persist: its body is sent
 /// in chunks, ends with the zero-length chunk, and the connection then serves
 /// the next request. See `ConnectionPolicy` for the timeouts.
+///
+/// A connection on those two listeners whose first bytes are the HTTP/2
+/// prior-knowledge preface is handed to `HTTP2Engine` instead; its streams
+/// reach the same `guardRejection`, `admissionClaim` and handler.
 final class HTTPServer: @unchecked Sendable {
     let port: UInt16
     let handler: (HTTPRequest) async -> HTTPResponse
@@ -227,18 +232,28 @@ final class HTTPServer: @unchecked Sendable {
     /// maintenance go through `RuntimeAdmission`. Read once, at start-up,
     /// not from a freshly built environment per request.
     let isolatedRuntime: Bool
+    /// The gate a request of the dedicated runtime's API claims before its
+    /// handler runs (`admissionClaim`).
+    let runtimeAdmission: RuntimeAdmission
+    /// HTTP/2 with prior knowledge on the listeners that keep connections
+    /// (the owner's socket, loopback TCP); nil when `MICROPOD_API_HTTP2=0`.
+    let http2: HTTP2Engine?
 
     init(
         port: UInt16, policy: ConnectionPolicy = .live,
         isolatedRuntime: Bool = getenv("MICROPOD_ISOLATED_RUNTIME").map { String(cString: $0) } == "1",
+        runtimeAdmission: RuntimeAdmission = .shared,
+        http2: HTTP2Limits? = nil, http2Enabled: Bool = HTTP2Limits.enabled(),
         handler: @escaping (HTTPRequest) async -> HTTPResponse
     ) {
         self.port = port
         self.handler = handler
         self.policy = policy
         self.isolatedRuntime = isolatedRuntime
+        self.runtimeAdmission = runtimeAdmission
         self.kept = KeptConnections(limit: policy.maxKeptConnections)
         self.ownerKept = KeptConnections(limit: policy.maxKeptConnections)
+        self.http2 = http2Enabled ? HTTP2Engine(limits: http2 ?? HTTP2Limits(policy: policy)) : nil
     }
 
     /// Connections the server currently keeps for another request.
@@ -422,6 +437,9 @@ final class HTTPServer: @unchecked Sendable {
     func stop() {
         for listener in listeners { listener.cancel() }
         listeners.removeAll()
+        // HTTP/2 connections get GOAWAY first; each holds a kept place
+        // until it closes.
+        http2?.stop()
         for connection in kept.stop() + ownerKept.stop() { connection.cancel() }
     }
 
@@ -433,6 +451,10 @@ final class HTTPServer: @unchecked Sendable {
         let keepAlive: Bool
         /// Where its listener keeps connections.
         let kept: KeptConnections
+        /// The connection's first bytes may be an HTTP/2 preface: a
+        /// listener that keeps connections, outside the dedicated runtime's
+        /// API (whose internal socket answers one request per connection).
+        let allowsHTTP2: Bool
     }
 
     /// The read state of one request and its one timer: the keep-alive wait
@@ -451,6 +473,9 @@ final class HTTPServer: @unchecked Sendable {
         private let policy: ConnectionPolicy
         private let timer: DispatchSourceTimer
         private var finished = false
+        /// The read of a connection's first request, whose first bytes may
+        /// be an HTTP/2 preface instead.
+        let first: Bool
         /// Waiting for the first byte of a request on a kept connection.
         private var idle: Bool
         private var keepAliveAt: DispatchTime?
@@ -460,9 +485,12 @@ final class HTTPServer: @unchecked Sendable {
         private var due = DispatchTime.distantFuture
         private var onExpire: (@Sendable (Expiry) -> Void)?
 
-        init(policy: ConnectionPolicy, idle: Bool, onExpire: @escaping @Sendable (Expiry) -> Void) {
+        init(
+            policy: ConnectionPolicy, idle: Bool, first: Bool = false, onExpire: @escaping @Sendable (Expiry) -> Void
+        ) {
             self.policy = policy
             self.idle = idle
+            self.first = first
             self.onExpire = onExpire
             timer = DispatchSource.makeTimerSource(queue: .global(qos: .userInitiated))
             let now = DispatchTime.now()
@@ -553,8 +581,8 @@ final class HTTPServer: @unchecked Sendable {
     static let liveReads = LiveCount()
 
     /// A read whose expiry closes `peer` (keep-alive) or answers 408.
-    private func pendingRead(_ peer: Peer, idle: Bool) -> PendingRead {
-        PendingRead(policy: policy, idle: idle) { [weak self] expiry in
+    private func pendingRead(_ peer: Peer, idle: Bool, first: Bool = false) -> PendingRead {
+        PendingRead(policy: policy, idle: idle, first: first) { [weak self] expiry in
             switch expiry {
             case .keepAlive:
                 // No byte of another request came: close without a reply.
@@ -571,8 +599,9 @@ final class HTTPServer: @unchecked Sendable {
     private func startReading(_ connection: NWConnection, admission: Admission = .guarded, keepAlive: Bool) {
         let peer = Peer(
             connection: connection, admission: admission, keepAlive: keepAlive,
-            kept: admission == .ownerOnly ? ownerKept : kept)
-        readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: false))
+            kept: admission == .ownerOnly ? ownerKept : kept, allowsHTTP2: keepAlive && http2 != nil && !isolatedRuntime
+        )
+        readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: false, first: true))
     }
 
     /// After a reply that kept the connection: the request already buffered
@@ -646,6 +675,22 @@ final class HTTPServer: @unchecked Sendable {
     /// settled (handed to `dispatch`, or refused and closing), false to read
     /// more. Bytes after the request are the next one's, kept for it.
     private func handleBuffered(_ peer: Peer, _ buffer: Data, pending: PendingRead) -> Bool {
+        if pending.first, peer.allowsHTTP2, let http2 {
+            switch HTTP2Preface.classify(buffer) {
+            case .partial:
+                // Read on: the request clocks keep running, so a client
+                // that stops mid-preface still gets its 408.
+                return false
+            case .match:
+                guard pending.finish() else { return true }
+                http2.adopt(
+                    peer.connection, initial: buffer, kind: peer.admission == .ownerOnly ? .owner : .tcp,
+                    kept: peer.kept, context: http2Context(peer.admission))
+                return true
+            case .mismatch:
+                break
+            }
+        }
         switch HTTPParser.parse(buffer) {
         case .incomplete:
             return false
@@ -670,45 +715,73 @@ final class HTTPServer: @unchecked Sendable {
             completion: .contentProcessed { _ in connection.cancel() })
     }
 
+    /// Cross-site / DNS-rebinding defence, before any handler runs (see
+    /// LocalRequestGuard): loopback Host, a non-simple Content-Type on
+    /// mutations, and an allowlisted Origin when one is sent. Only the
+    /// owner's private socket skips it (see `Admission`). The refusal to
+    /// answer, or nil when the request may reach its handler. Every
+    /// transport (HTTP/1.1, HTTP/2, gRPC) asks this one function.
+    func guardRejection(_ request: HTTPRequest, admission: Admission) -> HTTPResponse? {
+        guard admission == .guarded else { return nil }
+        let verdict = LocalRequestGuard.evaluateAPI(
+            method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
+            port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
+        guard case .reject(let status, let reason) = verdict else { return nil }
+        let code = status == 415 ? "invalid_argument" : "permission_denied"
+        let body =
+            (try? JSONSerialization.data(
+                withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
+        return .data(status, "application/json", body)
+    }
+
+    /// The dedicated runtime's API admits every request other than
+    /// `/health` and maintenance through `RuntimeAdmission`: the claim the
+    /// request holds until its handler settles (nil when none applies).
+    /// Throws when maintenance has closed admission (`admissionClosed`).
+    func admissionClaim(_ request: HTTPRequest) throws -> RuntimeAdmissionClaim? {
+        isolatedRuntime && !Self.admissionExempt.contains(request.path)
+            ? try runtimeAdmission.claim("managed-api:" + request.path) : nil
+    }
+
+    /// What an HTTP/2 stream reaches: this server's own guard, admission
+    /// and handler, with the listener's admission.
+    func http2Context(_ admission: Admission) -> HTTP2ExchangeContext {
+        HTTP2ExchangeContext(
+            admission: admission,
+            guardRejection: { [self] request, admission in guardRejection(request, admission: admission) },
+            admissionClaim: { [self] request in try admissionClaim(request) },
+            handler: { [self] request in await handler(request) },
+            relay: { request in await IsolatedRuntimeProxy.forwardParsed(request) })
+    }
+
+    /// Paths `admissionClaim` never claims for.
+    static let admissionExempt: Set<String> = ["/health", "/v1/managed/maintenance"]
+
+    /// The answer to a request `admissionClaim` refused.
+    static func admissionClosed() -> HTTPResponse {
+        .json(503, ["code": "unavailable", "message": "Runtime maintenance has closed workload admission"])
+    }
+
     private func dispatch(
         _ request: HTTPRequest, peer: Peer, persistence: HTTPPersistence, leftover: Data
     ) {
         let connection = peer.connection
-        let admission = peer.admission
         // Browser-facing CORS/PNA headers — computed once per request so
         // normal, streaming, and preflight responses are all covered.
         let cors = CORSPolicy.responseHeaders(for: request)
-        // Cross-site / DNS-rebinding defence, before any handler runs (see
-        // LocalRequestGuard): loopback Host, a non-simple Content-Type on
-        // mutations, and an allowlisted Origin when one is sent. Only the
-        // owner's private socket skips it (see `Admission`).
-        if admission == .guarded {
-            let verdict = LocalRequestGuard.evaluateAPI(
-                method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
-                port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
-            if case .reject(let status, let reason) = verdict {
-                let code = status == 415 ? "invalid_argument" : "permission_denied"
-                let body =
-                    (try? JSONSerialization.data(
-                        withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
-                connection.send(
-                    content: Self.serialize(.data(status, "application/json", body), extraHeaders: cors),
-                    completion: .contentProcessed { _ in connection.cancel() })
-                return
-            }
+        if let refusal = guardRejection(request, admission: peer.admission) {
+            connection.send(
+                content: Self.serialize(refusal, extraHeaders: cors),
+                completion: .contentProcessed { _ in connection.cancel() })
+            return
         }
         Task {
             let claim: RuntimeAdmissionClaim?
             do {
-                claim =
-                    self.isolatedRuntime && !["/health", "/v1/managed/maintenance"].contains(request.path)
-                    ? try RuntimeAdmission.shared.claim("managed-api:" + request.path) : nil
+                claim = try self.admissionClaim(request)
             } catch {
                 connection.send(
-                    content: Self.serialize(
-                        .json(
-                            503,
-                            ["code": "unavailable", "message": "Runtime maintenance has closed workload admission"])),
+                    content: Self.serialize(Self.admissionClosed()),
                     completion: .contentProcessed { _ in connection.cancel() })
                 return
             }
@@ -1020,6 +1093,23 @@ enum HTTPParser {
         case reject(status: Int, reason: String)
     }
 
+    /// A request target's path and its decoded query (`a=1&b=x%20y`): the
+    /// HTTP/1.1 request line's target and HTTP/2's `:path` alike.
+    static func splitTarget(_ target: String) -> (path: String, query: [String: String]) {
+        let targetParts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        let path = String(targetParts[0])
+        var query: [String: String] = [:]
+        if targetParts.count > 1 {
+            for pair in targetParts[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1)
+                guard let key = kv.first else { continue }
+                query[String(key)] =
+                    kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
+            }
+        }
+        return (path, query)
+    }
+
     static func parse(_ data: Data, limits: HTTPRequestFraming.Limits = .api) -> Outcome {
         switch HTTPRequestFraming.parse(data, limits: limits) {
         case .incomplete:
@@ -1030,17 +1120,7 @@ enum HTTPParser {
             guard let method = HTTPMethod(rawValue: head.method) else {
                 return .reject(status: 405, reason: "method \(head.method) not allowed")
             }
-            let targetParts = head.target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
-            let path = String(targetParts[0])
-            var query: [String: String] = [:]
-            if targetParts.count > 1 {
-                for pair in targetParts[1].split(separator: "&") {
-                    let kv = pair.split(separator: "=", maxSplits: 1)
-                    guard let key = kv.first else { continue }
-                    query[String(key)] =
-                        kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
-                }
-            }
+            let (path, query) = splitTarget(head.target)
             // A request with both Transfer-Encoding and Content-Length is
             // read by its chunks, and its connection closes after the reply
             // (RFC 9112 §6.1): the two framings disagree on where the next

@@ -43,4 +43,24 @@ final class APIMetricsTests: XCTestCase {
                 ))
         }
     }
+
+    /// Handlers record and `/metrics` renders from Swift's cooperative pool,
+    /// many at once (one HTTP/2 connection can ask 100 times). Every one
+    /// must finish: none may wait on a thread the others hold.
+    func testConcurrentRecordsAndRendersFromTasksAllFinish() {
+        let metrics = APIMetrics()
+        let done = DispatchGroup()
+        for index in 0..<400 {
+            done.enter()
+            Task {
+                metrics.record(route: "/metrics", method: "GET", status: 200, duration: 0.001)
+                _ = metrics.render()
+                metrics.record(route: "/r\(index % 7)", method: "GET", status: 200, duration: 0.001)
+                done.leave()
+            }
+        }
+        // Waited for off the pool: a wedged pool could not report itself.
+        XCTAssertEqual(done.wait(timeout: .now() + 20), .success, "records and renders wedged the cooperative pool")
+        XCTAssertTrue(metrics.render().contains("route=\"/metrics\",method=\"GET\",status=\"200\"} 400\n"))
+    }
 }

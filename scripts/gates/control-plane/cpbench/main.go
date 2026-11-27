@@ -5,8 +5,8 @@
 // the generated connect-go clients of sdk/go (binary protobuf or proto-JSON)
 // or plain HTTP for the REST routes.
 //
-//	cpbench unary     -target unix:/p|tcp:127.0.0.1:N -codec proto|json|rest|auto -rpc NAME [-id X]
-//	                  -n 200 -warmup 20 -concurrency 1 [-samples FILE] [-expect-prefix P -expect-count K]
+//	cpbench unary     -target unix:/p|tcp:127.0.0.1:N -codec proto|json|rest|auto|grpc -rpc NAME [-id X]
+//	                  [-http 1|2] -n 200 -warmup 20 -concurrency 1 [-samples FILE] [-expect-prefix P -expect-count K]
 //	cpbench roundtrip -target T -codec proto|json -n 30 -image alpine:3.20 -prefix NAME
 //	cpbench logs      -target T -codec proto|json|sse -id X -n 50 -expect LINE
 //	cpbench exec      -target T -codec proto|json -id X -n 50
@@ -16,7 +16,9 @@
 // counted, and httptrace reports whether a request rode a reused connection.
 // The transport keeps idle connections (keep-alive on, 64 per host), so a
 // server that allowed reuse would get it; a "dials == requests" result is
-// the server closing every connection.
+// the server closing every connection. -http 2 speaks HTTP/2 with prior
+// knowledge (h2c) over one multiplexed connection; -codec grpc is the gRPC
+// protocol (connect-go WithGRPC), over HTTP/2.
 package main
 
 import (
@@ -82,6 +84,21 @@ type counted struct {
 	fresh  atomic.Int64
 }
 
+// newCountedH2 is newCounted over HTTP/2 with prior knowledge.
+func newCountedH2(t target, timeout time.Duration) *counted {
+	c := &counted{}
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	c.client = &http.Client{Timeout: timeout, Transport: &http2.Transport{
+		AllowHTTP:          true,
+		DisableCompression: true,
+		DialTLSContext: func(ctx context.Context, _, _ string, _ *tls.Config) (net.Conn, error) {
+			c.dials.Add(1)
+			return dialer.DialContext(ctx, t.network, t.address)
+		},
+	}}
+	return c
+}
+
 func newCounted(t target, timeout time.Duration) *counted {
 	c := &counted{}
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
@@ -117,8 +134,11 @@ func (c *counted) traced(ctx context.Context, reused *bool) context.Context {
 }
 
 func connectOpts(codec string) []connect.ClientOption {
-	if codec == "json" {
+	switch codec {
+	case "json":
 		return []connect.ClientOption{connect.WithProtoJSON()}
+	case "grpc":
+		return []connect.ClientOption{connect.WithGRPC()}
 	}
 	return nil
 }
@@ -352,6 +372,7 @@ type unaryResult struct {
 	Transport     string         `json:"transport"`
 	RPC           string         `json:"rpc"`
 	Codec         string         `json:"codec"`
+	HTTP          string         `json:"http"`
 	CodecUsed     string         `json:"codecUsed"`
 	Advertised    string         `json:"advertisedCodecs,omitempty"`
 	BinaryProtoEn string         `json:"binaryProtoEnv"`
@@ -384,7 +405,8 @@ type unaryResult struct {
 func runUnary(args []string) (any, error) {
 	fs := flag.NewFlagSet("unary", flag.ExitOnError)
 	tspec := fs.String("target", "", "unix:/path or tcp:host:port")
-	codec := fs.String("codec", "proto", "proto | json | rest | auto (Cuttlefish's negotiation)")
+	codec := fs.String("codec", "proto", "proto | json | rest | auto (Cuttlefish's negotiation) | grpc")
+	httpVersion := fs.String("http", "1", "1 (HTTP/1.1) | 2 (h2c prior knowledge; -codec grpc implies it)")
 	rpc := fs.String("rpc", "Ping", "Ping | GetSystem | ListContainers | GetContainer | GetCacheStatus | ExplainContainerCache | CacheSummary | CacheExplain | Health")
 	id := fs.String("id", "", "container id for GetContainer / ExplainContainerCache / CacheExplain")
 	n := fs.Int("n", 200, "measured calls")
@@ -399,10 +421,17 @@ func runUnary(args []string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if *codec == "grpc" {
+		*httpVersion = "2"
+	}
 	res := &unaryResult{Mode: "unary", Target: t.spec, Transport: t.network, RPC: *rpc, Codec: *codec, ID: *id,
+		HTTP:        *httpVersion,
 		Concurrency: *conc, Requested: *n, Warmup: *warmup, ContentTypes: map[string]int{}, ErrorSamples: []string{},
 		BinaryProtoEn: os.Getenv("MICROPOD_BINARY_PROTO"), ExpectPrefix: *prefix, MatchAll: true}
 	c := newCounted(t, *timeout)
+	if *httpVersion == "2" {
+		c = newCountedH2(t, *timeout)
+	}
 	used := *codec
 	if used == "auto" {
 		// Cuttlefish's detection: a proto-JSON Ping, then its X-Micropod-Codecs.
@@ -852,6 +881,8 @@ type probeResult struct {
 	Target          string            `json:"target"`
 	GRPC            map[string]string `json:"grpcH2c"`
 	ConnectH2C      map[string]string `json:"connectH2c"`
+	GRPCStream      map[string]string `json:"grpcStreamH2c"`
+	BadAuthority    map[string]string `json:"badAuthorityH2c"`
 	Attach          map[string]string `json:"attach"`
 	Advertised      string            `json:"advertisedCodecs"`
 	ConnectionClose string            `json:"connectionHeader"`
@@ -877,7 +908,8 @@ func runProbe(args []string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := &probeResult{Mode: "probe", Target: t.spec, GRPC: map[string]string{}, ConnectH2C: map[string]string{}, Attach: map[string]string{}}
+	res := &probeResult{Mode: "probe", Target: t.spec, GRPC: map[string]string{}, ConnectH2C: map[string]string{},
+		GRPCStream: map[string]string{}, BadAuthority: map[string]string{}, Attach: map[string]string{}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// gRPC (application/grpc) over HTTP/2 with prior knowledge.
@@ -893,6 +925,34 @@ func runProbe(args []string) (any, error) {
 		res.ConnectH2C["error"] = trim(err.Error(), 400)
 	} else {
 		res.ConnectH2C["status"] = r.Msg.GetStatus()
+	}
+	// A gRPC server stream to its end (the -id container's last lines).
+	logs := micropodv1connect.NewContainerServiceClient(h2cClient(t), t.baseURL()+"/api", connect.WithGRPC())
+	if stream, err := logs.StreamContainerLogs(ctx, connect.NewRequest(&micropodv1.StreamLogsRequest{Id: *id, Tail: 3, NoFollow: true})); err != nil {
+		res.GRPCStream["error"] = trim(err.Error(), 400)
+	} else {
+		lines := 0
+		for stream.Receive() {
+			lines++
+		}
+		res.GRPCStream["lines"] = fmt.Sprint(lines)
+		if err := stream.Err(); err != nil {
+			res.GRPCStream["error"] = trim(err.Error(), 400)
+		} else {
+			res.GRPCStream["status"] = "ok"
+		}
+	}
+	// HTTP/2 to the TCP port naming a foreign :authority: the request guard's 403.
+	if t.network == "tcp" {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://evil.example/health", nil)
+		if resp, err := h2cClient(t).Do(req); err != nil {
+			res.BadAuthority["error"] = trim(err.Error(), 300)
+		} else {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			res.BadAuthority["status"] = fmt.Sprint(resp.StatusCode)
+			res.BadAuthority["proto"] = resp.Proto
+		}
 	}
 	// The HTTP/1.1 answer: its protocol, Connection header and codec advertisement.
 	c := newCounted(t, 10*time.Second)

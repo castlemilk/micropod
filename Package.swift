@@ -38,6 +38,9 @@ let package = Package(
         .package(url: "https://github.com/apple/containerization.git", exact: "0.42.0"),
         .package(url: "https://github.com/apple/swift-system.git", from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
+        // The API's HTTP/2 (h2c prior knowledge) and gRPC transport beside
+        // its HTTP/1.1 server; already resolved for containerization's gRPC.
+        .package(url: "https://github.com/apple/swift-nio-http2.git", from: "1.46.0"),
         // Sandbox egress proxy: TLS interception for injected secrets.
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.37.0"),
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.21.0"),
@@ -113,7 +116,13 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodAPI",
-            dependencies: ["MicropodCore", "MicropodRuntime", "MicropodBuildInfo"],
+            dependencies: [
+                "MicropodCore", "MicropodRuntime", "MicropodBuildInfo",
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP2", package: "swift-nio-http2"),
+                .product(name: "NIOHPACK", package: "swift-nio-http2"),
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
@@ -127,7 +136,13 @@ let package = Package(
         .executableTarget(name: "MicropodRuntimeSetup", dependencies: ["MicropodCore"]),
         .testTarget(
             name: "MicropodAPITests",
-            dependencies: ["MicropodAPI", "MicropodCore", .product(name: "SwiftProtobuf", package: "swift-protobuf")]),
+            dependencies: [
+                "MicropodAPI", "MicropodCore", .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP2", package: "swift-nio-http2"),
+                .product(name: "NIOHPACK", package: "swift-nio-http2"),
+            ]),
         .testTarget(name: "MicropodRuntimeHostKitTests", dependencies: ["MicropodRuntimeHostKit", "MicropodCore"]),
         .executableTarget(
             name: "MicropodCLI",
