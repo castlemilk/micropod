@@ -132,6 +132,10 @@ final class AppStore {
     /// menu-bar card, the header when hvf is the default runtime, and
     /// Settings' "Start the machine at login".
     let hvfMachine: MachineModel
+    /// Whether Apple's runtime is enabled (a fresh install makes it opt-in,
+    /// `micropod runtime enable apple` turns it on). Without it nothing polls
+    /// or starts Apple's runtime and the Docker shim agent defaults off.
+    @ObservationIgnored let appleRuntimeEnabled: Bool
     @ObservationIgnored private let ciCacheHistory = CICacheHistoryConsumer()
     var workloadInspectionRequest: UInt64 = 0
     var runtimeStopConfirmationRequested = false
@@ -420,10 +424,11 @@ final class AppStore {
 
     init(
         dependencies: AppDependencies = AppDependencies.shared, runtimeDefaults: UserDefaults = .standard,
-        machineClient: (any MachineControlling)? = nil
+        machineClient: (any MachineControlling)? = nil, appleRuntimeEnabled: Bool? = nil
     ) {
         self.dependencies = dependencies
         self.runtimeDefaults = runtimeDefaults
+        self.appleRuntimeEnabled = appleRuntimeEnabled ?? Self.appleRuntimeEnabledAtLaunch()
         hvfMachine = MachineModel(client: machineClient ?? LocalAPIMachineClient())
         runtimeAutoStartEnabled = runtimeDefaults.bool(forKey: UserDefaultsKeys.runtimeAutoStart)
         runtimeAutomationPaused = runtimeDefaults.bool(forKey: UserDefaultsKeys.runtimeAutomationPaused)
@@ -447,14 +452,29 @@ final class AppStore {
     @ObservationIgnored private var didInstallTerminationHook = false
     @ObservationIgnored private var terminationSignalSources: [DispatchSourceSignal] = []
 
+    /// The registry's answer for this process (runtimes.json and the
+    /// environment). Unit tests keep the Apple runtime as before unless a
+    /// test passes `appleRuntimeEnabled`.
+    nonisolated static func appleRuntimeEnabledAtLaunch() -> Bool {
+        NSClassFromString("XCTestCase") != nil
+            || EngineRegistry.appleEnabled(environment: ProcessInfo.processInfo.environment)
+    }
+
+    /// An agent with no Settings choice yet: on, except the Docker shim,
+    /// which fronts Apple's runtime and so is on only when Apple is enabled.
+    nonisolated static func agentEnabledByDefault(_ id: String, appleRuntimeEnabled: Bool) -> Bool {
+        id == "docker-shim" ? appleRuntimeEnabled : true
+    }
+
     /// The supervisor owns the agents' full lifecycle: spawn, health probes,
     /// backoff restarts, orphan reaping, and quit-time teardown.
     @ObservationIgnored private(set) lazy var agentSupervisor: AgentSupervisor = {
-        AgentSupervisor.micropodSpecs(
+        let appleEnabled = appleRuntimeEnabled
+        return AgentSupervisor.micropodSpecs(
             enabled: { spec in
-                // Missing key = enabled (agents are on by default).
                 UserDefaults.standard.object(forKey: spec.enabledDefaultsKey) == nil
-                    || UserDefaults.standard.bool(forKey: spec.enabledDefaultsKey)
+                    ? Self.agentEnabledByDefault(spec.id, appleRuntimeEnabled: appleEnabled)
+                    : UserDefaults.standard.bool(forKey: spec.enabledDefaultsKey)
             },
             onStatus: { [weak self] statuses in
                 Task { @MainActor in
@@ -495,7 +515,8 @@ final class AppStore {
         if let override = agentEnabledOverrides[id] { return override }
         guard let spec = agentSpecs.first(where: { $0.id == id }) else { return false }
         return UserDefaults.standard.object(forKey: spec.enabledDefaultsKey) == nil
-            || UserDefaults.standard.bool(forKey: spec.enabledDefaultsKey)
+            ? Self.agentEnabledByDefault(spec.id, appleRuntimeEnabled: appleRuntimeEnabled)
+            : UserDefaults.standard.bool(forKey: spec.enabledDefaultsKey)
     }
 
     func setAgentEnabled(_ id: String, _ enabled: Bool) {
@@ -577,7 +598,9 @@ final class AppStore {
         }
         loadMetricsHistory()
         startPollers()
-        startRuntimeSupervisor()
+        // Apple's runtime is opt-in on a fresh install: nothing watches or
+        // starts it until it is enabled.
+        if appleRuntimeEnabled { startRuntimeSupervisor() }
         installTerminationHookIfNeeded()
         // Unit tests drive bootstrap() — never spawn real daemons there.
         // MICROPOD_AGENTS_DISABLED=1 is the manual escape hatch.
@@ -963,7 +986,8 @@ final class AppStore {
         // is picked up without relaunching the app.
         clientAvailable = dependencies.client.isAvailable()
         hasCheckedRuntimeDependency = true
-        guard clientAvailable, RuntimeDependencyStatus.hostSupported else {
+        // Not enabled: never spawn `container system status` for it.
+        guard appleRuntimeEnabled, clientAvailable, RuntimeDependencyStatus.hostSupported else {
             systemStatus = nil
             systemStatusError = nil
             dependencyNativeReadiness = .unobserved
@@ -1473,6 +1497,11 @@ final class AppStore {
     }
 
     private func performMachinesRefresh() async {
+        // Apple's runtime VMs: none to list while it is not enabled.
+        guard appleRuntimeEnabled else {
+            if !machines.isEmpty { machines = [] }
+            return
+        }
         do {
             let listed = try await dependencies.machine.list()
             guard !Task.isCancelled else { return }

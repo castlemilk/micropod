@@ -190,7 +190,20 @@ struct DashboardView: View {
             .controlSize(.regular)
             .padding(.top, Tokens.Spacing.sm)
 
-            if !store.onboardingComplete && store.isRuntimeRunning {
+            if !store.onboardingComplete && store.hvfMachine.needsSetup {
+                Divider().padding(.vertical, 8)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text(String(localized: "First run"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(String(localized: "Open tour")) { showOnboarding = true }
+                            .controlSize(.small)
+                    }
+                    MachineSetupView(machine: store.hvfMachine)
+                }
+            } else if !store.onboardingComplete && store.isRuntimeRunning {
                 Divider().padding(.vertical, 8)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {

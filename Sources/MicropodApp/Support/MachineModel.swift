@@ -13,6 +13,14 @@ protocol MachineControlling: Sendable {
     func setAutostart(_ enabled: Bool, force: Bool) async throws -> Micropod_V1_HVFMachineStatus
     /// The default runtime's name (`GetRigMode`).
     func defaultRuntime() async throws -> String
+    /// `SetupMachine`: the machine's first run (local sources only).
+    func setup(_ request: Micropod_V1_SetupMachineRequest) async throws -> Micropod_V1_SetupMachineResult
+}
+
+extension MachineControlling {
+    func setup(_ request: Micropod_V1_SetupMachineRequest) async throws -> Micropod_V1_SetupMachineResult {
+        throw LocalAPI.RemoteError(code: "unimplemented", message: "machine setup is not available")
+    }
 }
 
 /// `MachineControlling` through `LocalAPI` (api.sock, then loopback TCP).
@@ -48,6 +56,12 @@ struct LocalAPIMachineClient: MachineControlling {
     func defaultRuntime() async throws -> String {
         try await api.unary("RigService", "GetRigMode", Micropod_V1_Empty(), as: Micropod_V1_RigMode.self, timeout: 10)
             .defaultRuntime
+    }
+
+    /// A copy of the base disk and a boot: minutes at most.
+    func setup(_ request: Micropod_V1_SetupMachineRequest) async throws -> Micropod_V1_SetupMachineResult {
+        try await api.unary(
+            "RigService", "SetupMachine", request, as: Micropod_V1_SetupMachineResult.self, timeout: 600)
     }
 }
 
@@ -89,6 +103,11 @@ final class MachineModel {
     private(set) var autostartPending = false
     /// The last request's failure, shown until the next one.
     private(set) var actionError: String?
+    /// The last setup's steps (`SetupMachine`), and whether one runs now.
+    private(set) var setupSteps: [Micropod_V1_SetupMachineStep] = []
+    private(set) var settingUp = false
+    /// Why the last setup could not be asked for at all.
+    private(set) var setupError: String?
     var deferral: Deferral?
 
     @ObservationIgnored let client: any MachineControlling
@@ -181,6 +200,44 @@ final class MachineModel {
         } catch {
             handle(error, request: .autostart(enabled))
         }
+    }
+
+    /// Sets the machine up over the API: the runtime files and base disk
+    /// from the app's own bundle, or the disk from `diskFrom`, then a start.
+    func setUp(diskFrom: URL? = nil) async {
+        guard !settingUp else { return }
+        settingUp = true
+        setupError = nil
+        defer { settingUp = false }
+        do {
+            let result = try await client.setup(
+                .with {
+                    if let diskFrom { $0.diskFrom = diskFrom.path }
+                    $0.start = true
+                })
+            setupSteps = result.steps
+            if result.hasMachine { status = result.machine }
+            unavailableReason = nil
+        } catch {
+            setupError = Self.describe(error)
+        }
+    }
+
+    /// The app should offer setup: hvf is the default and its machine is
+    /// not installed.
+    var needsSetup: Bool { phase == .notInstalled && defaultRuntime == "hvf" }
+
+    /// The last setup stopped at a step.
+    var setupFailure: Micropod_V1_SetupMachineStep? { setupSteps.first { $0.state == "failed" } }
+
+    /// The command that finishes setup from a terminal when the app cannot:
+    /// a package with no base disk needs a local disk image (or a download
+    /// the app never starts on its own).
+    var setupCommand: String {
+        if setupFailure?.id == "disk" {
+            return "micropod setup --disk-from <ext4>    (or: micropod setup --disk-image default)"
+        }
+        return "micropod setup"
     }
 
     /// The confirmed deferral, retried with `force`.
