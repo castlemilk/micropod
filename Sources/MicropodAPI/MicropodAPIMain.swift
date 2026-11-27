@@ -746,14 +746,7 @@ final class HTTPServer: @unchecked Sendable {
             guardRejection: { [self] request, admission in guardRejection(request, admission: admission) },
             admissionClaim: { [self] request in try admissionClaim(request) },
             handler: { [self] request in await handler(request) },
-            relay: { _ in
-                .json(
-                    503,
-                    [
-                        "code": "unavailable",
-                        "message": "the dedicated runtime is reached over HTTP/1.1 only; retry over HTTP/1.1",
-                    ])
-            })
+            relay: { request in await IsolatedRuntimeProxy.forwardParsed(request) })
     }
 
     /// Paths `admissionClaim` never claims for.

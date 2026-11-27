@@ -220,11 +220,15 @@ final class HTTP2ExchangeTests: XCTestCase {
         _ = started
     }
 
-    func testRelayedAnswersAreUnavailableUntilForwarded() async throws {
+    /// A relay whose upstream cannot be reached answers UNAVAILABLE (never
+    /// the rig's own dedicated runtime: the upstream is injected).
+    func testAnUnreachableRelayIsUnavailable() async throws {
         let context = HTTP2ExchangeContext(
             admission: .ownerOnly, guardRejection: { _, _ in nil }, admissionClaim: { _ in nil },
             handler: { _ in .relay { _ in } },
-            relay: HTTPServer(port: 1, http2Enabled: false) { _ in .json(200, [:]) }.http2Context(.ownerOnly).relay)
+            relay: { request in
+                await IsolatedRuntimeProxy.forwardParsed(request) { throw MicropodError.message("down") }
+            })
         let writer = RecordingWriter()
         await HTTP2Exchange.run(
             head("/v1/containers", method: .get, contentType: nil), body: Data(), context: context, writer: writer,
