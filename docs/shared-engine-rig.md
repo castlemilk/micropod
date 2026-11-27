@@ -99,6 +99,8 @@ A family is the unit the report counts by and cleanup works on.
 
 The label attributes and cleans up; it grants nothing. The header is read only on the machine's own socket.
 
+Docker's own prunes (`docker system prune`, `docker container|image|volume|builder prune`) are scoped the same way. On a delegated socket they take only what that family created; on the machine's socket with `X-Micropod-Family`, only that family's host-made containers, networks and volumes. Images and the build cache belong to no family, so those two requests remove nothing from them and report 0. A plain request on the machine's socket, with no header, prunes only host-made objects, never a delegated socket's, but its image and build-cache prunes are machine-wide, as on any Docker daemon: `docker system prune -af` from a host job that sends no header removes every image no container uses, and every job then pulls again. A host-side Docker proxy for CI jobs should send the header on every request.
+
 ## A GitHub Actions runner on the machine
 
 A runner that runs as a container on the machine, with `-v /var/run/docker.sock:/var/run/docker.sock`, drives `container:` jobs and `services:` through its family socket with the stock docker CLI. `scripts/gates/scale/runner-job.sh` runs the runner's command sequence for one job, command for command, and a step that uses the socket (run, build with the default builder and `cache-to`/`cache-from` `type=local` and inline, compose with health checks, `docker wait`, the Testcontainers reaper). Two things the runner's container must be given, as with any Docker daemon a runner container shares:
