@@ -295,6 +295,27 @@ also makes it the default, and `MICROPOD_LEGACY_APPLE=1` enables it for one proc
 change. (With `MICROPOD_RUNTIMES_CONFIG` set, as in tests and CI, nothing is decided unless
 `MICROPOD_INSTALL_ORIGIN=fresh|existing` says which.) No Apple or shim code is removed yet.
 
+**hvf as the default with Apple's runtime beside it.** An install whose default is `hvf` still runs a container in
+its own Apple micro-VM when the request names it: `micropod run --runtime apple …`, or `runtime: "apple"` on
+RunContainer and CreateContainer, with everything that engine takes (`privileged`, `rosetta`, `init`, `platform`,
+named volumes); the hvf machine refuses none of it because it never sees the request. An existing install keeps
+Apple's runtime enabled; a fresh one needs `micropod runtime enable apple` first (an API server that is already
+running reads the file at its next start; `PATCH /v1/runtimes/apple {"enabled": true}` tells it directly). Apple's own service must be up (`container system start`): micropod never
+starts it for a request, and while it is down a call that names Apple fails at once as `unavailable` ("The container
+runtime is not running. …") without spawning a `container` process, because the API keeps one XPC ping's answer for at
+most 2 s (1 s before it is refreshed in the background) and asks that first; listings, stats and `ps` just leave
+Apple's part out. Within about 2 s of the service starting, calls go through (over the `container` CLI at first), and
+the next Ping or GetSystem, at most one attempt every 10 s, moves the server to the native XPC backend, which is the
+one that records exit codes for WaitContainer. An id is asked of sandbox, the CI worker, Docker and hvf first and is
+Apple's when none of them has it. PullImage takes `runtime`, and so do CreateVolume, DeleteVolume and DeleteImage
+(REST: a `runtime` body key or `?runtime=`); unnamed, a pull and a volume create go to hvf, and a removal to the
+engine that has the name, hvf first. CloneVolume and CommitVolumeClone are Apple's only and act on Apple's volume
+whenever Apple has the name, even if hvf keeps one called the same. A client written for an Apple-only micropod, which
+names no runtime anywhere, is better served by a second API process that routes nothing:
+`MICROPOD_ENGINES=apple MICROPOD_API_PORT=<its own port> MICROPOD_API_SOCK=<its own socket> MicropodAPI` sends every container,
+image and volume call to Apple's runtime and describes Apple's runtime in Ping, GetSystem and ListRuntimes' default,
+whatever `runtimes.json` names for the routed API next to it.
+
 ```
 $ micropod runtime ls
 NAME       KIND       AVAILABLE  ENABLED  VERSION  ENDPOINT / REASON
@@ -338,7 +359,9 @@ and `pull` take `--runtime` or the default runtime; `volume rm`, `rmi`, `tag` an
 that has the name. The hvf guest engine lists, creates, inspects and removes volumes, and lists, inspects and pulls
 (linux/arm64) images. With a tool bundle built from this tree (`ci/build-runner-tools.sh`) it also saves and loads
 image archives: `micropod save --runtime hvf <ref> -o x.tar` and `micropod load --runtime hvf -i x.tar` (an unnamed
-`load` stays Apple's). Volume prune, volume sizes, image removal, tagging, push and `micropod build` are refused as
+`load` stays Apple's), and removes and tags images: `micropod rmi` of a tag untags it, of an ID or a digest removes
+the image once no container uses it (a multi-platform image from a registry included). Volume prune, volume sizes,
+image prune, push and `micropod build` are refused as
 unsupported, and micropod's network commands stay with Apple; stock Docker clients on
 `micropod machine docker-endpoint` also get networks. `micropod machine status --json` reports the installed
 bundle's `capabilities` (caches, `docker build`, BuildKit, the engine's Docker API range and commit, the

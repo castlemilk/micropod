@@ -257,18 +257,26 @@ public struct VolumeRouter: VolumeServing {
     public func clone(source: String, name: String, size: String?, labels: [String]) async throws
         -> Micropod_V1_Volume
     {
-        try requireApple(try await owner(source, runtime: nil), "volume clones")
+        try await requireAppleClone(of: source)
         return try await apple.clone(source: source, name: name, size: size, labels: labels)
     }
 
     public func commitClone(containerID: String, volume: String) async throws -> UInt64 {
-        try requireApple(try await owner(volume, runtime: nil), "volume clones")
+        try await requireAppleClone(of: volume)
         return try await apple.commitClone(containerID: containerID, volume: volume)
     }
 
-    private func requireApple(_ target: ResourceTarget<any EngineVolumeServing>, _ what: String) throws {
-        guard case .engine(let name, _) = target else { return }
-        throw MicropodError.unsupported("runtime '\(name)' does not support \(what) (they are Apple runtime only)")
+    /// Clones are Apple's alone, so a volume Apple has is cloned there even
+    /// when the default runtime keeps one of the same name (a rig whose
+    /// default is hvf and whose jobs also run on Apple's runtime names its
+    /// goldens alike on both). Only a name Apple lacks and another engine
+    /// has is refused, naming that engine.
+    private func requireAppleClone(of volume: String) async throws {
+        guard !routing.engines().isEmpty else { return }
+        if (try? await apple.list())?.contains(where: { $0.id == volume }) == true { return }
+        guard case .engine(let name, _) = try await owner(volume, runtime: nil) else { return }
+        throw MicropodError.unsupported(
+            "runtime '\(name)' does not support volume clones (they are Apple runtime only)")
     }
 }
 

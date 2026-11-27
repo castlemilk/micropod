@@ -80,4 +80,7 @@ message DeleteImageRequest {
   string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'alpine:3.20'"}];
   // Remove even if containers reference the image.
   bool force = 2;
+  // The engine whose image is removed (apple, docker, ci, hvf). Unset
+  // removes it from the engine that has the image, the default runtime first.
+  optional string runtime = 3 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
 }

@@ -121,11 +121,17 @@ message CreateVolumeRequest {
   repeated string labels = 3 [(gnostic.openapi.v3.property).example = {yaml: "['com.example.project=web']"}];
   // Driver options passed through to the volume driver.
   repeated string options = 4;
+  // The engine to create the volume on (apple, docker, hvf). Unset creates
+  // it on the default runtime when that keeps volumes, else on Apple's.
+  optional string runtime = 5 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
 }
 
 message DeleteVolumeRequest {
   // Volume name to remove.
   string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'data'"}];
+  // The engine whose volume is removed (apple, docker, hvf). Unset removes
+  // it from the engine that has the name, the default runtime first.
+  optional string runtime = 2 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
 }
 
 message CloneVolumeRequest {

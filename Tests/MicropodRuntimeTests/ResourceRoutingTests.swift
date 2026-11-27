@@ -284,6 +284,41 @@ final class ResourceRoutingTests: XCTestCase {
         XCTAssertEqual(nobody, "hvf", "no owner: the default engine answers")
     }
 
+    /// Clones are Apple's alone: with hvf the default, a volume Apple has
+    /// is cloned and committed there even when hvf keeps one of the same
+    /// name; a name only hvf has is refused; and Apple's volumes can be made
+    /// and removed by naming the runtime.
+    func testClonesAndNamedCallsReachAppleWhileHVFIsTheDefault() async throws {
+        let server = try serving(Self.guest)
+        let apple = RecordingVolumes(names: ["data", "both"])
+        let router = VolumeRouter(apple: apple, registry: try registry(hvf: true, default: "hvf"))
+
+        let cloned = try await router.clone(source: "both", name: "job-1", size: nil, labels: [])
+        XCTAssertEqual(cloned.id, "job-1")
+        _ = try await router.clone(source: "data", name: "job-2", size: nil, labels: [])
+        _ = try await router.commitClone(containerID: "job-1", volume: "both")
+        let hvfOnly = await failure { _ = try await router.clone(source: "cache", name: "c2", size: nil, labels: []) }
+        XCTAssertEqual(hvfOnly?.code, "unimplemented")
+        XCTAssertTrue(hvfOnly?.message.contains("runtime 'hvf' does not support volume clones") ?? false)
+        let hvfCommit = await failure { _ = try await router.commitClone(containerID: "x", volume: "cache") }
+        XCTAssertEqual(hvfCommit?.code, "unimplemented")
+
+        try await router.create(name: "golden", size: "8g", labels: ["a=b"], options: [], runtime: "apple")
+        try await router.delete("both", runtime: "apple")
+        let appleCalls = await apple.calls
+        XCTAssertEqual(
+            appleCalls.filter { !$0.hasPrefix("list") },
+            [
+                "clone both->job-1", "clone data->job-2", "commit job-1 both",
+                "create golden size=8g labels=a=b options=", "delete both",
+            ])
+        XCTAssertFalse(
+            server.requests.contains { $0.path == "/volumes/create" || $0.method == "DELETE" },
+            "nothing named for Apple reached the guest")
+        let onlyApple = try await router.list(runtime: "apple")
+        XCTAssertEqual(onlyApple.map(\.id), ["data", "both"])
+    }
+
     func testAStoppedMachineListsNothingAndCreateBootsIt() async throws {
         try installPlaceholders()
         let apple = RecordingVolumes(names: ["data"])

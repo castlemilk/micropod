@@ -200,7 +200,8 @@ extension APIHandlers {
             // Images and volumes route like containers (`ImageRouter`,
             // `VolumeRouter`). Images carry `runtime` and a pull may name one;
             // volumes say where they came from by a `com.micropod.runtime`
-            // label on non-Apple ones; creates go to the default runtime.
+            // label on non-Apple ones; a create or a removal may name a
+            // runtime too, else creates go to the default runtime.
             case "ListImages":
                 // Each image names the engine that keeps it (empty for Apple's).
                 var resp = Micropod_V1_ListImagesResponse()
@@ -229,7 +230,9 @@ extension APIHandlers {
             case "DeleteImage":
                 let req = try decodeReq(Micropod_V1_DeleteImageRequest.self, body)
                 try check(req)
-                try await imageRouter(services).delete(req.reference, force: req.force)
+                try await imageRouter(services).delete(
+                    req.reference, force: req.force, runtime: req.hasRuntime && !req.runtime.isEmpty ? req.runtime : nil
+                )
                 return reply(Micropod_V1_Empty())
 
             case "ListVolumes":
@@ -244,13 +247,15 @@ extension APIHandlers {
                     name: req.name,
                     size: req.hasSize ? req.size : nil,
                     labels: req.labels,
-                    options: req.options)
+                    options: req.options,
+                    runtime: req.hasRuntime && !req.runtime.isEmpty ? req.runtime : nil)
                 return reply(Micropod_V1_Empty())
 
             case "DeleteVolume":
                 let req = try decodeReq(Micropod_V1_DeleteVolumeRequest.self, body)
                 try check(req)
-                try await volumeRouter(services).delete(req.name)
+                try await volumeRouter(services).delete(
+                    req.name, runtime: req.hasRuntime && !req.runtime.isEmpty ? req.runtime : nil)
                 return reply(Micropod_V1_Empty())
 
             case "CloneVolume":

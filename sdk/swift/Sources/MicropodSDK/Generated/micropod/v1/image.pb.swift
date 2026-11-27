@@ -175,9 +175,22 @@ public nonisolated struct Micropod_V1_DeleteImageRequest: Sendable {
   /// Remove even if containers reference the image.
   public var force: Bool = false
 
+  /// The engine whose image is removed (apple, docker, ci, hvf). Unset
+  /// removes it from the engine that has the image, the default runtime first.
+  public var runtime: String {
+    get {_runtime ?? String()}
+    set {_runtime = newValue}
+  }
+  /// Returns true if `runtime` has been explicitly set.
+  public var hasRuntime: Bool {self._runtime != nil}
+  /// Clears the value of `runtime`. Subsequent reads from it will return its default value.
+  public mutating func clearRuntime() {self._runtime = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _runtime: String? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -409,7 +422,7 @@ nonisolated extension Micropod_V1_ProgressLine: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Micropod_V1_DeleteImageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteImageRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reference\0\u{1}force\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reference\0\u{1}force\0\u{1}runtime\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -419,24 +432,33 @@ nonisolated extension Micropod_V1_DeleteImageRequest: SwiftProtobuf.Message, Swi
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.reference) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.force) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._runtime) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.reference.isEmpty {
       try visitor.visitSingularStringField(value: self.reference, fieldNumber: 1)
     }
     if self.force != false {
       try visitor.visitSingularBoolField(value: self.force, fieldNumber: 2)
     }
+    try { if let v = self._runtime {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_DeleteImageRequest, rhs: Micropod_V1_DeleteImageRequest) -> Bool {
     if lhs.reference != rhs.reference {return false}
     if lhs.force != rhs.force {return false}
+    if lhs._runtime != rhs._runtime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

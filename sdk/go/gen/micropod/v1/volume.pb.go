@@ -444,7 +444,10 @@ type CreateVolumeRequest struct {
 	// Labels applied to the volume ("key=value").
 	Labels []string `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty"`
 	// Driver options passed through to the volume driver.
-	Options       []string `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	Options []string `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	// The engine to create the volume on (apple, docker, hvf). Unset creates
+	// it on the default runtime when that keeps volumes, else on Apple's.
+	Runtime       *string `protobuf:"bytes,5,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,10 +510,20 @@ func (x *CreateVolumeRequest) GetOptions() []string {
 	return nil
 }
 
+func (x *CreateVolumeRequest) GetRuntime() string {
+	if x != nil && x.Runtime != nil {
+		return *x.Runtime
+	}
+	return ""
+}
+
 type DeleteVolumeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Volume name to remove.
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The engine whose volume is removed (apple, docker, hvf). Unset removes
+	// it from the engine that has the name, the default runtime first.
+	Runtime       *string `protobuf:"bytes,2,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -548,6 +561,13 @@ func (*DeleteVolumeRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteVolumeRequest) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *DeleteVolumeRequest) GetRuntime() string {
+	if x != nil && x.Runtime != nil {
+		return *x.Runtime
 	}
 	return ""
 }
@@ -769,17 +789,23 @@ const file_micropod_v1_volume_proto_rawDesc = "" +
 	"\x0eCACHE_MODE_OFF\x10\x02\x12\x13\n" +
 	"\x0fCACHE_MODE_AUTO\x10\x03\"D\n" +
 	"\x13ListVolumesResponse\x12-\n" +
-	"\avolumes\x18\x01 \x03(\v2\x13.micropod.v1.VolumeR\avolumes\"\xc8\x01\n" +
+	"\avolumes\x18\x01 \x03(\v2\x13.micropod.v1.VolumeR\avolumes\"\x83\x02\n" +
 	"\x13CreateVolumeRequest\x12+\n" +
 	"\x04name\x18\x01 \x01(\tB\x17\xbaG\n" +
 	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12%\n" +
 	"\x04size\x18\x02 \x01(\tB\f\xbaG\t:\a\x12\x05'10g'H\x00R\x04size\x88\x01\x01\x12:\n" +
 	"\x06labels\x18\x03 \x03(\tB\"\xbaG\x1f:\x1d\x12\x1b['com.example.project=web']R\x06labels\x12\x18\n" +
-	"\aoptions\x18\x04 \x03(\tR\aoptionsB\a\n" +
-	"\x05_size\"B\n" +
+	"\aoptions\x18\x04 \x03(\tR\aoptions\x12-\n" +
+	"\aruntime\x18\x05 \x01(\tB\x0e\xbaG\v:\t\x12\a'apple'H\x01R\aruntime\x88\x01\x01B\a\n" +
+	"\x05_sizeB\n" +
+	"\n" +
+	"\b_runtime\"}\n" +
 	"\x13DeleteVolumeRequest\x12+\n" +
 	"\x04name\x18\x01 \x01(\tB\x17\xbaG\n" +
-	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\"\xe9\x01\n" +
+	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12-\n" +
+	"\aruntime\x18\x02 \x01(\tB\x0e\xbaG\v:\t\x12\a'apple'H\x00R\aruntime\x88\x01\x01B\n" +
+	"\n" +
+	"\b_runtime\"\xe9\x01\n" +
 	"\x12CloneVolumeRequest\x127\n" +
 	"\x06source\x18\x01 \x01(\tB\x1f\xbaG\x12:\x10\x12\x0e'golden-cache'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06source\x123\n" +
 	"\x04name\x18\x02 \x01(\tB\x1f\xbaG\x12:\x10\x12\x0e'job-42-cache'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12%\n" +
@@ -864,6 +890,7 @@ func file_micropod_v1_volume_proto_init() {
 	}
 	file_micropod_v1_api_proto_init()
 	file_micropod_v1_volume_proto_msgTypes[3].OneofWrappers = []any{}
+	file_micropod_v1_volume_proto_msgTypes[4].OneofWrappers = []any{}
 	file_micropod_v1_volume_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
