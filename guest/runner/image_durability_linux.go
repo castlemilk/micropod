@@ -18,6 +18,7 @@ import (
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	images "github.com/containerd/containerd/api/services/images/v1"
+	leases "github.com/containerd/containerd/api/services/leases/v1"
 	snapshots "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/platforms"
@@ -78,7 +79,10 @@ import (
 // with a step: a layer committed just after it can carry a time before the
 // last sync's, and a crash before the next sync then keeps it unchecked.
 
-const imageStoreSnapshotter = "overlayfs"
+// imageStoreSnapshotter is containerd's snapshotter for images and
+// containers (a variable only so the containerd test, which cannot mount, can
+// use the native one).
+var imageStoreSnapshotter = "overlayfs"
 
 var (
 	// imageStoreRoot is a directory on the filesystem that holds containerd's
@@ -239,6 +243,19 @@ type imageStoreClients struct {
 	}
 	images imageMetadataClient
 	cri    cri.ImageServiceClient
+	// leases name the snapshot records containerd keeps but does not list,
+	// and hold what an explicit remove refused (nil: neither is looked for).
+	leases recoveryLeases
+}
+
+// recoveryLeases is the part of containerd's leases client image recovery
+// needs (removeHiddenSnapshots, collectKept).
+type recoveryLeases interface {
+	Create(context.Context, *leases.CreateRequest, ...grpc.CallOption) (*leases.CreateResponse, error)
+	Delete(context.Context, *leases.DeleteRequest, ...grpc.CallOption) (*emptypb.Empty, error)
+	List(context.Context, *leases.ListRequest, ...grpc.CallOption) (*leases.ListResponse, error)
+	ListResources(context.Context, *leases.ListResourcesRequest, ...grpc.CallOption) (*leases.ListResourcesResponse, error)
+	DeleteResource(context.Context, *leases.DeleteResourceRequest, ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 // snapshotStore is the part of containerd's snapshots client image recovery
@@ -258,10 +275,15 @@ type imageRecoveryReport struct {
 	// which CRI pulls again by itself, without a sync, at the next pod.
 	Pinned   []string
 	BuildKit []string // BuildKit cache records left for BuildKit to prune
+	// Hidden are snapshot records containerd no longer listed (a commit cut
+	// short) that recovery removed so their parents could go.
+	Hidden []string
+	// Kept are undurable snapshots nothing could remove (imageKeptPath).
+	Kept []string
 }
 
 func (r imageRecoveryReport) empty() bool {
-	return len(r.Blobs)+len(r.Snapshots)+len(r.Images)+len(r.BuildKit) == 0
+	return len(r.Blobs)+len(r.Snapshots)+len(r.Images)+len(r.BuildKit)+len(r.Hidden)+len(r.Kept) == 0
 }
 
 // criPinnedLabel marks the images CRI pins (its sandbox image).
@@ -289,7 +311,7 @@ func (n node) recoverImageStore(ctx context.Context) (pinned []string, buildkitO
 	if err := imageSync.Sync(); err != nil {
 		return nil, false, err
 	}
-	if err := pruneBuildKitRecords(ctx); err != nil {
+	if err := pruneBuildKitRecords(ctx, n.snapStore); err != nil {
 		log.Printf("BuildKit is off this boot: %v", err)
 		return pinned, false, nil
 	}
@@ -298,25 +320,31 @@ func (n node) recoverImageStore(ctx context.Context) (pinned []string, buildkitO
 
 func (n node) discardAfterUncleanStop(ctx context.Context) ([]string, error) {
 	rec, err := readImageSyncRecord()
+	var since time.Time
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		// A new disk, or one an engine without this record used last.
-		return nil, nil
 	case err != nil:
 		return nil, err
 	case rec.Boot == "" || rec.Boot == currentBootID() || readCleanStop()[rec.Boot]:
+	default:
+		since = time.Unix(0, rec.DurableBefore)
+	}
+	// Snapshots an earlier pass could not remove are judged at every start
+	// until one does, clean stop or not.
+	kept := readKeptSnapshots()
+	if since.IsZero() && len(kept) == 0 {
 		return nil, nil
 	}
-	since := time.Unix(0, rec.DurableBefore)
-	c := imageStoreClients{snapshots: n.snapStore, content: n.content, images: n.imageStore, cri: n.images}
-	report, err := c.discardUndurableImages(ctx, since)
+	c := imageStoreClients{snapshots: n.snapStore, content: n.content, images: n.imageStore, cri: n.images, leases: n.storeLeases}
+	report, err := c.discardUndurableImages(ctx, since, kept)
 	if err != nil {
 		return nil, fmt.Errorf("check the image store after an unclean stop: %w", err)
 	}
 	logImageRecovery(report)
 	// BuildKit's own records made since (a RUN step's result is a record
 	// over a snapshot it never commits) are only known to BuildKit.
-	if _, err := os.Stat(buildkitRoot); err == nil {
+	if _, err := os.Stat(buildkitRoot); err == nil && !since.IsZero() {
 		if err := addBuildKitPrune(nil, since); err != nil {
 			return nil, err
 		}
@@ -341,20 +369,35 @@ func (n node) repullPinnedImages(ctx context.Context, names []string) {
 }
 
 func logImageRecovery(r imageRecoveryReport) {
+	if r.Since.IsZero() {
+		log.Printf("image store: retried the snapshots an earlier recovery kept: removed %d snapshots and %d image records %v; %d still kept %v",
+			len(r.Snapshots), len(r.Images), r.Images, len(r.Kept), r.Kept)
+		return
+	}
 	if r.empty() {
 		log.Printf("image store after an unclean stop: everything committed before %s was synced, nothing since", r.Since.UTC().Format(time.RFC3339Nano))
 		return
 	}
-	log.Printf("image store after an unclean stop: removed what was committed after the last sync (%s): %d image records %v, %d snapshots, %d missing blobs; %d BuildKit cache records to prune",
-		r.Since.UTC().Format(time.RFC3339Nano), len(r.Images), r.Images, len(r.Snapshots), len(r.Blobs), len(r.BuildKit))
+	log.Printf("image store after an unclean stop: removed what was committed after the last sync (%s): %d image records %v, %d snapshots, %d missing blobs; %d BuildKit cache records to prune; %d unlisted snapshot records removed; %d snapshots kept %v",
+		r.Since.UTC().Format(time.RFC3339Nano), len(r.Images), r.Images, len(r.Snapshots), len(r.Blobs), len(r.BuildKit), len(r.Hidden), len(r.Kept), r.Kept)
 }
 
 // discardUndurableImages removes what containerd committed at or after since
-// and may have lost, and every image record that names it.
-func (c imageStoreClients) discardUndurableImages(ctx context.Context, since time.Time) (imageRecoveryReport, error) {
+// and may have lost, and every image record that names it. kept names the
+// snapshots an earlier pass could not remove (imageKeptPath): they are judged
+// undurable again, whatever their time, until one pass removes them. A zero
+// since judges nothing by time (a clean stop with snapshots still kept).
+//
+// A snapshot that cannot be removed does not stop the engine: it is kept,
+// logged and listed, every image record that names it goes, and the next
+// start tries again (see removeHiddenSnapshots and collectKept for why one
+// can refuse and what is tried before it is kept).
+func (c imageStoreClients) discardUndurableImages(ctx context.Context, since time.Time, kept []string) (imageRecoveryReport, error) {
 	ctx = imageMetadataContext(ctx)
 	report := imageRecoveryReport{Since: since}
-	after := func(t interface{ AsTime() time.Time }) bool { return t != nil && !t.AsTime().Before(since) }
+	after := func(t interface{ AsTime() time.Time }) bool {
+		return !since.IsZero() && t != nil && !t.AsTime().Before(since)
+	}
 
 	// Blobs: the data was synced before the rename, the rename was not.
 	gone := map[string]bool{}
@@ -380,7 +423,8 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 		report.Blobs = append(report.Blobs, info.GetDigest())
 	}
 
-	// Snapshots committed since, and everything above them.
+	// Snapshots committed since, the ones kept before, and everything above
+	// them.
 	infos, err := c.snapshotInfos(ctx)
 	if err != nil {
 		return report, err
@@ -393,14 +437,14 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 			children[p] = append(children[p], info.GetName())
 		}
 	}
-	removed := map[string]bool{}
+	undurable := map[string]bool{}
 	var order []string // children before their parent
 	var visit func(name string)
 	visit = func(name string) {
-		if removed[name] {
+		if undurable[name] {
 			return
 		}
-		removed[name] = true
+		undurable[name] = true
 		kids := children[name]
 		slices.Sort(kids)
 		for _, kid := range kids {
@@ -408,10 +452,18 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 		}
 		order = append(order, name)
 	}
+	// BuildKit's own snapshots made since count whatever their kind: a RUN
+	// step's or a cache mount's active snapshot can have lost its directory
+	// (the overlay snapshotter renames it into place before its database
+	// commits, and that commit's fdatasync need not carry the rename), and
+	// BuildKit then cannot size the record, so it cannot list or prune any
+	// (pruneBuildKitRecords), and builds stay off at every start.
 	var roots []string
 	for _, info := range infos {
-		if info.GetKind() == snapshots.Kind_COMMITTED && after(info.GetCreatedAt()) {
-			roots = append(roots, info.GetName())
+		name := info.GetName()
+		made := after(info.GetCreatedAt())
+		if (made && (info.GetKind() == snapshots.Kind_COMMITTED || buildkitRecordID.MatchString(name))) || slices.Contains(kept, name) {
+			roots = append(roots, name)
 		}
 	}
 	slices.Sort(roots)
@@ -428,15 +480,35 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 	if err := addBuildKitPrune(report.BuildKit, time.Time{}); err != nil {
 		return report, err
 	}
+	stays := map[string]string{} // snapshot → why it could not be removed
+	swept := false
 	for _, name := range order {
-		if _, err := c.snapshots.Remove(ctx, &snapshots.RemoveSnapshotRequest{Snapshotter: imageStoreSnapshotter, Key: name}); err != nil && status.Code(err) != codes.NotFound {
-			return report, fmt.Errorf("remove snapshot %s: %w", name, err)
+		if kid := slices.IndexFunc(children[name], func(k string) bool { return stays[k] != "" }); kid >= 0 {
+			stays[name] = "its child " + children[name][kid] + " stays"
+			continue
 		}
-		report.Snapshots = append(report.Snapshots, name)
+		err := c.removeSnapshot(ctx, name)
+		if status.Code(err) == codes.FailedPrecondition && !swept {
+			swept = true
+			hidden, herr := c.removeHiddenSnapshots(ctx, byName)
+			if herr != nil {
+				log.Printf("image store after an unclean stop: look for unlisted snapshot records: %v", herr)
+			}
+			report.Hidden = hidden
+			err = c.removeSnapshot(ctx, name)
+		}
+		switch {
+		case err == nil:
+			report.Snapshots = append(report.Snapshots, name)
+		case transientStoreError(ctx, err):
+			return report, fmt.Errorf("remove snapshot %s: %w", name, err)
+		default:
+			stays[name] = err.Error()
+		}
 	}
 	present := map[string]bool{}
 	for name := range byName {
-		if !removed[name] {
+		if !undurable[name] {
 			present[name] = true
 		}
 	}
@@ -448,10 +520,10 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 	}
 	for _, img := range records.GetImages() {
 		recent := after(img.GetUpdatedAt()) || after(img.GetCreatedAt())
-		if len(gone)+len(removed) == 0 && !recent {
+		if len(gone)+len(undurable) == 0 && !recent {
 			continue
 		}
-		why, err := c.imageUndurable(ctx, img, gone, removed, present, recent)
+		why, err := c.imageUndurable(ctx, img, gone, undurable, present, recent)
 		if err != nil {
 			return report, err
 		}
@@ -467,10 +539,197 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 			report.Pinned = append(report.Pinned, img.GetName())
 		}
 	}
+	if len(stays) > 0 {
+		collected, err := c.collectKept(ctx, stays)
+		if err != nil {
+			log.Printf("image store after an unclean stop: collect the snapshots that could not be removed: %v", err)
+		}
+		report.Snapshots = append(report.Snapshots, collected...)
+		for name, why := range stays {
+			if !slices.Contains(collected, name) {
+				report.Kept = append(report.Kept, name)
+				log.Printf("image store after an unclean stop: KEPT snapshot %s, which may not be whole (%s); no image names it, and the next start tries again", name, why)
+			}
+		}
+		slices.Sort(report.Kept)
+	}
+	// The list goes before the next sync can vouch for what is on it.
+	if err := writeKeptSnapshots(report.Kept); err != nil {
+		return report, fmt.Errorf("record the snapshots recovery could not remove: %w", err)
+	}
 	if err := c.awaitCRIForgets(ctx, report.Images); err != nil {
 		return report, err
 	}
 	return report, nil
+}
+
+// removeSnapshot removes one snapshot record; one already gone is not an
+// error.
+func (c imageStoreClients) removeSnapshot(ctx context.Context, name string) error {
+	_, err := c.snapshots.Remove(ctx, &snapshots.RemoveSnapshotRequest{Snapshotter: imageStoreSnapshotter, Key: name})
+	if status.Code(err) == codes.NotFound {
+		return nil
+	}
+	return err
+}
+
+// transientStoreError is an error that says containerd did not answer (it
+// stopped, or this start gave up), not that it refused: the start fails and
+// the next one tries again. Every refusal keeps the snapshot instead.
+func transientStoreError(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return true
+	}
+	switch status.Code(err) {
+	case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+		return true
+	}
+	return false
+}
+
+// snapshotLeaseType is how a lease names a snapshot of the image store.
+func snapshotLeaseType() string { return "snapshots/" + imageStoreSnapshotter }
+
+// removeHiddenSnapshots removes the snapshot records containerd keeps but no
+// longer lists, which make their parent refuse to go ("cannot remove snapshot
+// with child").
+//
+// containerd commits a snapshot in its snapshotter first, inside the
+// transaction that commits it in its metadata: a crash after the
+// snapshotter's commit and before the metadata's (a kill in the middle of a
+// build commits BuildKit's steps all the time) leaves the metadata's active
+// record of the snapshot with nothing under it. containerd's listing skips a
+// record its snapshotter does not know, but the parent's record still counts
+// it as a child, so recovery cannot remove the parent until it is gone. The
+// lease it was made under (BuildKit's record, a pull's unpack) still names
+// it. Removing such a record deletes only metadata: there is nothing under
+// it to lose. listed is what containerd lists, which is left alone.
+func (c imageStoreClients) removeHiddenSnapshots(ctx context.Context, listed map[string]*snapshots.Info) ([]string, error) {
+	if c.leases == nil {
+		return nil, nil
+	}
+	all, err := c.leases.List(ctx, &leases.ListRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("list leases: %w", err)
+	}
+	seen := map[string]bool{}
+	var hidden []string
+	for _, l := range all.GetLeases() {
+		res, err := c.leases.ListResources(ctx, &leases.ListResourcesRequest{ID: l.GetID()})
+		if status.Code(err) == codes.NotFound {
+			continue
+		}
+		if err != nil {
+			return hidden, fmt.Errorf("list the resources of lease %s: %w", l.GetID(), err)
+		}
+		for _, r := range res.GetResources() {
+			key := r.GetID()
+			if r.GetType() != snapshotLeaseType() || listed[key] != nil || seen[key] {
+				continue
+			}
+			seen[key] = true
+			_, err := c.snapshots.Remove(ctx, &snapshots.RemoveSnapshotRequest{Snapshotter: imageStoreSnapshotter, Key: key})
+			switch status.Code(err) {
+			case codes.OK:
+				hidden = append(hidden, key)
+				log.Printf("image store after an unclean stop: removed snapshot record %s (lease %s), which containerd no longer lists: its commit was cut short", key, l.GetID())
+			case codes.NotFound: // the lease names a snapshot already gone
+			default:
+				log.Printf("image store after an unclean stop: remove unlisted snapshot record %s (lease %s): %v", key, l.GetID(), err)
+			}
+		}
+	}
+	slices.Sort(hidden)
+	return hidden, nil
+}
+
+// recoveryGCLease is the empty lease whose synchronous delete runs
+// containerd's garbage collection (collectKept).
+const recoveryGCLease = "micropod-image-recovery-gc"
+
+// collectKept removes, through containerd's garbage collection, what an
+// explicit remove refused. The collector deletes an unreferenced snapshot
+// whatever its record says of children (a child link the collector itself
+// left when it deleted the child, or one no lease names), but not one a lease
+// still holds: so every lease's hold on these snapshots goes first (the
+// pull, load or build that made them was cut short, and the image records
+// that named them are gone), then a synchronous collection runs. Returns the
+// snapshots that are gone after it.
+func (c imageStoreClients) collectKept(ctx context.Context, stays map[string]string) ([]string, error) {
+	if c.leases == nil {
+		return nil, nil
+	}
+	all, err := c.leases.List(ctx, &leases.ListRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("list leases: %w", err)
+	}
+	for _, l := range all.GetLeases() {
+		res, err := c.leases.ListResources(ctx, &leases.ListResourcesRequest{ID: l.GetID()})
+		if err != nil {
+			continue
+		}
+		for _, r := range res.GetResources() {
+			if r.GetType() != snapshotLeaseType() || stays[r.GetID()] == "" {
+				continue
+			}
+			if _, err := c.leases.DeleteResource(ctx, &leases.DeleteResourceRequest{ID: l.GetID(), Resource: r}); err != nil && status.Code(err) != codes.NotFound {
+				log.Printf("image store after an unclean stop: release snapshot %s from lease %s: %v", r.GetID(), l.GetID(), err)
+			}
+		}
+	}
+	if _, err := c.leases.Create(ctx, &leases.CreateRequest{ID: recoveryGCLease}); err != nil && status.Code(err) != codes.AlreadyExists {
+		return nil, fmt.Errorf("start a garbage collection: %w", err)
+	}
+	if _, err := c.leases.Delete(ctx, &leases.DeleteRequest{ID: recoveryGCLease, Sync: true}); err != nil {
+		return nil, fmt.Errorf("run a garbage collection: %w", err)
+	}
+	infos, err := c.snapshotInfos(ctx)
+	if err != nil {
+		return nil, err
+	}
+	still := map[string]bool{}
+	for _, info := range infos {
+		still[info.GetName()] = true
+	}
+	var collected []string
+	for name := range stays {
+		if !still[name] {
+			collected = append(collected, name)
+		}
+	}
+	slices.Sort(collected)
+	return collected, nil
+}
+
+// imageKeptPath lists the snapshots a recovery pass could not remove. They
+// are still undurable: a sync after the pass does not make a torn layer
+// whole, so every start judges them again until one removes them.
+var imageKeptPath = filepath.Join(engineRoot, "image-kept")
+
+func readKeptSnapshots() []string {
+	var names []string
+	b, err := os.ReadFile(imageKeptPath)
+	if err != nil || json.Unmarshal(b, &names) != nil {
+		return nil
+	}
+	return names
+}
+
+func writeKeptSnapshots(names []string) error {
+	if len(names) == 0 {
+		if err := os.Remove(imageKeptPath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		return syncDir(filepath.Dir(imageKeptPath))
+	}
+	b, err := json.Marshal(names)
+	if err != nil {
+		return err
+	}
+	return writeDurable(imageKeptPath, b)
 }
 
 // imageUndurable says why img cannot be kept, "" when it can: it names a blob
@@ -765,7 +1024,7 @@ var dialBuildKitControl = func(ctx context.Context) (buildkitPruner, func(), err
 // Mutable records (cache mounts) are kept. The list goes once BuildKit has
 // pruned (or when the bundle has no BuildKit), so a crash before then prunes
 // at the next start.
-func pruneBuildKitRecords(ctx context.Context) error {
+func pruneBuildKitRecords(ctx context.Context, snaps snapshotStore) error {
 	l := readBuildKitPrune()
 	if len(l.IDs) == 0 && l.Since == 0 {
 		if err := os.Remove(buildkitPrunePath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -781,7 +1040,7 @@ func pruneBuildKitRecords(ctx context.Context) error {
 		defer done()
 		ids := slices.Clone(l.IDs)
 		if l.Since != 0 {
-			du, err := bk.DiskUsage(ctx, &control.DiskUsageRequest{})
+			du, err := buildkitRecordsSizing(ctx, bk, snaps)
 			if err != nil {
 				return fmt.Errorf("list BuildKit cache records: %w", err)
 			}
@@ -819,4 +1078,35 @@ func pruneBuildKitRecords(ctx context.Context) error {
 		return err
 	}
 	return syncDir(filepath.Dir(buildkitPrunePath))
+}
+
+// buildkitUsageFailure is how BuildKit names the record it could not size.
+var buildkitUsageFailure = regexp.MustCompile(`failed to get usage for ([a-z0-9]{25})\b`)
+
+// buildkitRecordsSizing lists BuildKit's records. One whose snapshot is there
+// but whose files are not (a directory a crash lost) fails the whole listing;
+// its snapshot record is removed, which BuildKit then reads as a record with
+// nothing left (size 0, prunable), and the listing is tried again. Such a
+// record is undurable by any account: a snapshot BuildKit cannot even size
+// holds no layer anyone can use.
+func buildkitRecordsSizing(ctx context.Context, bk buildkitPruner, snaps snapshotStore) (*control.DiskUsageResponse, error) {
+	for range 64 {
+		du, err := bk.DiskUsage(ctx, &control.DiskUsageRequest{})
+		if err == nil {
+			return du, nil
+		}
+		m := buildkitUsageFailure.FindStringSubmatch(err.Error())
+		if m == nil || snaps == nil {
+			return nil, err
+		}
+		_, rerr := snaps.Remove(imageMetadataContext(ctx), &snapshots.RemoveSnapshotRequest{Snapshotter: imageStoreSnapshotter, Key: m[1]})
+		if rerr != nil && status.Code(rerr) != codes.NotFound {
+			return nil, fmt.Errorf("%w (and removing its snapshot record: %v)", err, rerr)
+		}
+		if rerr != nil {
+			return nil, err // nothing to remove: the same failure again
+		}
+		log.Printf("image store after an unclean stop: removed the snapshot record of BuildKit cache record %s, whose files are gone (%v)", m[1], err)
+	}
+	return nil, errors.New("BuildKit could not size its cache records")
 }

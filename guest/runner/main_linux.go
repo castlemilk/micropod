@@ -84,9 +84,11 @@ type node struct {
 	snapStore  snapshotStore // lists and removes snapshots (image recovery)
 	imageUsage imageLayerUsageClient
 	leases     archiveLeaseClient
-	tasks      taskWaitClient
-	execTasks  tasks.TasksClient
-	watchLog   func(string) (<-chan struct{}, func())
+	// storeLeases lists leases and their resources (image recovery).
+	storeLeases recoveryLeases
+	tasks       taskWaitClient
+	execTasks   tasks.TasksClient
+	watchLog    func(string) (<-chan struct{}, func())
 	// probeKeys lists what sweepProbes looks for (image_facts_linux.go).
 	probeKeys probeKeyLister
 	// reconnect lets a connection to containerd that failed be retried at
@@ -104,18 +106,19 @@ func connect() (*grpc.ClientConn, node, error) {
 	leaseClient := leases.NewLeasesClient(conn)
 	return conn, node{
 		runtime: cri.NewRuntimeServiceClient(conn), images: cri.NewImageServiceClient(conn),
-		imageStore: images.NewImagesClient(conn),
-		imagePush:  newDockerRegistryPusher(conn),
-		content:    content.NewContentClient(conn),
-		containers: containers.NewContainersClient(conn),
-		snapshots:  snapshotClient,
-		snapStore:  snapshotClient,
-		imageUsage: snapshotClient,
-		leases:     leaseClient,
-		tasks:      taskClient,
-		execTasks:  taskClient,
-		probeKeys:  grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
-		reconnect:  conn.ResetConnectBackoff,
+		imageStore:  images.NewImagesClient(conn),
+		imagePush:   newDockerRegistryPusher(conn),
+		content:     content.NewContentClient(conn),
+		containers:  containers.NewContainersClient(conn),
+		snapshots:   snapshotClient,
+		snapStore:   snapshotClient,
+		imageUsage:  snapshotClient,
+		leases:      leaseClient,
+		storeLeases: leaseClient,
+		tasks:       taskClient,
+		execTasks:   taskClient,
+		probeKeys:   grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
+		reconnect:   conn.ResetConnectBackoff,
 	}, nil
 }
 

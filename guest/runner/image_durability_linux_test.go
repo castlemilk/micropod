@@ -19,6 +19,7 @@ import (
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	images "github.com/containerd/containerd/api/services/images/v1"
+	leases "github.com/containerd/containerd/api/services/leases/v1"
 	snapshots "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/types"
 	control "github.com/moby/buildkit/api/services/control"
@@ -42,6 +43,7 @@ func TestMain(m *testing.M) {
 	}
 	imageStoreRoot = dir
 	imageSyncPath = filepath.Join(dir, "image-sync")
+	imageKeptPath = filepath.Join(dir, "image-kept")
 	buildkitPrunePath = filepath.Join(dir, "buildkit-prune")
 	buildkitRoot = filepath.Join(dir, "no-buildkit")
 	syncFilesystem = func(*os.File) error { return nil }
@@ -288,23 +290,140 @@ type storeFixture struct {
 	listings int
 	// pruneAt is buildkitPrunePath's IDs when the first snapshot went.
 	pruneAt []string
+	// hidden are containerd's records with nothing under them (a commit cut
+	// short): not listed, but children of their parent, removable by key.
+	hidden []*snapshots.Info
+	// staleChild names snapshots whose record counts a child that is not
+	// there at all (the collector deleted it): Remove refuses them; the
+	// collector deletes them once no lease holds them, unless uncollectable.
+	staleChild    map[string]bool
+	uncollectable map[string]bool
+	// leases maps a lease to the snapshot keys it holds.
+	leases    map[string][]string
+	collected []string // what the collector removed
+	gcRuns    int
+	// failRemove answers every Remove with this error.
+	failRemove error
+}
+
+func (f *storeFixture) live(name string) bool {
+	return !slices.Contains(f.removed, name) && !slices.Contains(f.collected, name)
 }
 
 func (f *storeFixture) List(context.Context, *snapshots.ListSnapshotsRequest, ...grpc.CallOption) (snapshots.Snapshots_ListClient, error) {
-	return &snapList{items: [][]*snapshots.Info{f.snaps}}, nil
+	var listed []*snapshots.Info
+	for _, s := range f.snaps {
+		if f.live(s.GetName()) {
+			listed = append(listed, s)
+		}
+	}
+	return &snapList{items: [][]*snapshots.Info{listed}}, nil
 }
 
 func (f *storeFixture) Remove(_ context.Context, req *snapshots.RemoveSnapshotRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
-	for _, s := range f.snaps {
-		if s.GetParent() == req.GetKey() && !slices.Contains(f.removed, s.GetName()) {
-			return nil, status.Errorf(codes.FailedPrecondition, "cannot remove %s: %s is its child", req.GetKey(), s.GetName())
+	if f.failRemove != nil {
+		return nil, f.failRemove
+	}
+	known := false
+	for _, s := range append(slices.Clone(f.snaps), f.hidden...) {
+		if s.GetParent() == req.GetKey() && f.live(s.GetName()) {
+			return nil, status.Errorf(codes.FailedPrecondition, "cannot remove snapshot with child: %s is its child", s.GetName())
 		}
+		known = known || s.GetName() == req.GetKey()
+	}
+	if !known || !f.live(req.GetKey()) {
+		return nil, status.Errorf(codes.NotFound, "snapshot %s does not exist", req.GetKey())
+	}
+	if f.staleChild[req.GetKey()] {
+		return nil, status.Error(codes.FailedPrecondition, "cannot remove snapshot with child: failed precondition")
 	}
 	if len(f.removed) == 0 {
 		f.pruneAt = readBuildKitPrune().IDs
 	}
 	f.removed = append(f.removed, req.GetKey())
 	return &emptypb.Empty{}, nil
+}
+
+// The fixture's leases client: List, ListResources and DeleteResource over
+// f.leases; deleting a lease with Sync runs the collector.
+type storeLeases struct{ f *storeFixture }
+
+func (l storeLeases) Create(_ context.Context, req *leases.CreateRequest, _ ...grpc.CallOption) (*leases.CreateResponse, error) {
+	if _, ok := l.f.leases[req.GetID()]; ok {
+		return nil, status.Error(codes.AlreadyExists, "lease exists")
+	}
+	l.f.leases[req.GetID()] = nil
+	return &leases.CreateResponse{Lease: &leases.Lease{ID: req.GetID()}}, nil
+}
+
+func (l storeLeases) Delete(_ context.Context, req *leases.DeleteRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+	delete(l.f.leases, req.GetID())
+	if req.GetSync() {
+		l.f.gc()
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (l storeLeases) List(context.Context, *leases.ListRequest, ...grpc.CallOption) (*leases.ListResponse, error) {
+	var out []*leases.Lease
+	for id := range l.f.leases {
+		out = append(out, &leases.Lease{ID: id})
+	}
+	slices.SortFunc(out, func(a, b *leases.Lease) int { return strings.Compare(a.GetID(), b.GetID()) })
+	return &leases.ListResponse{Leases: out}, nil
+}
+
+func (l storeLeases) ListResources(_ context.Context, req *leases.ListResourcesRequest, _ ...grpc.CallOption) (*leases.ListResourcesResponse, error) {
+	keys, ok := l.f.leases[req.GetID()]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "no lease")
+	}
+	var out []*leases.Resource
+	for _, k := range keys {
+		out = append(out, &leases.Resource{ID: k, Type: snapshotLeaseType()})
+	}
+	return &leases.ListResourcesResponse{Resources: out}, nil
+}
+
+func (l storeLeases) DeleteResource(_ context.Context, req *leases.DeleteResourceRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+	l.f.leases[req.GetID()] = slices.DeleteFunc(l.f.leases[req.GetID()], func(k string) bool { return k == req.GetResource().GetID() })
+	return &emptypb.Empty{}, nil
+}
+
+// gc deletes every live snapshot nothing reaches, as containerd's collector
+// does (it deletes a record outright, whatever it says of children): the
+// roots are what a lease holds and what the test made uncollectable (an image
+// or a container that still names it), and a snapshot reaches its parent.
+func (f *storeFixture) gc() {
+	f.gcRuns++
+	reach := map[string]bool{}
+	var mark func(name string)
+	mark = func(name string) {
+		if name == "" || reach[name] {
+			return
+		}
+		reach[name] = true
+		for _, s := range append(slices.Clone(f.snaps), f.hidden...) {
+			if s.GetName() == name {
+				mark(s.GetParent())
+			}
+		}
+	}
+	for _, keys := range f.leases {
+		for _, k := range keys {
+			mark(k)
+		}
+	}
+	for name, ok := range f.uncollectable {
+		if ok {
+			mark(name)
+		}
+	}
+	for _, s := range f.snaps {
+		if name := s.GetName(); f.live(name) && !reach[name] {
+			f.collected = append(f.collected, name)
+		}
+	}
 }
 
 type snapList struct {
@@ -459,7 +578,7 @@ func TestDiscardUndurableImagesRemovesWhatTheLastSyncDidNotCover(t *testing.T) {
 		active("extract-1-"+pauseChain[0], pauseChain[0], after),
 	}
 	c := imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}}
-	report, err := c.discardUndurableImages(context.Background(), since)
+	report, err := c.discardUndurableImages(context.Background(), since, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,13 +624,179 @@ func TestDiscardUndurableImagesLeavesASyncedStoreAlone(t *testing.T) {
 	_, chain := f.fixtureImage("docker.io/library/old:1", before, "base")
 	f.snaps = []*snapshots.Info{committed(chain[0], "", before), active("x", chain[0], since.Add(time.Second))}
 	c := imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}}
-	report, err := c.discardUndurableImages(context.Background(), since)
+	report, err := c.discardUndurableImages(context.Background(), since, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !report.empty() || len(f.removed)+len(f.deleted)+len(f.imgGone) != 0 {
 		t.Fatalf("a synced store lost %q %q %q", f.removed, f.deleted, f.imgGone)
 	}
+}
+
+// I18-01: a kill in the middle of a build left a BuildKit step's record over
+// a snapshot that containerd no longer listed (its commit reached the
+// snapshotter, not the metadata), so its parent refused to go ("cannot remove
+// snapshot with child") and every start failed. Recovery finds the record
+// through the lease that made it, removes it, and then the parent.
+func TestRecoveryRemovesAParentWhoseChildsCommitWasCutShort(t *testing.T) {
+	t.Cleanup(func() { os.Remove(buildkitPrunePath); os.Remove(imageKeptPath) })
+	since := time.Unix(1_800_000_000, 0)
+	before, after := since.Add(-time.Minute), since.Add(time.Second)
+	f := &storeFixture{blobs: map[string][]byte{}}
+	_, base := f.fixtureImage("docker.io/library/alpine:3.20", before, "alpine")
+	step, cutShort := "xisxxc7aaouvht2wjsxav2f4p", "mutablestepxxxxxxxxxxxxxx"
+	f.snaps = []*snapshots.Info{committed(base[0], "", before), committed(step, base[0], after)}
+	f.hidden = []*snapshots.Info{active(cutShort, step, after)}
+	f.leases = map[string][]string{cutShort: {cutShort}, step: {step}, "other": {base[0]}}
+	c := imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}, leases: storeLeases{f: f}}
+	report, err := c.discardUndurableImages(context.Background(), since, nil)
+	if err != nil {
+		t.Fatalf("recovery refused the store: %v", err)
+	}
+	if !slices.Equal(f.removed, []string{cutShort, step}) {
+		t.Fatalf("removed %q, want the unlisted record, then its parent", f.removed)
+	}
+	if !slices.Equal(report.Hidden, []string{cutShort}) || !slices.Equal(report.Snapshots, []string{step}) || len(report.Kept) != 0 {
+		t.Fatalf("report hidden %q snapshots %q kept %q", report.Hidden, report.Snapshots, report.Kept)
+	}
+	if !slices.Equal(report.BuildKit, []string{step}) {
+		t.Fatalf("BuildKit records to prune %q, want %s", report.BuildKit, step)
+	}
+	if f.gcRuns != 0 {
+		t.Fatal("ran the collector though every snapshot was removed")
+	}
+	if _, err := os.Stat(imageKeptPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a kept list with nothing kept: %v", err)
+	}
+}
+
+// A snapshot that still cannot be removed (a child link no lease names) does
+// not stop the engine: the collector takes it once no lease holds it; if even
+// that fails it is kept, logged and listed, every image that names it goes,
+// and its undurable parents stay with it. The next start, clean stop or not,
+// tries again, and the list goes once they are removed.
+func TestRecoveryKeepsWhatCannotBeRemovedAndStarts(t *testing.T) {
+	dir := t.TempDir()
+	oldClean, oldBoot, oldPath := cleanStopPath, bootIDPath, imageSyncPath
+	t.Cleanup(func() {
+		cleanStopPath, bootIDPath, imageSyncPath = oldClean, oldBoot, oldPath
+		os.Remove(buildkitPrunePath)
+		os.Remove(imageKeptPath)
+	})
+	cleanStopPath, bootIDPath, imageSyncPath = filepath.Join(dir, "clean-stop"), filepath.Join(dir, "boot_id"), filepath.Join(dir, "image-sync")
+	since := time.Unix(1_800_000_000, 0)
+	after := since.Add(time.Second)
+	setup := func(collectable bool) (*storeFixture, imageStoreClients, *images.Image, []string) {
+		f := &storeFixture{blobs: map[string][]byte{}, staleChild: map[string]bool{}, uncollectable: map[string]bool{}}
+		img, chain := f.fixtureImage("docker.io/library/pulled:1", after, "first", "second")
+		other, otherChain := f.fixtureImage("docker.io/library/other:1", after, "other")
+		_ = other
+		f.snaps = []*snapshots.Info{committed(chain[0], "", after), committed(chain[1], chain[0], after), committed(otherChain[0], "", after)}
+		f.staleChild[chain[1]] = true
+		f.uncollectable[chain[1]] = !collectable
+		f.leases = map[string][]string{"pull": {chain[0], chain[1]}}
+		return f, imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}, leases: storeLeases{f: f}}, img, chain
+	}
+
+	// The collector takes it once the dead pull's lease lets go.
+	f, c, img, chain := setup(true)
+	report, err := c.discardUndurableImages(context.Background(), since, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.gcRuns != 1 || !slices.Contains(f.collected, chain[1]) || len(report.Kept) != 0 {
+		t.Fatalf("collector runs %d collected %q kept %q", f.gcRuns, f.collected, report.Kept)
+	}
+	if !slices.Contains(report.Snapshots, chain[1]) || !slices.Contains(f.imgGone, img.GetName()) {
+		t.Fatalf("snapshots %q images %q", report.Snapshots, f.imgGone)
+	}
+
+	// Nothing takes it: kept, with its undurable parent, and the start goes on.
+	f, c, img, chain = setup(false)
+	report, err = c.discardUndurableImages(context.Background(), since, nil)
+	if err != nil {
+		t.Fatalf("a snapshot that cannot be removed stopped the engine: %v", err)
+	}
+	if want := []string{chain[0], chain[1]}; !slices.Equal(report.Kept, sortedCopy(want)) {
+		t.Fatalf("kept %q, want %q", report.Kept, want)
+	}
+	if !slices.Contains(f.imgGone, img.GetName()) || !slices.Contains(f.imgGone, "docker.io/library/other:1") {
+		t.Fatalf("images removed %q: every image naming an undurable snapshot goes", f.imgGone)
+	}
+	if got := readKeptSnapshots(); !slices.Equal(got, report.Kept) {
+		t.Fatalf("kept list on disk %q, want %q", got, report.Kept)
+	}
+	if len(f.leases["pull"]) != 0 {
+		t.Fatalf("the dead pull's lease still holds %q", f.leases["pull"])
+	}
+
+	// The next start after a clean stop tries again; still stuck, still kept.
+	const previous, current = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"
+	if err := os.WriteFile(bootIDPath, []byte(current+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeImageSyncRecord(imageSyncRecord{Boot: previous, DurableBefore: after.Add(time.Hour).UnixNano()}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cleanStopPath, []byte(previous+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	// A pull in between reused the kept layer: that image goes too.
+	again, _ := f.fixtureImage("docker.io/library/pulled:1", after.Add(time.Minute), "first", "second")
+	f.imgGone = nil
+	n := node{snapStore: f, content: storeContent{f: f}, imageStore: storeImages{f: f}, storeLeases: storeLeases{f: f}}
+	if _, err := n.discardAfterUncleanStop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(f.imgGone, again.GetName()) {
+		t.Fatalf("an image on a kept snapshot stayed after a clean stop: removed %q", f.imgGone)
+	}
+	if got := readKeptSnapshots(); len(got) != 2 {
+		t.Fatalf("kept list %q after a retry that could not remove them", got)
+	}
+	// Once it can go, it goes, and so does the list.
+	f.staleChild[chain[1]] = false
+	if _, err := n.discardAfterUncleanStop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if f.live(chain[0]) || f.live(chain[1]) {
+		t.Fatalf("kept snapshots still there after they became removable: removed %q", f.removed)
+	}
+	if _, err := os.Stat(imageKeptPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the kept list stayed: %v", err)
+	}
+	// And then a clean stop with nothing kept looks at nothing.
+	f.imgGone, f.removed = nil, nil
+	listings := f.listings
+	if _, err := n.discardAfterUncleanStop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if f.listings != listings || len(f.removed) != 0 {
+		t.Fatal("a clean stop with nothing kept ran recovery")
+	}
+}
+
+// containerd not answering is not a refusal: the start fails and the next one
+// tries again, rather than keeping snapshots it never judged.
+func TestRecoveryFailsWhenContainerdDoesNotAnswer(t *testing.T) {
+	t.Cleanup(func() { os.Remove(buildkitPrunePath); os.Remove(imageKeptPath) })
+	since := time.Unix(1_800_000_000, 0)
+	f := &storeFixture{blobs: map[string][]byte{}, failRemove: status.Error(codes.Unavailable, "connection refused")}
+	_, chain := f.fixtureImage("docker.io/library/pulled:1", since.Add(time.Second), "layer")
+	f.snaps = []*snapshots.Info{committed(chain[0], "", since.Add(time.Second))}
+	c := imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}}
+	if _, err := c.discardUndurableImages(context.Background(), since, nil); status.Code(errors.Unwrap(err)) != codes.Unavailable {
+		t.Fatalf("recovery with containerd gone: %v, want the start to fail", err)
+	}
+	if readKeptSnapshots() != nil {
+		t.Fatal("kept a snapshot containerd never answered about")
+	}
+}
+
+func sortedCopy(s []string) []string {
+	s = slices.Clone(s)
+	slices.Sort(s)
+	return s
 }
 
 // Recovery runs only after an unclean stop of the boot that wrote the record:
@@ -629,9 +914,18 @@ func TestAnOrderlyEngineStopCoversWhatNothingHadSynced(t *testing.T) {
 type pruneFixture struct {
 	records []*control.UsageRecord
 	filters []string
+	// unsized names records BuildKit cannot size (their files are gone)
+	// until their snapshot record is removed from store.
+	unsized []string
+	store   *storeFixture
 }
 
 func (p *pruneFixture) DiskUsage(context.Context, *control.DiskUsageRequest, ...grpc.CallOption) (*control.DiskUsageResponse, error) {
+	for _, id := range p.unsized {
+		if p.store == nil || p.store.live(id) {
+			return nil, status.Errorf(codes.Unknown, "failed to get usage for %s: lstat /var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/60/fs: no such file or directory", id)
+		}
+	}
 	return &control.DiskUsageResponse{Record: p.records}, nil
 }
 
@@ -672,14 +966,14 @@ func TestBuildKitPrunesTheRecordsMadeAfterTheLastSync(t *testing.T) {
 	if err := addBuildKitPrune([]string{removedSnapshot}, since); err != nil {
 		t.Fatal(err)
 	}
-	if err := pruneBuildKitRecords(context.Background()); !errors.Is(err, failDial) {
+	if err := pruneBuildKitRecords(context.Background(), nil); !errors.Is(err, failDial) {
 		t.Fatalf("prune without BuildKit: %v", err)
 	}
 	if l := readBuildKitPrune(); !slices.Equal(l.IDs, []string{removedSnapshot}) || l.Since != since.UnixNano() {
 		t.Fatalf("the list did not survive a failed prune: %+v", l)
 	}
 	dialBuildKitControl = func(context.Context) (buildkitPruner, func(), error) { return p, func() {}, nil }
-	if err := pruneBuildKitRecords(context.Background()); err != nil {
+	if err := pruneBuildKitRecords(context.Background(), nil); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"id==" + removedSnapshot, "id==made-after-the-sync-xxxxx"}
@@ -688,5 +982,66 @@ func TestBuildKitPrunesTheRecordsMadeAfterTheLastSync(t *testing.T) {
 	}
 	if _, err := os.Stat(buildkitPrunePath); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("the list stayed after BuildKit pruned: %v", err)
+	}
+}
+
+// A kill in the middle of a multi-step build left a RUN step's active
+// snapshot whose directory was gone: BuildKit could not size its record, so
+// it could list and prune none, and builds were off at every start after.
+// Recovery removes BuildKit's snapshots made since whatever their kind, and
+// an unsizable record's snapshot record goes before BuildKit lists again.
+func TestBuildKitStaysOnAfterAStepLostItsFiles(t *testing.T) {
+	t.Cleanup(func() { os.Remove(buildkitPrunePath); os.Remove(imageKeptPath) })
+	since := time.Unix(1_800_000_000, 0)
+	before, after := since.Add(-time.Minute), since.Add(time.Second)
+	f := &storeFixture{blobs: map[string][]byte{}}
+	_, base := f.fixtureImage("docker.io/library/alpine:3.20", before, "alpine")
+	step, cacheMount, oldMount := "runstepactivexxxxxxxxxxxx", "newcachemountxxxxxxxxxxxx", "oldcachemountxxxxxxxxxxxx"
+	f.snaps = []*snapshots.Info{
+		committed(base[0], "", before),
+		active(step, base[0], after),
+		active(cacheMount, "", after),
+		active(oldMount, "", before),
+		active(strings.Repeat("3", 64), base[0], after), // a container's, not BuildKit's
+	}
+	c := imageStoreClients{snapshots: f, content: storeContent{f: f}, images: storeImages{f: f}}
+	report, err := c.discardUndurableImages(context.Background(), since, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{cacheMount, step}
+	if got := sortedCopy(f.removed); !slices.Equal(got, want) {
+		t.Fatalf("removed %q, want BuildKit's snapshots made since (%q), not the container's or the old cache mount", f.removed, want)
+	}
+	if got := sortedCopy(report.BuildKit); !slices.Equal(got, want) {
+		t.Fatalf("BuildKit records to prune %q, want %q", report.BuildKit, want)
+	}
+
+	// An older record whose files are gone all the same: its snapshot record
+	// goes, and BuildKit lists and prunes.
+	os.Remove(buildkitPrunePath)
+	g := &storeFixture{blobs: map[string][]byte{}}
+	lost := "lostfilesrecordxxxxxxxxxx"
+	g.snaps = []*snapshots.Info{active(lost, "", before)}
+	p := &pruneFixture{unsized: []string{lost}, store: g, records: []*control.UsageRecord{{ID: "made-after-the-sync-xxxxx", CreatedAt: timestamppb.New(after)}}}
+	oldDial := dialBuildKitControl
+	t.Cleanup(func() { dialBuildKitControl = oldDial })
+	dialBuildKitControl = func(context.Context) (buildkitPruner, func(), error) { return p, func() {}, nil }
+	if err := addBuildKitPrune(nil, since); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneBuildKitRecords(context.Background(), g); err != nil {
+		t.Fatalf("BuildKit stayed off: %v", err)
+	}
+	if !slices.Equal(g.removed, []string{lost}) || !slices.Equal(p.filters, []string{"id==made-after-the-sync-xxxxx"}) {
+		t.Fatalf("removed %q, pruned %q", g.removed, p.filters)
+	}
+	// Without a snapshot record to remove, the failure stands.
+	p.unsized, p.store = []string{"nosuchrecordxxxxxxxxxxxxx"}, nil
+	if err := addBuildKitPrune(nil, since); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneBuildKitRecords(context.Background(), g); err == nil {
+		t.Fatal("an unsizable record with no snapshot record to remove was ignored")
 	}
 }

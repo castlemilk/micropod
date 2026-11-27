@@ -38,7 +38,8 @@
 # the start must remove no image: a clean stop is never taken for a crash.
 #
 # Then the image trials (section I): each makes an image the engine never had
-# (a pull of a never-pulled public image, or a load and a build of a
+# (a pull of a never-pulled public image, or a load, a build or a multi-step
+# build (steps: GATE_BUILD_STEPS RUN steps, each a BuildKit commit) of a
 # generated image with a unique layer of 32 MiB, GATE_IMAGE_MIB) and kills the VMM
 # either MS after the operation answered (after:MS) or a FRACTION of the
 # kind's measured duration after it began (before:FRACTION; one that answered
@@ -52,6 +53,10 @@
 # a pull, from the generated layer for a load or build). The default trials
 # kill 0 to 10000 ms after a pull answered (the engine before image syncs left
 # the image broken 0 to 35 s after) and 0 to 3000 ms after a load or build.
+# A kill inside a build's commit once left containerd's metadata with a record
+# its snapshotter no longer had, and every relaunch refused to start (I18-01);
+# section R then requires that no relaunch refused and recovery kept no
+# snapshot, from the console log.
 #
 # It fails when a needed sync is missing: run it with --payload of an engine
 # built with one removed (the receipt's versions.txt names the payload).
@@ -60,7 +65,7 @@
 #              tools/); default: the rig's known-good payload, cloned (read only)
 # --offsets    kill offsets in ms after the last answer
 # --image-trials  comma-separated KIND:after:MS or KIND:before:FRACTION, KIND
-#              pull, load or build ("" for none; default: see IMAGE_TRIALS)
+#              pull, load, build or steps ("" for none; default: see IMAGE_TRIALS)
 # --sweep      which sweeps run: records (the creates above), images, or both
 # --receipt-dir default ~/.micropod/gates/records-crash/<UTC time>/:
 #              result.json, checks.tsv, versions.txt, logs/, evidence/
@@ -93,6 +98,7 @@ OFFSETS="0,1,3,10,30,100,300,1000,3000,3000,1000,300,100,30,10,3,1,0"
 IMAGE_TRIALS="pull:after:0,pull:after:30,pull:after:300,pull:after:3000,pull:after:10000,pull:before:0.5,pull:before:0.8,pull:before:0.95"
 IMAGE_TRIALS="$IMAGE_TRIALS,load:after:0,load:after:300,load:after:3000,load:before:0.5,load:before:0.8"
 IMAGE_TRIALS="$IMAGE_TRIALS,build:after:0,build:after:300,build:after:3000,build:before:0.35,build:before:0.6"
+IMAGE_TRIALS="$IMAGE_TRIALS,steps:after:0,steps:before:0.3,steps:before:0.55,steps:before:0.8"
 SWEEP="records,images"
 KEEP=0
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
