@@ -30,12 +30,19 @@ extension IsolatedRuntimeProxy {
                 "message": "Managed runtime API unavailable; check runtime setup and maintenance",
             ])
         let fd: Int32
+        let authorization: String
         do {
-            let connection = try await upstream()
-            fd = connection.fd
-            try RuntimeUnixSocket.timeout(fd, seconds: 600)
-            try await relayWrite(head(request, authorization: connection.authorization) + request.body, fd: fd)
+            (fd, authorization) = try await upstream()
         } catch {
+            return unavailable
+        }
+        // From here the descriptor is this function's: every way out closes
+        // it, or hands it to the stream's pump.
+        do {
+            try RuntimeUnixSocket.timeout(fd, seconds: 600)
+            try await relayWrite(head(request, authorization: authorization) + request.body, fd: fd)
+        } catch {
+            close(fd)
             return unavailable
         }
         var reader = HTTP1ResponseReader()

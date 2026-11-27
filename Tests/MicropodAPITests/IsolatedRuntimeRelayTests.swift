@@ -74,6 +74,33 @@ final class IsolatedRuntimeRelayTests: XCTestCase {
 
     /// Over HTTP/2 end to end: a handler that relays (the owner with the
     /// dedicated runtime) answers REST, Connect and gRPC from upstream.
+    /// An upstream that closes before it took the request (a runtime API
+    /// restarting, or one that answered early and left): 503, and the
+    /// socket to it is closed, not left open for good.
+    func testAnUpstreamThatLeavesMidRequestLeaksNoDescriptor() async throws {
+        func descriptors() -> Int {
+            (try? FileManager.default.contentsOfDirectory(atPath: "/dev/fd").count) ?? -1
+        }
+        let request = HTTPRequest(
+            method: .post, path: "/echo", query: [:], body: Data(repeating: 0x61, count: 1 << 20),
+            headers: ["content-type": "application/json"])
+        let before = descriptors()
+        for _ in 0..<64 {
+            let answer = await IsolatedRuntimeProxy.forwardParsed(request) {
+                var fds: [Int32] = [-1, -1]
+                guard socketpair(AF_UNIX, SOCK_STREAM, 0, &fds) == 0 else {
+                    throw MicropodError.message("socketpair")
+                }
+                var one: Int32 = 1
+                setsockopt(fds[0], SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+                close(fds[1])
+                return (fds[0], "Bearer test")
+            }
+            guard case .json(503, _) = answer else { return XCTFail("\(answer)") }
+        }
+        XCTAssertLessThan(descriptors() - before, 8, "64 failed relays left their sockets open")
+    }
+
     func testHTTP2AndGRPCRequestsAreRelayed() async throws {
         let fixture = H2Fixture()
         let connect = try await upstream(fixture)
