@@ -448,6 +448,14 @@ another container that uses it reads it copy-on-write (`micropod cache explain` 
 `RUN --mount=type=cache` contents included, lives on the OS disk with the image snapshots it refers to: it survives
 restarts, and `machine install --replace-disk` starts it empty (the dependency stores on the cache disk survive).
 
+`micropod machine disk` shows each disk's image size, the filesystem on it and what it takes on the Mac, and
+`micropod machine disk grow --os 64g --cache 64g` (machine stopped) grows either or both without losing an image,
+container, volume or cache: the disks are ext4 with sparse_super2, which the guest kernel will not grow while
+mounted, so the disk is cloned beside itself (APFS, instant), the clone extended and grown offline in a maintenance
+boot of the machine's own payload (e2fsck, resize2fs, e2fsck, from the tool bundle's `e2fsprogs/`), and it replaces
+the disk only once its superblock says it grew. A kill at any point leaves the disk as it was or grown and checked;
+a disk is never shrunk. Growing 32 to 48 GiB took about 4 s.
+
 An image the machine has answered for is on its OS disk: a `docker pull`, `docker load` or `docker build` (a
 build's Solve, and a scheduler job's pull) answers only after the engine has synced the filesystem that holds
 containerd's store, so a crash of the VMM afterwards leaves the image whole (and a host power loss, under the default

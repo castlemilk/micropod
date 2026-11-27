@@ -36,6 +36,14 @@ enum MachineCommands {
                                                   CPUs, memory, containers by family, the guest's
                                                   pressure (PSI), disk space, start latency and the
                                                   recommended headroom (RigService/GetMachineCapacity)
+          micropod machine disk [--json]          each disk's size: the image the guest sees, the
+                                                  filesystem on it, and what it takes on the Mac
+          micropod machine disk grow [--os 64g] [--cache 64g]
+                                                  grow the OS disk and/or the cache disk, keeping
+                                                  every image, container and volume: the machine must
+                                                  be stopped; a clone of the disk is grown offline in
+                                                  a maintenance boot (e2fsck, resize2fs, e2fsck) and
+                                                  replaces the disk only once it grew. Never shrinks
           micropod machine logs [-f] [-n N] [--supervisor]
                                                   micropod-vmm console (or supervisor) log
           micropod machine docker-endpoint        unix:// socket for DOCKER_HOST
@@ -98,7 +106,7 @@ enum MachineCommands {
     static let hvfOnly: Set<String> = [
         "install", "start", "restart", "status", "capacity", "serve", "docker-endpoint", "buildkit-endpoint",
         "link-socket",
-        "help", "cache", "builder", "autostart",
+        "help", "cache", "builder", "autostart", "disk",
     ]
 
     /// The hvf machine command in a whole `micropod` argv, if it is one: the
@@ -195,6 +203,7 @@ enum MachineCommands {
                     rest, agent: HVFMachineAutostartAgent(layout: client.layout, environment: environment),
                     client: client, environment: environment, json: json)
             case "cache": try cache(rest, client: client, json: json)
+            case "disk": try await disk(rest, layout: client.layout, json: json)
             case "builder": try builder(rest, layout: client.layout, environment: environment, json: json)
             default:
                 print(helpText)
@@ -270,14 +279,14 @@ enum MachineCommands {
     static let defaultDiskSize = "64g"
 
     /// "32g", "40960m" → bytes.
-    static func diskBytes(_ raw: String) throws -> UInt64 {
+    static func diskBytes(_ raw: String, flag: String = "--disk-size") throws -> UInt64 {
         let lower = raw.lowercased()
         let scale: UInt64 = lower.hasSuffix("g") ? 1 << 30 : lower.hasSuffix("m") ? 1 << 20 : 0
         guard scale > 0, let count = UInt64(lower.dropLast()), count > 0 else {
-            throw UsageError(message: "--disk-size wants a size such as 32g or 40960m, got '\(raw)'")
+            throw UsageError(message: "\(flag) wants a size such as 32g or 40960m, got '\(raw)'")
         }
         let (bytes, overflow) = count.multipliedReportingOverflow(by: scale)
-        guard !overflow else { throw UsageError(message: "--disk-size '\(raw)' is too large") }
+        guard !overflow else { throw UsageError(message: "\(flag) '\(raw)' is too large") }
         return bytes
     }
 
@@ -312,6 +321,8 @@ enum MachineCommands {
         /// The guest's account of its cache disk and whether shared caches
         /// are on this boot (`unknown` while the machine is not running).
         var cacheDisk: HVFCacheDiskObservation
+        /// Each disk's image, filesystem and allocated sizes.
+        var diskSizes: [String: HVFMachineDisks.Sizes]
     }
 
     static func status(_ client: HVFMachineClient, json: Bool) async throws -> Int32 {
@@ -331,6 +342,10 @@ enum MachineCommands {
         let diskFlush = HVFDiskFlushStatus.current(
             layout: client.layout, state: status.state, supervisorAlive: status.supervisorAlive)
         let cacheDisk = await client.cacheDiskObservation()
+        var diskSizes: [String: HVFMachineDisks.Sizes] = [:]
+        for disk in HVFMachineDisks.Disk.allCases {
+            if let sizes = HVFMachineDisks.sizes(disk, layout: client.layout) { diskSizes[disk.rawValue] = sizes }
+        }
         if json {
             let report = StatusReport(
                 root: status.root, endpoint: client.layout.dockerEndpoint, dockerEndpoint: client.layout.dockerEndpoint,
@@ -338,7 +353,7 @@ enum MachineCommands {
                 problem: status.problem, phase: status.phase.rawValue, supervisorAlive: status.supervisorAlive,
                 summary: status.summary, state: status.state, stateError: status.stateError,
                 capabilities: capabilities, cachePolicy: policy, caches: cachesLine, dockerBuild: buildLine,
-                hostPorts: hostPorts, diskFlush: diskFlush, cacheDisk: cacheDisk)
+                hostPorts: hostPorts, diskFlush: diskFlush, cacheDisk: cacheDisk, diskSizes: diskSizes)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
@@ -363,6 +378,7 @@ enum MachineCommands {
             print("host ports: \(hostPorts.summary)")
             for refusal in hostPorts.refused { print("            \(refusal.message)") }
             print("disk flush: \(diskFlush.summary)")
+            print("disks:      \(diskSizesLine(diskSizes))")
         }
         if let state = status.state {
             print("supervisor: pid \(state.supervisorPID)\(status.supervisorAlive ? "" : " (exited)")")
@@ -375,6 +391,62 @@ enum MachineCommands {
             if let reason = state.lastExitReason { print("last exit:  \(reason)") }
         }
         return ExitCode.ok
+    }
+
+    /// `OS 64.0 GiB (filesystem 64.0 GiB, 21.3 GiB on the Mac), cache …`.
+    static func diskSizesLine(_ sizes: [String: HVFMachineDisks.Sizes]) -> String {
+        let parts = HVFMachineDisks.Disk.allCases.compactMap { disk -> String? in
+            guard let s = sizes[disk.rawValue] else { return nil }
+            let name = disk == .os ? "OS" : "cache"
+            var fs = s.filesystemBytes.map { "filesystem \(HVFMachineDisks.gib($0))" } ?? "not ext4"
+            if s.filesystemBehind { fs += ", not grown to the image: run `micropod machine disk grow`" }
+            let mac = s.allocatedBytes.map { ", \(HVFMachineDisks.gib($0)) on the Mac" } ?? ""
+            return "\(name) \(HVFMachineDisks.gib(s.imageBytes)) (\(fs)\(mac))"
+        }
+        return parts.isEmpty ? "none" : parts.joined(separator: "; ")
+    }
+
+    // MARK: disk
+
+    static func disk(_ args: [String], layout: HVFMachineLayout, json: Bool) async throws {
+        switch args.first {
+        case nil, "status", "show":
+            _ = try parseArgs(Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "machine disk")
+            var sizes: [String: HVFMachineDisks.Sizes] = [:]
+            for disk in HVFMachineDisks.Disk.allCases {
+                if let s = HVFMachineDisks.sizes(disk, layout: layout) { sizes[disk.rawValue] = s }
+            }
+            if json {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                print(String(decoding: try encoder.encode(sizes), as: UTF8.self))
+            } else {
+                print("disks: \(diskSizesLine(sizes))")
+            }
+        case "grow":
+            let parsed = try parseArgs(
+                Array(args.dropFirst()), boolFlags: [], valueFlags: ["--os", "--cache"],
+                commandName: "machine disk grow")
+            guard parsed.positionals.isEmpty else {
+                throw UsageError(message: "machine disk grow takes no positional arguments")
+            }
+            var targets: [HVFMachineDisks.Disk: UInt64] = [:]
+            if let raw = parsed.value("--os") { targets[.os] = try diskBytes(raw, flag: "--os") }
+            if let raw = parsed.value("--cache") { targets[.cache] = try diskBytes(raw, flag: "--cache") }
+            guard !targets.isEmpty else {
+                throw UsageError(message: "machine disk grow: name a new size with --os and/or --cache (such as 64g)")
+            }
+            let grown = try await HVFMachineDisks.grow(targets, layout: layout) { print($0) }
+            if json {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                print(String(decoding: try encoder.encode(grown), as: UTF8.self))
+            } else if !grown.isEmpty {
+                print("grew \(grown.map { $0.disk.label }.joined(separator: " and ")); start the machine to use it")
+            }
+        default:
+            throw UsageError(message: "machine disk: unknown subcommand '\(args[0])' (status or grow)")
+        }
     }
 
     /// `auto, scope default (engine 1a2b3c4d5e6f)`, or why there are none.
