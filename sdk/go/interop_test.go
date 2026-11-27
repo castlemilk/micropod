@@ -176,6 +176,44 @@ func TestInteropGRPCDeadline(t *testing.T) {
 	}
 }
 
+// A health Watch does not keep its connection past the API's idle bound
+// (MICROPOD_INTEROP_IDLE_MS: the MICROPOD_API_KEEPALIVE_IDLE_MS the API under
+// test was started with). The server sends GOAWAY and closes, the Watch
+// ends, and the same grpc-go channel serves the next call and the next
+// Watch on a new connection.
+func TestInteropGRPCWatchAcrossIdle(t *testing.T) {
+	idle, _ := strconv.Atoi(os.Getenv("MICROPOD_INTEROP_IDLE_MS"))
+	if idle == 0 {
+		t.Skip("set MICROPOD_INTEROP_IDLE_MS to the API's MICROPOD_API_KEEPALIVE_IDLE_MS")
+	}
+	for _, target := range interopTargets(t) {
+		t.Run(target.name, func(t *testing.T) {
+			conn := dial(t, target)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(idle)*time.Millisecond+15*time.Second)
+			defer cancel()
+			health := healthpb.NewHealthClient(conn)
+			for round := 0; round < 2; round++ {
+				watch, err := health.Watch(ctx, &healthpb.HealthCheckRequest{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if first, err := watch.Recv(); err != nil || first.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+					t.Fatalf("round %d: Watch's first status: %v %v", round, first, err)
+				}
+				started := time.Now()
+				_, err = watch.Recv()
+				if err == nil || status.Code(err) == codes.DeadlineExceeded {
+					t.Fatalf("round %d: the Watch outlived the idle bound: %v", round, err)
+				}
+				t.Logf("round %d: Watch ended after %v: %v", round, time.Since(started).Round(time.Millisecond), status.Code(err))
+				if _, err := micropodv1.NewSystemServiceClient(conn).Ping(ctx, &micropodv1.Empty{}); err != nil {
+					t.Fatalf("round %d: Ping after the idle GOAWAY: %v", round, err)
+				}
+			}
+		})
+	}
+}
+
 func TestInteropGRPCStreams(t *testing.T) {
 	id := os.Getenv("MICROPOD_INTEROP_CONTAINER")
 	if id == "" {
