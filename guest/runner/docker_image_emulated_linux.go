@@ -304,16 +304,27 @@ func (s *dockerEngine) pullEmulatedImage(w http.ResponseWriter, r *http.Request,
 	if err := s.node.labelEmulatedImage(ctx, pinned, labels); err != nil {
 		return err
 	}
+	tagMoved := false
 	if byTag {
 		if err := s.node.moveEmulatedTagLabel(ctx, tag.String(), pinned); err != nil {
 			return err
 		}
-		if err := s.node.pointTagAtEmulated(ctx, tag.String(), root, manifest); err != nil {
+		if tagMoved, err = s.node.pointTagAtEmulated(ctx, tag.String(), root, manifest); err != nil {
 			return err
 		}
 	}
 	if err := s.node.awaitEmulatedImage(ctx, pinned); err != nil {
 		return err
+	}
+	if tagMoved {
+		// The next request may name the image by its tag alone.
+		pulled, err := s.node.images.ImageStatus(ctx, &cri.ImageStatusRequest{Image: &cri.ImageSpec{Image: pinned}})
+		if err != nil {
+			return err
+		}
+		if err := s.node.waitForDockerImageTag(ctx, tag.String(), pulled.GetImage().GetId()); err != nil {
+			return err
+		}
 	}
 	// The unpacked files are on the disk before the pull answers
 	// (image_durability_linux.go).
@@ -386,42 +397,43 @@ func (n node) moveEmulatedTagLabel(ctx context.Context, tag, pinned string) erro
 // nothing else that runs natively: no record yet, or an earlier image of
 // another platform. A tag naming a native image (a multi-platform index
 // pulled with no platform, or an arm64 manifest) keeps it.
-func (n node) pointTagAtEmulated(ctx context.Context, tag string, root, manifest ocispec.Descriptor) error {
+// It reports whether it named the image by the tag.
+func (n node) pointTagAtEmulated(ctx context.Context, tag string, root, manifest ocispec.Descriptor) (bool, error) {
 	storeCtx := imageMetadataContext(ctx)
 	target := &types.Descriptor{MediaType: manifest.MediaType, Digest: manifest.Digest.String(), Size: manifest.Size}
 	current, err := n.imageStore.Get(storeCtx, &images.GetImageRequest{Name: tag})
 	if status.Code(err) == codes.NotFound {
 		_, err = n.imageStore.Create(storeCtx, &images.CreateImageRequest{Image: &images.Image{Name: tag, Target: target}})
 		if status.Code(err) == codes.AlreadyExists {
-			return nil // a concurrent pull named it first
+			return false, nil // a concurrent pull named it first
 		}
 		if err != nil {
-			return fmt.Errorf("tag %s: %w", tag, err)
+			return false, fmt.Errorf("tag %s: %w", tag, err)
 		}
-		return nil
+		return true, nil
 	}
 	if err != nil {
-		return fmt.Errorf("read tag %s: %w", tag, err)
+		return false, fmt.Errorf("read tag %s: %w", tag, err)
 	}
 	have := current.GetImage().GetTarget()
 	if have.GetDigest() == manifest.Digest.String() || have.GetDigest() == root.Digest.String() {
-		return nil
+		return false, nil
 	}
 	if isIndexDescriptor(have.GetMediaType()) {
-		return nil // CRI resolved this index for linux/arm64: the tag is native
+		return false, nil // CRI resolved this index for linux/arm64: the tag is native
 	}
 	native, err := n.recordRunsNatively(ctx, have)
 	if err != nil || native {
-		return err
+		return false, err
 	}
 	_, err = n.imageStore.Update(storeCtx, &images.UpdateImageRequest{
 		Image:      &images.Image{Name: tag, Target: target},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"target"}},
 	})
 	if err != nil {
-		return fmt.Errorf("move tag %s: %w", tag, err)
+		return false, fmt.Errorf("move tag %s: %w", tag, err)
 	}
-	return nil
+	return true, nil
 }
 
 // recordRunsNatively reads a single-manifest record's config platform.

@@ -158,7 +158,11 @@ func (c *emulatedCRI) ImageStatus(ctx context.Context, req *cri.ImageStatusReque
 		return &cri.ImageStatusResponse{}, nil
 	}
 	info, _ := json.Marshal(map[string]any{"imageSpec": map[string]any{"os": p.OS, "architecture": p.Architecture}})
-	return &cri.ImageStatusResponse{Image: &cri.Image{Id: c.ids[target]}, Info: map[string]string{"info": string(info)}}, nil
+	image := &cri.Image{Id: c.ids[target]}
+	if !strings.Contains(name, "@") && !strings.HasPrefix(name, "sha256:") {
+		image.RepoTags = []string{name}
+	}
+	return &cri.ImageStatusResponse{Image: image, Info: map[string]string{"info": string(info)}}, nil
 }
 
 type fakeRegistry struct {
