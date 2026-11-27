@@ -323,7 +323,9 @@ final class ResourceRoutingTests: XCTestCase {
         let listed = try await router.listByRuntime()
         XCTAssertEqual(listed.map(\.runtime), ["apple", "hvf"])
         let busybox = listed[1].image
-        XCTAssertEqual(busybox.names, ["docker.io/library/busybox:1.36"])
+        XCTAssertEqual(
+            busybox.names, ["docker.io/library/busybox:1.36", "docker.io/library/busybox@sha256:73aa"],
+            "its tag, then its digest reference: both are names a client looks it up by")
         XCTAssertEqual(busybox.digest, "sha256:73aa")
         XCTAssertEqual(busybox.sizeBytes, 1_900_000)
         XCTAssertEqual(busybox.variants.map { "\($0.os)/\($0.architecture)" }, ["linux/arm64"])
@@ -505,6 +507,19 @@ final class ResourceRoutingTests: XCTestCase {
             "Id": "sha256:1", "RepoTags": ["<none>:<none>"], "Created": 1_700_000_000.0, "Size": 0,
         ])
         XCTAssertEqual(image.names, [], "dangling images have no name")
+        let pinned = DockerResources.image(from: [
+            "Id": "sha256:2", "RepoTags": [String](),
+            "RepoDigests": ["registry.example/job@sha256:abc", "<none>@<none>"],
+            "MicropodPulledAs": ["registry.example/job:0.1.15@sha256:abc"],
+        ])
+        XCTAssertEqual(
+            pinned.names, ["registry.example/job:0.1.15@sha256:abc", "registry.example/job@sha256:abc"],
+            "a tag@digest pull is listed by the name it was pulled as, and by its digest")
+        XCTAssertEqual(pinned.digest, "sha256:abc")
+        let tagged = DockerResources.image(from: [
+            "Id": "sha256:3", "RepoTags": ["alpine:3.20"], "RepoDigests": ["alpine@sha256:def"],
+        ])
+        XCTAssertEqual(tagged.names, ["alpine:3.20", "alpine@sha256:def"], "tags first, then digests")
         XCTAssertEqual(image.createdAt, "2023-11-14T22:13:20Z")
         XCTAssertEqual(image.variants, [], "Docker's listing names no platform")
         XCTAssertEqual(DockerResources.keyValues(["a=1", "b", "c=x=y"]), ["a": "1", "b": "", "c": "x=y"])

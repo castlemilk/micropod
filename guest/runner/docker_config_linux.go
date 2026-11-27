@@ -54,6 +54,7 @@ type dockerHost struct {
 	LogConfig                             dockerLogConfig
 	CapDrop                               []string
 	Sysctls                               map[string]string `json:",omitempty"`
+	Ulimits                               []dockerUlimit    `json:",omitempty"`
 }
 type dockerConfig struct {
 	Aliases                                 []string                         `json:"MicropodAliases,omitempty"`
@@ -144,8 +145,22 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 		if h["MemorySwappiness"] == float64(-1) {
 			delete(h, "MemorySwappiness")
 		}
-		if err := supportedOptions(h, "PortBindings PublishAllPorts Binds Mounts Tmpfs AutoRemove ReadonlyRootfs ConsoleSize Memory NanoCpus CpuQuota CpuPeriod CpuShares CpusetCpus PidsLimit NetworkMode LogConfig CapDrop Sysctls"); err != nil {
+		switch mode, _ := h["PidMode"].(string); {
+		case mode == "host":
+			return spec, errors.New("--pid=host is not available: a container shares the machine's kernel, not its process namespace (every container on the machine, other jobs' included, would be in its reach)")
+		case mode != "":
+			return spec, fmt.Errorf("unsupported PID mode %q: a container has its own process namespace", mode)
+		}
+		delete(h, "PidMode")
+		if err := supportedOptions(h, "PortBindings PublishAllPorts Binds Mounts Tmpfs AutoRemove ReadonlyRootfs ConsoleSize Memory NanoCpus CpuQuota CpuPeriod CpuShares CpusetCpus PidsLimit NetworkMode LogConfig CapDrop Sysctls Ulimits"); err != nil {
 			return spec, err
+		}
+		if raw, ok := h["Ulimits"].([]any); ok {
+			for _, v := range raw {
+				if err := supportedOptions(obj(v), "Name Soft Hard"); err != nil {
+					return spec, err
+				}
+			}
 		}
 		for k := range obj(h["LogConfig"]) {
 			if k != "Type" && k != "Config" {
@@ -191,6 +206,9 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 		return spec, errors.New("CPU shares must be nonnegative")
 	}
 	if err := validateDockerCPUSet(h.CpusetCpus); err != nil {
+		return spec, err
+	}
+	if err := validateDockerUlimits(h.Ulimits); err != nil {
 		return spec, err
 	}
 	for key, raw := range h.Sysctls {

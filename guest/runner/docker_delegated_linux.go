@@ -189,6 +189,10 @@ func delegatedRoute(method, raw string) bool {
 		return method == http.MethodGet
 	case "auth", "grpc", "session":
 		return method == http.MethodPost
+	case "build/prune":
+		// Scopes itself: BuildKit's records are the machine's, so a
+		// family's prune removes none (pruneBuildCache).
+		return method == http.MethodPost
 	case "networks", "volumes":
 		return true
 	}
