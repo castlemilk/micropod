@@ -176,7 +176,7 @@ enum StatusCommand {
         case "stopping": return "stopping"
         case "stopped": return m.stoppedOnRequest ? "stopped (on request)" : "stopped"
         case "failed": return "failed: \(reason)"
-        case "not-installed": return "not installed: \(reason) (micropod machine install)"
+        case "not-installed": return "not installed: \(reason) (micropod setup)"
         case "unusable": return "unusable: \(reason)"
         case "not-ready": return "not ready: \(reason)"
         default: return m.summary

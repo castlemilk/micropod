@@ -82,6 +82,9 @@ struct MicropodCLI {
         if let machine = MachineCommands.route(args) {
             exit(await MachineCommands.main(machine.args, json: machine.json))
         }
+        if let setup = SetupCommands.route(args) {
+            exit(await SetupCommands.main(setup.args, json: setup.json))
+        }
         if let docker = DockerCommands.route(args) {
             exit(await DockerCommands.main(docker.args, json: docker.json))
         }
@@ -185,9 +188,16 @@ struct MicropodCLI {
     }
 
     static let helpText = """
-        micropod — CLI for the Apple container runtime
+        micropod — containers on a Linux machine of your Mac's own (Hypervisor.framework)
 
         Usage: micropod <command> [flags] [args]
+
+        Getting started:
+          setup [--payload <app|dir>] [--disk-from <ext4>] [--docker] [--use] [--autostart]
+                                             set up the hvf machine: runtime files, disk and cache
+                                             disk, start it, make hvf the default on a fresh install
+                                             (`micropod setup --help`)
+          status [--json]                    the machine, its docker endpoint and the API
 
         CI worker:
           ci runner-start|status|health|stop manage the dedicated HVF/containerd CI worker
@@ -248,7 +258,9 @@ struct MicropodCLI {
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
-          runtime ls|use|enable|disable      execution engines: apple, docker, sandbox, ci, hvf
+          runtime ls|use|enable|disable      execution engines: hvf (the default on a fresh install),
+                                             sandbox, docker, ci, and apple (opt-in on a fresh install:
+                                             `micropod runtime enable apple`)
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
           machine install|start|stop|restart|status|logs|serve|docker-endpoint|buildkit-endpoint
           machine autostart on|off|status    start the machine at login and stop it cleanly at logout

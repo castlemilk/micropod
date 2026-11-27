@@ -124,7 +124,7 @@ final class StatusCommandTests: XCTestCase {
                 $0.readiness = "not-installed"
                 $0.failureReason = "missing disk.ext4"
             })
-        XCTAssertEqual(missing["machine:"], "not installed: missing disk.ext4 (micropod machine install)")
+        XCTAssertEqual(missing["machine:"], "not installed: missing disk.ext4 (micropod setup)")
         XCTAssertNil(missing["cache disk:"], "nothing to say of a disk that is not there")
         XCTAssertNil(missing["engine:"])
         XCTAssertNil(missing["containers:"])
