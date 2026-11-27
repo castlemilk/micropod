@@ -504,6 +504,7 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 			return report, fmt.Errorf("remove snapshot %s: %w", name, err)
 		default:
 			stays[name] = err.Error()
+			log.Printf("image store after an unclean stop: snapshot %s refused removal (%v); containerd's collector takes it once nothing holds it", name, err)
 		}
 	}
 	present := map[string]bool{}
@@ -545,6 +546,9 @@ func (c imageStoreClients) discardUndurableImages(ctx context.Context, since tim
 			log.Printf("image store after an unclean stop: collect the snapshots that could not be removed: %v", err)
 		}
 		report.Snapshots = append(report.Snapshots, collected...)
+		if len(collected) != 0 {
+			log.Printf("image store after an unclean stop: the collector removed %d snapshots an explicit remove refused: %v", len(collected), collected)
+		}
 		for name, why := range stays {
 			if !slices.Contains(collected, name) {
 				report.Kept = append(report.Kept, name)
@@ -1025,6 +1029,20 @@ var dialBuildKitControl = func(ctx context.Context) (buildkitPruner, func(), err
 // pruned (or when the bundle has no BuildKit), so a crash before then prunes
 // at the next start.
 func pruneBuildKitRecords(ctx context.Context, snaps snapshotStore) error {
+	err := pruneBuildKitRecordsOnce(ctx, snaps)
+	if err != nil && buildkitTornCacheSetAside() {
+		// buildkitd died at start in its unsynced cache index; it was moved
+		// aside, and the next start opens an empty one.
+		err = pruneBuildKitRecordsOnce(ctx, snaps)
+	}
+	return err
+}
+
+// buildkitTornCacheSetAside is sharedBuildkit.tornCacheSetAside; a variable
+// so tests can stand in for buildkitd.
+var buildkitTornCacheSetAside = func() bool { return sharedBuildkit.tornCacheSetAside() }
+
+func pruneBuildKitRecordsOnce(ctx context.Context, snaps snapshotStore) error {
 	l := readBuildKitPrune()
 	if len(l.IDs) == 0 && l.Since == 0 {
 		if err := os.Remove(buildkitPrunePath); err != nil && !errors.Is(err, os.ErrNotExist) {

@@ -1045,3 +1045,59 @@ func TestBuildKitStaysOnAfterAStepLostItsFiles(t *testing.T) {
 		t.Fatal("an unsizable record with no snapshot record to remove was ignored")
 	}
 }
+
+// buildkitd that dies at start panicking in bbolt (its unsynced cache index
+// torn by an unclean stop) has the index moved aside, once, and the prune is
+// tried again; any other failure stands.
+func TestBuildKitTornCacheIndexIsSetAsideOnce(t *testing.T) {
+	t.Cleanup(func() { os.Remove(buildkitPrunePath) })
+	oldRoot := buildkitRoot
+	buildkitRoot = t.TempDir()
+	t.Cleanup(func() { buildkitRoot = oldRoot })
+	if err := os.WriteFile(buildkitCacheDB(), []byte("torn"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	close(exited)
+	out := &tailBuffer{}
+	fmt.Fprint(out, "panic: assertion failed: Page expected to be: 11, but self identifies as 0\n\ngoroutine 8 [running]:\ngo.etcd.io/bbolt/internal/common.(*Page).FastCheck(...)\n")
+	b := &buildkitService{output: out, exited: exited}
+	if !b.tornCacheSetAside() {
+		t.Fatal("a buildkitd that died in bbolt did not have its cache index set aside")
+	}
+	if _, err := os.Stat(buildkitCacheDB()); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the torn cache index stayed: %v", err)
+	}
+	entries, _ := os.ReadDir(buildkitRoot)
+	if len(entries) != 1 || !strings.HasPrefix(entries[0].Name(), "cache.db.torn-") {
+		t.Fatalf("set aside as %v", entries)
+	}
+	if b.tornCacheSetAside() {
+		t.Fatal("set aside twice in one engine")
+	}
+	other := &buildkitService{output: &tailBuffer{}, exited: exited}
+	fmt.Fprint(other.output, "level=fatal msg=\"failed to listen\"")
+	if other.tornCacheSetAside() {
+		t.Fatal("a buildkitd that failed some other way had its cache index set aside")
+	}
+
+	// The recovery prune retries once after the index is set aside.
+	oldDial, oldTorn := dialBuildKitControl, buildkitTornCacheSetAside
+	t.Cleanup(func() { dialBuildKitControl, buildkitTornCacheSetAside = oldDial, oldTorn })
+	dials, setAside := 0, 0
+	p := &pruneFixture{}
+	dialBuildKitControl = func(context.Context) (buildkitPruner, func(), error) {
+		dials++
+		if dials == 1 {
+			return nil, nil, status.Error(codes.Unavailable, "connection reset by peer")
+		}
+		return p, func() {}, nil
+	}
+	buildkitTornCacheSetAside = func() bool { setAside++; return setAside == 1 }
+	if err := addBuildKitPrune([]string{"abcdefghijklmnopqrstuvwxy"}, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneBuildKitRecords(context.Background(), nil); err != nil || dials != 2 || setAside != 1 {
+		t.Fatalf("prune after a torn index: %v (%d dials, %d set asides)", err, dials, setAside)
+	}
+}
