@@ -1,5 +1,5 @@
 //! Virtio-MMIO v2 transport, split virtqueue engine, and zero-copy device
-//! implementations: RNG, Block, Balloon (Free-Page Reporting -> MADV_FREE),
+//! implementations: RNG, Block, Balloon (Free-Page Reporting: reported pages go back to the host),
 //! Vsock (host<->guest Unix socket & port-broker mux), and Virtio-FS (FUSE).
 
 mod blk_flush;
@@ -92,6 +92,18 @@ pub struct GuestMemory {
     base_ptr: *mut u8,
     ram_base: u64,
     ram_size: usize,
+    /// The guest's RAM itself (`new_guest_ram`): free pages it reports are
+    /// given back to the host at once (`reclaim`). Any other view (tests,
+    /// borrowed buffers) only advises the kernel.
+    remap_on_reclaim: bool,
+}
+
+/// Bytes of guest RAM given back to the host by `GuestMemory::reclaim`, and
+/// reclaims that could not be done (the range was left as it was).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Reclaimed {
+    pub bytes: usize,
+    pub failed: bool,
 }
 
 unsafe impl Send for GuestMemory {}
@@ -110,6 +122,27 @@ impl GuestMemory {
             base_ptr,
             ram_base,
             ram_size,
+            remap_on_reclaim: false,
+        }
+    }
+
+    /// The guest's RAM: `ram_size` bytes at `base_ptr`, mapped into the guest
+    /// at `ram_base` with `hv_vm_map(.., HV_MEMORY_RWX)`. `reclaim` replaces
+    /// reported free ranges of it with fresh zero-fill pages.
+    ///
+    /// # Safety
+    /// As `new`, and the range must be a private anonymous (or private file)
+    /// `mmap` the VM owns for its whole life and maps nowhere else: `reclaim`
+    /// maps over parts of it with `MAP_FIXED` and maps them into the guest
+    /// again. Memory from `hv_vm_allocate` does not qualify (macOS ignores
+    /// madvise on it and keeps charging the footprint for pages replaced
+    /// under it).
+    pub unsafe fn new_guest_ram(base_ptr: *mut u8, ram_base: u64, ram_size: usize) -> Self {
+        Self {
+            base_ptr,
+            ram_base,
+            ram_size,
+            remap_on_reclaim: true,
         }
     }
 
@@ -202,34 +235,112 @@ impl GuestMemory {
         Some(())
     }
 
-    /// Reclaim unused guest physical pages immediately on macOS via `madvise(MADV_FREE)`.
-    /// Aligns inward to the 16 KiB host page size so no live neighbor data is touched.
-    pub fn madvise_free(&self, ipa: u64, len: usize) -> usize {
+    /// Give a range the guest reported free (free page reporting, or a
+    /// balloon inflate) back to the host. The range is aligned inward to the
+    /// host's 16 KiB pages, so no neighbouring live data is touched.
+    ///
+    /// On the guest's RAM (`new_guest_ram`) the pages are freed at once:
+    /// the range is taken out of the guest's stage-2 mapping, replaced with
+    /// fresh zero-fill pages (`mmap(MAP_FIXED)`, which frees the old ones and
+    /// their footprint) and mapped into the guest again. Without the unmap,
+    /// Hypervisor.framework keeps translating the guest's accesses to the old
+    /// pages while the VMM's devices write the new ones. The guest does not
+    /// touch a range while it reports it (the pages are off its free lists
+    /// until the device answers), and afterwards it may use the pages again
+    /// with any contents, which zero pages are. Elsewhere this only advises
+    /// the kernel (`MADV_FREE`), which macOS acts on only under pressure.
+    pub fn reclaim(&self, ipa: u64, len: usize) -> Reclaimed {
         const HOST_PAGE: usize = 16 * 1024;
+        let none = Reclaimed::default();
         let Some(off) = ipa.checked_sub(self.ram_base).map(|v| v as usize) else {
-            return 0;
+            return none;
         };
         let Some(end) = off.checked_add(len) else {
-            return 0;
+            return none;
         };
         if end > self.ram_size {
-            return 0;
+            return none;
         }
         let aligned_start = (off + HOST_PAGE - 1) & !(HOST_PAGE - 1);
         let aligned_end = end & !(HOST_PAGE - 1);
         if aligned_end <= aligned_start {
-            return 0;
+            return none;
         }
         let reclaim_len = aligned_end - aligned_start;
-        let rc = unsafe {
-            madvise(
-                self.base_ptr.add(aligned_start).cast(),
+        let addr = unsafe { self.base_ptr.add(aligned_start) };
+        if !self.remap_on_reclaim {
+            let rc = unsafe { madvise(addr.cast(), reclaim_len, MADV_FREE) };
+            return Reclaimed {
+                bytes: if rc == 0 { reclaim_len } else { 0 },
+                failed: rc != 0,
+            };
+        }
+        if !host_backed(addr, reclaim_len) {
+            // Nothing of it is in host memory (never touched, or freed
+            // before): there is nothing to give back, and remapping it would
+            // only split the mapping (the whole of free memory is reported
+            // at boot).
+            return none;
+        }
+        let range_ipa = self.ram_base + aligned_start as u64;
+        if unsafe { hvf_sys::hv_vm_unmap(range_ipa, reclaim_len) } != hvf_sys::HV_SUCCESS {
+            return Reclaimed {
+                bytes: 0,
+                failed: true,
+            };
+        }
+        let fresh = unsafe {
+            libc::mmap(
+                addr.cast(),
                 reclaim_len,
-                MADV_FREE,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_FIXED | libc::MAP_PRIVATE | libc::MAP_ANON,
+                -1,
+                0,
             )
         };
-        if rc == 0 { reclaim_len } else { 0 }
+        let replaced = fresh == addr.cast();
+        // Map the range back whether or not the pages were replaced (a failed
+        // MAP_FIXED leaves the old mapping): the guest may use it again as
+        // soon as the report is answered.
+        let mut mapped = false;
+        for _ in 0..8 {
+            if unsafe {
+                hvf_sys::hv_vm_map(addr.cast(), range_ipa, reclaim_len, hvf_sys::HV_MEMORY_RWX)
+            } == hvf_sys::HV_SUCCESS
+            {
+                mapped = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        if !mapped {
+            // The guest would fault on its own RAM: stop loudly rather than
+            // run a guest with a hole in its memory.
+            eprintln!(
+                "[micropod-vmm] FATAL: cannot map reclaimed guest RAM {range_ipa:#x}+{reclaim_len:#x} back into the guest"
+            );
+            std::process::abort();
+        }
+        Reclaimed {
+            bytes: if replaced { reclaim_len } else { 0 },
+            failed: !replaced,
+        }
     }
+}
+
+/// Whether any page of `len` bytes at `addr` (host-page aligned) is in host
+/// memory, resident or compressed. On an error, assume it is.
+fn host_backed(addr: *mut u8, len: usize) -> bool {
+    const HOST_PAGE: usize = 16 * 1024;
+    const MINCORE_INCORE: u8 = 0x1;
+    const MINCORE_PAGED_OUT: u8 = 0x20;
+    let mut vec = vec![0u8; len.div_ceil(HOST_PAGE)];
+    let rc = unsafe { libc::mincore(addr.cast(), len, vec.as_mut_ptr().cast()) };
+    rc != 0
+        || vec
+            .iter()
+            .any(|v| v & (MINCORE_INCORE | MINCORE_PAGED_OUT) != 0)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -851,6 +962,20 @@ pub struct BlkMetrics {
     pub read_bytes: AtomicU64,
     pub write_bytes: AtomicU64,
     pub discarded_bytes: AtomicU64,
+    /// Host syncs run for guest flushes (one may answer several flushes).
+    pub flush_syncs: AtomicU64,
+    /// Time those host syncs took, in microseconds, and the longest one.
+    pub flush_sync_usec: AtomicU64,
+    pub flush_sync_usec_max: AtomicU64,
+}
+
+impl BlkMetrics {
+    fn record_flush_sync(&self, took: Duration) {
+        let us = took.as_micros() as u64;
+        self.flush_syncs.fetch_add(1, Ordering::Relaxed);
+        self.flush_sync_usec.fetch_add(us, Ordering::Relaxed);
+        self.flush_sync_usec_max.fetch_max(us, Ordering::Relaxed);
+    }
 }
 
 struct BlkQueueState {
@@ -1207,7 +1332,9 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
             if !pending_flushes.is_empty() {
                 // One host sync answers every flush of the batch: each was
                 // submitted after the writes it covers had completed.
+                let began = Instant::now();
                 let flush_status = if shared.flush.flush(fd).is_ok() { 0 } else { 1 };
+                shared.metrics.record_flush_sync(began.elapsed());
                 shared
                     .metrics
                     .flush_ops
@@ -1428,7 +1555,7 @@ impl Drop for VirtioBlk {
 }
 
 // ============================================================================
-// 3. Virtio-Balloon (Device ID 5) — Free-Page Reporting -> madvise(MADV_FREE)
+// 3. Virtio-Balloon (Device ID 5) — Free-Page Reporting: reported pages go back to the host
 // ============================================================================
 const VIRTIO_BALLOON_F_REPORTING: u64 = 1 << 5;
 
@@ -1437,6 +1564,18 @@ pub struct BalloonMetrics {
     pub report_kicks: AtomicU64,
     pub reported_ranges: AtomicU64,
     pub reclaimed_bytes: AtomicU64,
+    /// Reported ranges the host could not give back (left as they were).
+    pub reclaim_failures: AtomicU64,
+}
+
+impl BalloonMetrics {
+    fn record(&self, r: Reclaimed) {
+        self.reclaimed_bytes
+            .fetch_add(r.bytes as u64, Ordering::Relaxed);
+        if r.failed {
+            self.reclaim_failures.fetch_add(1, Ordering::Relaxed);
+        }
+    }
 }
 
 pub struct VirtioBalloon {
@@ -1492,10 +1631,7 @@ impl VirtioBackend for VirtioBalloon {
                         if let Some(raw) = mem.read_slice(b.addr, b.len as usize) {
                             for chunk in raw.as_chunks::<4>().0 {
                                 let pfn = u32::from_le_bytes(*chunk) as u64;
-                                let reclaimed = mem.madvise_free(pfn * 4096, 4096);
-                                self.metrics
-                                    .reclaimed_bytes
-                                    .fetch_add(reclaimed as u64, Ordering::Relaxed);
+                                self.metrics.record(mem.reclaim(pfn * 4096, 4096));
                             }
                         }
                     }
@@ -1506,11 +1642,8 @@ impl VirtioBackend for VirtioBalloon {
                     self.metrics.report_kicks.fetch_add(1, Ordering::Relaxed);
                     let mut total_written = 0u32;
                     for b in &bufs {
-                        let reclaimed = mem.madvise_free(b.addr, b.len as usize);
+                        self.metrics.record(mem.reclaim(b.addr, b.len as usize));
                         self.metrics.reported_ranges.fetch_add(1, Ordering::Relaxed);
-                        self.metrics
-                            .reclaimed_bytes
-                            .fetch_add(reclaimed as u64, Ordering::Relaxed);
                         if b.is_write {
                             total_written = total_written.saturating_add(b.len);
                         }
@@ -1689,11 +1822,12 @@ mod tests {
     }
 
     #[test]
-    fn guest_memory_madvise_aligns_inward() {
+    fn guest_memory_reclaim_aligns_inward() {
         let mut backing = vec![0u8; 64 * 1024];
         let mem = unsafe { GuestMemory::new(backing.as_mut_ptr(), 0x4000_0000, backing.len()) };
-        assert_eq!(mem.madvise_free(0x4000_0000, 4096), 0);
-        assert_eq!(mem.madvise_free(0x3000_0000, 32768), 0);
+        assert_eq!(mem.reclaim(0x4000_0000, 4096), Reclaimed::default());
+        assert_eq!(mem.reclaim(0x3000_0000, 32768), Reclaimed::default());
+        assert_eq!(mem.reclaim(0x4000_0000 + 48 * 1024, 32768), Reclaimed::default());
     }
 
     #[test]

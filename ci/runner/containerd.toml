@@ -22,3 +22,6 @@ version = 3
 # and each container start and exit adds more.
 [debug]
   level = "warn"
+  # Profiles only (net/http/pprof), root-only in the guest; the engine serves
+  # them to the host at /micropod/debug/containerd/pprof/.
+  address = "/run/containerd/debug.sock"

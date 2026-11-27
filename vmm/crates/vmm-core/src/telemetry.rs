@@ -326,10 +326,15 @@ pub struct TelemetrySnapshot {
     pub host_phys_bytes: u64,
     pub host_peak_bytes: u64,
     pub balloon_reclaimed_bytes: u64,
+    pub balloon_reclaim_failures: u64,
     pub blk_read_ops: u64,
     pub blk_write_ops: u64,
     pub blk_read_bytes: u64,
     pub blk_write_bytes: u64,
+    pub blk_flush_ops: u64,
+    pub blk_flush_syncs: u64,
+    pub blk_flush_sync_usec: u64,
+    pub blk_flush_sync_usec_max: u64,
     pub fs_requests: u64,
     pub fs_bytes_read: u64,
     pub fs_nodes: u64,
@@ -378,10 +383,15 @@ impl TelemetrySource {
             host_phys_bytes: phys_b,
             host_peak_bytes: peak_b,
             balloon_reclaimed_bytes: self.balloon.reclaimed_bytes.load(Ordering::Relaxed),
+            balloon_reclaim_failures: self.balloon.reclaim_failures.load(Ordering::Relaxed),
             blk_read_ops: self.blk.read_ops.load(Ordering::Relaxed),
             blk_write_ops: self.blk.write_ops.load(Ordering::Relaxed),
             blk_read_bytes: self.blk.read_bytes.load(Ordering::Relaxed),
             blk_write_bytes: self.blk.write_bytes.load(Ordering::Relaxed),
+            blk_flush_ops: self.blk.flush_ops.load(Ordering::Relaxed),
+            blk_flush_syncs: self.blk.flush_syncs.load(Ordering::Relaxed),
+            blk_flush_sync_usec: self.blk.flush_sync_usec.load(Ordering::Relaxed),
+            blk_flush_sync_usec_max: self.blk.flush_sync_usec_max.load(Ordering::Relaxed),
             fs_requests: self.fs.requests.load(Ordering::Relaxed),
             fs_bytes_read: self.fs.bytes_read.load(Ordering::Relaxed),
             fs_nodes: self.fs.nodes.load(Ordering::Relaxed),
@@ -457,11 +467,17 @@ impl TelemetrySource {
             "micropod_vmm_host_peak_footprint_bytes {}\n",
             s.host_peak_bytes
         ));
-        out.push_str("# HELP micropod_vmm_balloon_reclaimed_bytes Guest pages reclaimed via MADV_FREE in bytes.\n");
+        out.push_str("# HELP micropod_vmm_balloon_reclaimed_bytes Bytes of guest RAM the guest reported free and the host freed.\n");
         out.push_str("# TYPE micropod_vmm_balloon_reclaimed_bytes counter\n");
         out.push_str(&format!(
             "micropod_vmm_balloon_reclaimed_bytes {}\n",
             s.balloon_reclaimed_bytes
+        ));
+        out.push_str("# HELP micropod_vmm_balloon_reclaim_failures_total Reported free ranges the host could not free (left as they were).\n");
+        out.push_str("# TYPE micropod_vmm_balloon_reclaim_failures_total counter\n");
+        out.push_str(&format!(
+            "micropod_vmm_balloon_reclaim_failures_total {}\n",
+            s.balloon_reclaim_failures
         ));
         out.push_str("# HELP micropod_vmm_blk_ops_total Virtio-Blk I/O operations.\n");
         out.push_str("# TYPE micropod_vmm_blk_ops_total counter\n");
@@ -483,6 +499,34 @@ impl TelemetrySource {
             "micropod_vmm_blk_bytes_total{{op=\"write\"}} {}\n",
             s.blk_write_bytes
         ));
+        out.push_str(&format!(
+            "micropod_vmm_blk_ops_total{{op=\"flush\"}} {}\n",
+            s.blk_flush_ops
+        ));
+        for (name, help, kind, value) in [
+            (
+                "micropod_vmm_blk_flush_syncs_total",
+                "Host syncs run for guest flushes (one answers every flush queued with it).",
+                "counter",
+                s.blk_flush_syncs,
+            ),
+            (
+                "micropod_vmm_blk_flush_sync_microseconds_total",
+                "Time the host syncs for guest flushes took.",
+                "counter",
+                s.blk_flush_sync_usec,
+            ),
+            (
+                "micropod_vmm_blk_flush_sync_microseconds_max",
+                "The longest host sync for a guest flush.",
+                "gauge",
+                s.blk_flush_sync_usec_max,
+            ),
+        ] {
+            out.push_str(&format!(
+                "# HELP {name} {help}\n# TYPE {name} {kind}\n{name} {value}\n"
+            ));
+        }
         out.push_str(
             "# HELP micropod_vmm_virtiofs_requests_total Virtio-FS FUSE requests handled.\n",
         );

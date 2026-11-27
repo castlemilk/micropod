@@ -13,6 +13,23 @@ image with /bin/sh, WORKLOADS a comma-separated list of:
     composeN    one compose project of N services, up --wait then down
     churnN      N short `docker run --rm` over 16 streams
     netN        N per-job networks, each with a container on it, at once
+    seqN        N short `docker run --rm` one after another (one at a time:
+                the latency nothing else is waiting behind)
+    goN         N `go build` at once of a generated module (48 packages,
+                std only, no network) in a bind-mounted workspace directory,
+                GOCACHE cold: the CPU-bound step of a CI job
+    gobuildN    N `docker build` at once of a two-stage Dockerfile that
+                compiles that module with RUN --mount=type=cache (each with a
+                build argument of its own, so no step is a cache hit). The
+                cache mount is this run's own: the first gobuildN of a run
+                compiles cold, a later one finds the Go build cache warm
+    fsN         N containers at once, each writing 20 000 small files into a
+                bind-mounted workspace directory, reading them back and
+                removing them (what a dependency install does to a checkout)
+
+goN and gobuildN need GATE_GO_IMAGE (default golang:1.25-alpine) and fsN
+and goN a workspace directory GATE_WORKSPACE that the machine's workspace
+share covers (the scale gate's own).
 
 It appends to RECEIPT/checks.tsv and RECEIPT/metrics.tsv. The only hard
 checks are that no client failed and that nothing carrying the run label is
@@ -34,6 +51,8 @@ import urllib.parse
 DOCKER = os.environ.get("GATE_DOCKER_BIN", "docker")
 STREAMS = int(os.environ.get("GATE_STREAMS", "16"))
 TMP = os.environ.get("GATE_TMP", "/tmp")
+GO_IMAGE = os.environ.get("GATE_GO_IMAGE", "golang:1.25-alpine")
+WORKSPACE = os.environ.get("GATE_WORKSPACE", "")
 
 
 class Unix(http.client.HTTPConnection):
@@ -256,6 +275,77 @@ class Gate:
         shutil.rmtree(root, ignore_errors=True)
         return durations, failures
 
+    def workspace_dir(self, name):
+        if not WORKSPACE:
+            raise RuntimeError("set GATE_WORKSPACE to a directory the machine's workspace share covers")
+        root = os.path.join(os.path.realpath(WORKSPACE), "scale-%s-%s" % (name, self.run))
+        shutil.rmtree(root, ignore_errors=True)
+        os.makedirs(root)
+        return root
+
+    def go_module(self, root):
+        """A module of 48 packages of generated code (std imports only), a chain
+        of 6 levels so the compiler has both parallel and serial work."""
+        with open(os.path.join(root, "go.mod"), "w") as f:
+            f.write("module scale.test/gen\n\ngo 1.25\n")
+        for p in range(48):
+            d = os.path.join(root, "p%02d" % p)
+            os.makedirs(d)
+            deps = ["scale.test/gen/p%02d" % q for q in range(p - p % 8 - 8, p - p % 8) if q >= 0][:3]
+            for k in range(12):
+                with open(os.path.join(d, "f%02d.go" % k), "w") as f:
+                    f.write("package p%02d\n\nimport (\n\t\"fmt\"\n\t\"sort\"\n\t\"strings\"\n" % p)
+                    for dep in deps if k == 0 else []:
+                        f.write("\t_ %s\n" % json.dumps(dep))
+                    f.write(")\n\n")
+                    for fn in range(30):
+                        f.write("type T%d_%d struct{ A []string; B map[string]int }\n\n" % (k, fn))
+                        f.write("func (t *T%d_%d) F(x []string) string {\n\tsort.Strings(x)\n\tfor i, s := range x {\n\t\tif t.B == nil { t.B = map[string]int{} }\n\t\tt.B[s] += i\n\t\tt.A = append(t.A, strings.ToUpper(s))\n\t}\n\treturn fmt.Sprint(len(t.A), t.B)\n}\n\n" % (k, fn))
+        with open(os.path.join(root, "main.go"), "w") as f:
+            f.write("package main\n\nimport (\n")
+            for p in range(48):
+                f.write("\t_ \"scale.test/gen/p%02d\"\n" % p)
+            f.write(")\n\nfunc main() {}\n")
+
+    def gobuild_containers(self, n):
+        root = self.workspace_dir("go")
+        self.go_module(root)
+        try:
+            return self.together(n, lambda i: docker(["run", "--rm"] + self.labels() + ["-l", "io.micropod.cache=off", "-v", root + ":/w:ro", "-w", "/w",
+                                                       "-e", "GOFLAGS=-trimpath", "-e", "GOCACHE=/tmp/gocache", GO_IMAGE, "go", "build", "-o", "/tmp/out", "."], timeout=1800))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def gobuild_images(self, n):
+        root = os.path.join(TMP, "scale-gobuild-" + self.run)
+        shutil.rmtree(root, ignore_errors=True)
+        os.makedirs(root)
+        self.go_module(root)
+        with open(os.path.join(root, "Dockerfile"), "w") as f:
+            f.write("FROM %s AS build\nARG SALT\nCOPY . /src\nWORKDIR /src\n"
+                    "RUN --mount=type=cache,id=scale-go-%s,target=/root/.cache/go-build echo $SALT > /salt && GOFLAGS=-trimpath go build -o /out/app .\n"
+                    "FROM %s\nCOPY --from=build /out/app /app\nCOPY --from=build /salt /salt\n" % (GO_IMAGE, self.run, self.image))
+        tag = lambda i: "scale-%s-g%d:1" % (self.run, i)
+        try:
+            # SALT gives each build a RUN step and an image of its own (16 builds
+            # of one image under 16 tags are a different case); the cache
+            # mount is shared.
+            return self.together(n, lambda i: docker(["build", "-q", "--build-arg", "SALT=%s-%d" % (self.run, i), "-t", tag(i)] + self.labels() + [root], timeout=1800))
+        finally:
+            docker(["rmi", "-f"] + [tag(i) for i in range(n)])
+            shutil.rmtree(root, ignore_errors=True)
+
+    def files(self, n):
+        root = self.workspace_dir("fs")
+        script = ("set -e; d=/w/$0; mkdir -p $d; cd $d; i=0; while [ $i -lt 200 ]; do mkdir p$i; "
+                  "j=0; while [ $j -lt 100 ]; do echo module-$i-$j > p$i/f$j.js; j=$((j+1)); done; i=$((i+1)); done; "
+                  "cat p*/f*.js | wc -l; cd /; rm -rf $d")
+        try:
+            return self.together(n, lambda i: docker(["run", "--rm"] + self.labels() + ["-l", "io.micropod.cache=off", "-v", root + ":/w",
+                                                       self.image, "sh", "-c", script, "c%d" % i], timeout=1800))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
     def net(self, n):
         """A GitHub runner job n times over: a network, a container on it with an alias, exec, rm, network rm."""
         def one(i):
@@ -286,11 +376,12 @@ def main():
         return 2
     for w in [w for w in workloads.split(",") if w]:
         kind, n = w.rstrip("0123456789"), int(w[len(w.rstrip("0123456789")):] or 0)
-        if n <= 0 or kind not in ("run", "alive", "build", "compose", "churn", "net"):
+        if n <= 0 or kind not in ("run", "alive", "build", "compose", "churn", "net", "seq", "go", "gobuild", "fs"):
             print("unknown workload %r" % w, file=sys.stderr)
             return 2
         fn = {"run": lambda: g.runs(n), "alive": lambda: g.alive(n), "build": lambda: g.build(n), "compose": lambda: g.compose(n),
-              "churn": lambda: g.runs(n, STREAMS), "net": lambda: g.net(n)}[kind]
+              "churn": lambda: g.runs(n, STREAMS), "net": lambda: g.net(n), "seq": lambda: g.runs(n, 1),
+              "go": lambda: g.gobuild_containers(n), "gobuild": lambda: g.gobuild_images(n), "fs": lambda: g.files(n)}[kind]
         try:
             g.measure(w, fn)
         except Exception as e:  # a workload that could not run is a failed check, not a pass

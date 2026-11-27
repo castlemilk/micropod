@@ -27,7 +27,7 @@ if "$allocation"; then members+=(bin/rootlesskit); fi
 for plugin in bridge macvlan host-local loopback; do members+=("libexec/cni/$plugin"); done
 tar -xzf "$bundle" -C "$stage" "${members[@]}"
 install -m 0755 "$stage"/bin/* "$runner/bin/"
-install -m 0755 "$stage"/libexec/cni/* "$runner/cni/"
+install -m 0755 "$stage"/libexec/cni/* "$root/ci/runner/micropod-bridge" "$runner/cni/"
 install -m 0644 "$root"/ci/runner/*.toml "$root"/ci/runner/*.conflist "$runner/"
 install -m 0755 "$root/ci/runner/start.sh" "$root/ci/runner/published-ports.sh" "$root/ci/runner/rootless.sh" "$runner/"
 commit=$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)

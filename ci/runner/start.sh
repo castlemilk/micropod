@@ -166,6 +166,16 @@ raise_limit vm/max_map_count 262144
 raise_limit net/ipv4/neigh/default/gc_thresh2 4096
 raise_limit net/ipv4/neigh/default/gc_thresh3 8192
 mkdir -p /run/containerd /var/lib/micropod /etc/cni/net.d /etc/cni/micropod-private
+# No network namespace outlives a boot, so no address the default network
+# handed out before this boot is in use. BuildKit cannot give back the ones
+# its pooled namespaces held (its DEL of a namespace left from an earlier
+# boot fails in the loopback plugin: the mount is gone), so each restart
+# leaked as many addresses as RUN steps had last run at once. The
+# allocator's position (last_reserved_ip) stays, so addresses keep being
+# handed out in turn.
+for reservation in /var/lib/cni/networks/micropod-ci/10.*; do
+    if [ -f "$reservation" ]; then rm -f "$reservation"; fi
+done
 packages=
 command -v iptables >/dev/null || packages=iptables
 if [ "${MICROPOD_CI_PUBLISHED_PATH:-}" = macvlan ] && ! command -v nft >/dev/null; then
@@ -178,7 +188,17 @@ if [ -n "$packages" ]; then
         apk add --no-cache $packages
     fi
 fi
-ln -sf "$tools/runner/10-micropod.conflist" /etc/cni/net.d/10-micropod.conflist
+# The default network's plugin is micropod-bridge (the bridge plugin with a
+# DEL that leaves the veth to the namespace's own teardown) when the bundle
+# has it; a bundle without it keeps the bridge plugin.
+if [ -x "$tools/runner/cni/micropod-bridge" ]; then
+    rm -f /etc/cni/net.d/10-micropod.conflist
+    sed 's/"type": "bridge"/"type": "micropod-bridge"/' "$tools/runner/10-micropod.conflist" >/etc/cni/net.d/10-micropod.conflist.tmp
+    chmod 0644 /etc/cni/net.d/10-micropod.conflist.tmp
+    mv /etc/cni/net.d/10-micropod.conflist.tmp /etc/cni/net.d/10-micropod.conflist
+else
+    ln -sf "$tools/runner/10-micropod.conflist" /etc/cni/net.d/10-micropod.conflist
+fi
 ln -sf "$tools/runner/10-micropod-private.conflist" /etc/cni/micropod-private/10-micropod.conflist
 if [ -x /opt/kata/bin/containerd-shim-kata-v2 ]; then
     if ! [ -x /sbin/ip ] || ! apk info -e iproute2-minimal >/dev/null; then apk add --no-cache iproute2; fi

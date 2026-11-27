@@ -44,7 +44,8 @@
 #                     guest/runner for linux/arm64 and copy ci/runner's
 #                     start.sh and configuration over the payload's
 # --workloads         comma-separated, of runN aliveN buildN composeN churnN
-#                     netN (driver.py)
+#                     netN seqN goN gobuildN fsN (driver.py; goN and gobuildN
+#                     pull GATE_GO_IMAGE, golang:1.25-alpine)
 # Environment: GATE_ROOT (/tmp/mpg-sc, a throwaway directory under /tmp),
 # GATE_MICROPOD (.build/debug/micropod), GATE_DISK_FROM
 # (~/.micropod/ci/worker.ext4), GATE_DOCKER, GATE_API_PORT (19350),
@@ -237,6 +238,7 @@ if [ "$FROM_TREE" == 1 ]; then
     runner="$STAGE/payload/tools/runner"
     install -m 0644 "$REPO"/ci/runner/*.toml "$REPO"/ci/runner/*.conflist "$runner/" || abort "cannot copy ci/runner's configuration"
     install -m 0755 "$REPO/ci/runner/start.sh" "$REPO/ci/runner/published-ports.sh" "$REPO/ci/runner/rootless.sh" "$runner/" || abort "cannot copy ci/runner's scripts"
+    install -m 0755 "$REPO/ci/runner/micropod-bridge" "$runner/cni/" || abort "cannot copy ci/runner's CNI plugin"
     (cd "$REPO/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath \
         -ldflags "-X main.engineCommit=$(git -C "$REPO" rev-parse HEAD)" -o "$runner/bin/job" .) >"$R/logs/engine-build.log" 2>&1 ||
         { tail -20 "$R/logs/engine-build.log"; abort "the engine did not build"; }
@@ -272,6 +274,10 @@ for _ in $(seq 1 240); do curl -s -m 2 --unix-socket "$SOCK" http://d/_ping 2>/d
 curl -s -m 5 --unix-socket "$SOCK" http://d/version >"$R/evidence/version.json" || abort "the engine never answered"
 echo "engine_commit=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('GitCommit'))" "$R/evidence/version.json")" >>"$R/versions.txt"
 "$DOCKER" pull -q "$IMAGE" >"$R/logs/pull.log" 2>&1 || abort "cannot pull $IMAGE"
+# Pulled before the workloads, so no workload's time includes the pull.
+case ",$WORKLOADS," in *,go[0-9]* | *,gobuild[0-9]*)
+    "$DOCKER" pull -q "${GATE_GO_IMAGE:-golang:1.25-alpine}" >>"$R/logs/pull.log" 2>&1 || abort "cannot pull ${GATE_GO_IMAGE:-golang:1.25-alpine}" ;;
+esac
 "$M" machine status >"$R/evidence/machine-status.txt" 2>&1
 check H "machine status names the shared-engine policy" "$(grep -c 'docker socket for any container' "$R/evidence/machine-status.txt")" 1
 check H "machine status names the lifted default limits" "$(grep -c 'no default container limits' "$R/evidence/machine-status.txt")" 1
@@ -280,7 +286,7 @@ check H "a container naming no limit has no CPU quota and the machine's memory" 
 check H "a container gets a Docker daemon's open-file limit" "$("$DOCKER" run --rm "$IMAGE" sh -c 'ulimit -n' 2>&1)" 1048576
 
 # W: the workloads.
-GATE_DOCKER_BIN="$DOCKER" GATE_TMP="$TMPD" python3 -I "$GATE/driver.py" "$SOCK" "$R" "$RUN" "$IMAGE" "$WORKLOADS"
+GATE_DOCKER_BIN="$DOCKER" GATE_TMP="$TMPD" GATE_WORKSPACE="$WS" python3 -I "$GATE/driver.py" "$SOCK" "$R" "$RUN" "$IMAGE" "$WORKLOADS"
 rc=$?
 [ "$rc" == 0 ] || abort "the driver could not run the workloads (exit $rc)"
 
