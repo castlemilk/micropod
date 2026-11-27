@@ -248,9 +248,13 @@ struct GRPCExchange<Writer: HTTP2ResponseWriter, Slot: HTTP2HandlerSlot>: Sendab
         switch GRPCWire.singleMessage(request.body) {
         case .message(let message): payload = message
         case .compressed:
+            // No grpc-encoding (or identity) came with it, or the call was
+            // refused above: the flag contradicts the headers, which gRPC
+            // answers INTERNAL. UNIMPLEMENTED and grpc-accept-encoding are
+            // for an encoding the client named.
             return await state.trailersOnly(
-                12, "compressed messages are not supported", contentType: contentType, writer: writer,
-                extra: [("grpc-accept-encoding", "identity")])
+                13, "compressed flag set with identity or no grpc-encoding", contentType: contentType,
+                writer: writer)
         case .malformed(let reason):
             return await state.trailersOnly(3, reason, contentType: contentType, writer: writer)
         }

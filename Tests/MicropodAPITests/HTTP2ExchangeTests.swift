@@ -179,11 +179,15 @@ final class HTTP2ExchangeTests: XCTestCase {
         let cut = await call(Data([0, 0, 0, 0, 9, 1]))
         XCTAssertEqual(cut.grpcStatus, "3", "a cut message")
         let compressed = await call(ConnectEnvelope.frame(Data(), flags: 1))
-        XCTAssertEqual(compressed.grpcStatus, "12")
+        XCTAssertEqual(compressed.grpcStatus, "13", "the flag without a grpc-encoding is malformed, not unsupported")
         guard case .head(200, let fields, true) = compressed.events.first else { return XCTFail() }
-        XCTAssertEqual(fields["grpc-accept-encoding"], "identity")
+        XCTAssertNil(fields["grpc-accept-encoding"], "nothing to retry without")
+        let flagged = await call(ConnectEnvelope.frame(Data(), flags: 1), extra: ["grpc-encoding": "identity"])
+        XCTAssertEqual(flagged.grpcStatus, "13")
         let gzip = await call(GRPCWire.message(Data()), extra: ["grpc-encoding": "gzip"])
         XCTAssertEqual(gzip.grpcStatus, "12")
+        guard case .head(200, let offered, true) = gzip.events.first else { return XCTFail() }
+        XCTAssertEqual(offered["grpc-accept-encoding"], "identity", "an encoding the client named: what is accepted")
         let malformed = await call(GRPCWire.message(Data()), extra: ["grpc-timeout": "soon"])
         XCTAssertEqual(malformed.grpcStatus, "13")
         XCTAssertEqual(fixture.count, 0, "no refused call reached the handler")
