@@ -274,6 +274,10 @@ for _ in $(seq 1 240); do curl -s -m 2 --unix-socket "$SOCK" http://d/_ping 2>/d
 curl -s -m 5 --unix-socket "$SOCK" http://d/version >"$R/evidence/version.json" || abort "the engine never answered"
 echo "engine_commit=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('GitCommit'))" "$R/evidence/version.json")" >>"$R/versions.txt"
 "$DOCKER" pull -q "$IMAGE" >"$R/logs/pull.log" 2>&1 || abort "cannot pull $IMAGE"
+# Pulled before the workloads, so no workload's time includes the pull.
+case ",$WORKLOADS," in *,go[0-9]* | *,gobuild[0-9]*)
+    "$DOCKER" pull -q "${GATE_GO_IMAGE:-golang:1.25-alpine}" >>"$R/logs/pull.log" 2>&1 || abort "cannot pull ${GATE_GO_IMAGE:-golang:1.25-alpine}" ;;
+esac
 "$M" machine status >"$R/evidence/machine-status.txt" 2>&1
 check H "machine status names the shared-engine policy" "$(grep -c 'docker socket for any container' "$R/evidence/machine-status.txt")" 1
 check H "machine status names the lifted default limits" "$(grep -c 'no default container limits' "$R/evidence/machine-status.txt")" 1
