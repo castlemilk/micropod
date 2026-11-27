@@ -230,8 +230,10 @@ final class HTTPChunkedStreamTests: XCTestCase {
             let next = try client.reply()
             XCTAssertEqual(next.status, 200)
             XCTAssertEqual(String(decoding: next.body, as: UTF8.self), "/echo")
+            // While the client still holds it: the client closes when this
+            // closure returns, and the server then lets the connection go.
+            XCTAssertEqual(owner.keptConnections, 1)
         }
-        XCTAssertEqual(owner.keptConnections, 1)
     }
 
     func testTheStreamWatchHandsBytesThatCameBeforeTheEndToTheNextReader() {
