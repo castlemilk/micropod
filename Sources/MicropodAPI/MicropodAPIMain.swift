@@ -227,16 +227,21 @@ final class HTTPServer: @unchecked Sendable {
     /// maintenance go through `RuntimeAdmission`. Read once, at start-up,
     /// not from a freshly built environment per request.
     let isolatedRuntime: Bool
+    /// The gate a request of the dedicated runtime's API claims before its
+    /// handler runs (`admissionClaim`).
+    let runtimeAdmission: RuntimeAdmission
 
     init(
         port: UInt16, policy: ConnectionPolicy = .live,
         isolatedRuntime: Bool = getenv("MICROPOD_ISOLATED_RUNTIME").map { String(cString: $0) } == "1",
+        runtimeAdmission: RuntimeAdmission = .shared,
         handler: @escaping (HTTPRequest) async -> HTTPResponse
     ) {
         self.port = port
         self.handler = handler
         self.policy = policy
         self.isolatedRuntime = isolatedRuntime
+        self.runtimeAdmission = runtimeAdmission
         self.kept = KeptConnections(limit: policy.maxKeptConnections)
         self.ownerKept = KeptConnections(limit: policy.maxKeptConnections)
     }
@@ -670,45 +675,62 @@ final class HTTPServer: @unchecked Sendable {
             completion: .contentProcessed { _ in connection.cancel() })
     }
 
+    /// Cross-site / DNS-rebinding defence, before any handler runs (see
+    /// LocalRequestGuard): loopback Host, a non-simple Content-Type on
+    /// mutations, and an allowlisted Origin when one is sent. Only the
+    /// owner's private socket skips it (see `Admission`). The refusal to
+    /// answer, or nil when the request may reach its handler. Every
+    /// transport (HTTP/1.1, HTTP/2, gRPC) asks this one function.
+    func guardRejection(_ request: HTTPRequest, admission: Admission) -> HTTPResponse? {
+        guard admission == .guarded else { return nil }
+        let verdict = LocalRequestGuard.evaluateAPI(
+            method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
+            port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
+        guard case .reject(let status, let reason) = verdict else { return nil }
+        let code = status == 415 ? "invalid_argument" : "permission_denied"
+        let body =
+            (try? JSONSerialization.data(
+                withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
+        return .data(status, "application/json", body)
+    }
+
+    /// The dedicated runtime's API admits every request other than
+    /// `/health` and maintenance through `RuntimeAdmission`: the claim the
+    /// request holds until its handler settles (nil when none applies).
+    /// Throws when maintenance has closed admission (`admissionClosed`).
+    func admissionClaim(_ request: HTTPRequest) throws -> RuntimeAdmissionClaim? {
+        isolatedRuntime && !Self.admissionExempt.contains(request.path)
+            ? try runtimeAdmission.claim("managed-api:" + request.path) : nil
+    }
+
+    /// Paths `admissionClaim` never claims for.
+    static let admissionExempt: Set<String> = ["/health", "/v1/managed/maintenance"]
+
+    /// The answer to a request `admissionClaim` refused.
+    static func admissionClosed() -> HTTPResponse {
+        .json(503, ["code": "unavailable", "message": "Runtime maintenance has closed workload admission"])
+    }
+
     private func dispatch(
         _ request: HTTPRequest, peer: Peer, persistence: HTTPPersistence, leftover: Data
     ) {
         let connection = peer.connection
-        let admission = peer.admission
         // Browser-facing CORS/PNA headers — computed once per request so
         // normal, streaming, and preflight responses are all covered.
         let cors = CORSPolicy.responseHeaders(for: request)
-        // Cross-site / DNS-rebinding defence, before any handler runs (see
-        // LocalRequestGuard): loopback Host, a non-simple Content-Type on
-        // mutations, and an allowlisted Origin when one is sent. Only the
-        // owner's private socket skips it (see `Admission`).
-        if admission == .guarded {
-            let verdict = LocalRequestGuard.evaluateAPI(
-                method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
-                port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
-            if case .reject(let status, let reason) = verdict {
-                let code = status == 415 ? "invalid_argument" : "permission_denied"
-                let body =
-                    (try? JSONSerialization.data(
-                        withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
-                connection.send(
-                    content: Self.serialize(.data(status, "application/json", body), extraHeaders: cors),
-                    completion: .contentProcessed { _ in connection.cancel() })
-                return
-            }
+        if let refusal = guardRejection(request, admission: peer.admission) {
+            connection.send(
+                content: Self.serialize(refusal, extraHeaders: cors),
+                completion: .contentProcessed { _ in connection.cancel() })
+            return
         }
         Task {
             let claim: RuntimeAdmissionClaim?
             do {
-                claim =
-                    self.isolatedRuntime && !["/health", "/v1/managed/maintenance"].contains(request.path)
-                    ? try RuntimeAdmission.shared.claim("managed-api:" + request.path) : nil
+                claim = try self.admissionClaim(request)
             } catch {
                 connection.send(
-                    content: Self.serialize(
-                        .json(
-                            503,
-                            ["code": "unavailable", "message": "Runtime maintenance has closed workload admission"])),
+                    content: Self.serialize(Self.admissionClosed()),
                     completion: .contentProcessed { _ in connection.cancel() })
                 return
             }
@@ -1020,6 +1042,23 @@ enum HTTPParser {
         case reject(status: Int, reason: String)
     }
 
+    /// A request target's path and its decoded query (`a=1&b=x%20y`): the
+    /// HTTP/1.1 request line's target and HTTP/2's `:path` alike.
+    static func splitTarget(_ target: String) -> (path: String, query: [String: String]) {
+        let targetParts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        let path = String(targetParts[0])
+        var query: [String: String] = [:]
+        if targetParts.count > 1 {
+            for pair in targetParts[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1)
+                guard let key = kv.first else { continue }
+                query[String(key)] =
+                    kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
+            }
+        }
+        return (path, query)
+    }
+
     static func parse(_ data: Data, limits: HTTPRequestFraming.Limits = .api) -> Outcome {
         switch HTTPRequestFraming.parse(data, limits: limits) {
         case .incomplete:
@@ -1030,17 +1069,7 @@ enum HTTPParser {
             guard let method = HTTPMethod(rawValue: head.method) else {
                 return .reject(status: 405, reason: "method \(head.method) not allowed")
             }
-            let targetParts = head.target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
-            let path = String(targetParts[0])
-            var query: [String: String] = [:]
-            if targetParts.count > 1 {
-                for pair in targetParts[1].split(separator: "&") {
-                    let kv = pair.split(separator: "=", maxSplits: 1)
-                    guard let key = kv.first else { continue }
-                    query[String(key)] =
-                        kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
-                }
-            }
+            let (path, query) = splitTarget(head.target)
             // A request with both Transfer-Encoding and Content-Length is
             // read by its chunks, and its connection closes after the reply
             // (RFC 9112 §6.1): the two framings disagree on where the next

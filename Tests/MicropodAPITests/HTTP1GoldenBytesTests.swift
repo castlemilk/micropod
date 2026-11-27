@@ -256,6 +256,50 @@ final class HTTP1GoldenBytesTests: XCTestCase {
         }
     }
 
+    /// The dedicated runtime's API with maintenance holding admission
+    /// closed: 503 before any handler, `/health` exempt.
+    func testAdmissionClosedBytes() async throws {
+        let root = dir.appendingPathComponent("admission")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: root.appendingPathComponent("fence.json"))
+        let server = HTTPServer(
+            port: 45454, policy: Self.policy, isolatedRuntime: true, runtimeAdmission: RuntimeAdmission(root: root),
+            handler: Self.handler)
+        servers.append(server)
+        let path = dir.appendingPathComponent("api.sock").path
+        _ = await MicropodAPI.startOwnerSocket(server, path: path, log: { XCTFail($0) })
+        try await blocking {
+            let wire = try GoldenWire.unix(path)
+            try wire.send("GET /missing HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            let (head, body) = GoldenWire.split(try wire.readToEOF())
+            let object = ["code": "unavailable", "message": "Runtime maintenance has closed workload admission"]
+            let expectedBody = try JSONSerialization.data(withJSONObject: object)
+            XCTAssertEqual(
+                head,
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\n\(Self.codecs)"
+                    + "Content-Length: \(expectedBody.count)\r\nConnection: close\r\n\r\n")
+            XCTAssertEqual(try JSONSerialization.jsonObject(with: body) as? [String: String], object)
+
+            let health = try GoldenWire.unix(path)
+            try health.send("GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            let expected = Self.kept("200 OK", "application/json", #"{"status":"ok"}"#)
+            XCTAssertEqual(try health.read(expected.utf8.count).text, expected, "/health is exempt")
+        }
+    }
+
+    func testTheSharedChecksAnswerAsTheServerDoes() throws {
+        let server = HTTPServer(port: 45454, policy: Self.policy, isolatedRuntime: false, handler: Self.handler)
+        let foreign = HTTPRequest(method: .get, path: "/health", query: [:], body: Data(), headers: ["host": "evil"])
+        guard case .data(403, "application/json", _) = server.guardRejection(foreign, admission: .guarded) else {
+            return XCTFail("a foreign Host is refused on a guarded listener")
+        }
+        XCTAssertNil(server.guardRejection(foreign, admission: .ownerOnly), "the owner socket skips the guard")
+        XCTAssertNil(try server.admissionClaim(foreign), "only the dedicated runtime's API claims")
+        XCTAssertEqual(HTTPParser.splitTarget("/v1/x?tail=5&q=a%20b&flag").path, "/v1/x")
+        XCTAssertEqual(
+            HTTPParser.splitTarget("/v1/x?tail=5&q=a%20b&flag").query, ["tail": "5", "q": "a b", "flag": ""])
+    }
+
     func testFramingRefusalAndTimeoutBytes() async throws {
         let path = try await ownerSocket()
         try await blocking {
