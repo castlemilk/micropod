@@ -84,22 +84,41 @@ func parseDockerImageListFilters(raw string) (dockerImageListFilters, error) {
 	return f, nil
 }
 
+// danglingImage reports whether no name was given to an image: no tag names
+// it, and no pull named it by repo:tag@digest (pulledAs). Docker counts a
+// digest-only image as dangling; one a client pulled by tag and digest (a
+// pinned warm image) it named, and a prune of dangling images keeps it.
+func danglingImage(image *cri.Image, pulledAs []string) bool {
+	return len(image.GetRepoTags()) == 0 && len(pulledAs) == 0
+}
+
 // keepsRow reports whether an image passes dangling and reference.
-func (f dockerImageListFilters) keepsRow(image *cri.Image) bool {
-	if f.dangling != nil && *f.dangling != (len(image.GetRepoTags()) == 0) {
+func (f dockerImageListFilters) keepsRow(image *cri.Image, pulledAs []string) bool {
+	if f.dangling != nil && *f.dangling != danglingImage(image, pulledAs) {
 		return false
 	}
 	if len(f.references) == 0 {
 		return true
 	}
-	for _, name := range append(slices.Clone(image.GetRepoTags()), image.GetRepoDigests()...) {
+	for _, name := range append(append(slices.Clone(image.GetRepoTags()), pulledAs...), image.GetRepoDigests()...) {
 		ref, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
 			continue
 		}
+		refs := []reference.Named{ref}
+		if tagged, ok := ref.(reference.NamedTagged); ok {
+			if _, digested := ref.(reference.Digested); digested {
+				// A repo:tag@digest it was pulled as matches as repo:tag too.
+				if bare, err := reference.WithTag(reference.TrimNamed(ref), tagged.Tag()); err == nil {
+					refs = append(refs, bare)
+				}
+			}
+		}
 		for _, pattern := range f.references {
-			if ok, _ := reference.FamiliarMatch(pattern, ref); ok {
-				return true
+			for _, r := range refs {
+				if ok, _ := reference.FamiliarMatch(pattern, r); ok {
+					return true
+				}
 			}
 		}
 	}
@@ -332,7 +351,7 @@ func (s *dockerEngine) listDockerImages(w http.ResponseWriter, r *http.Request, 
 	}
 	rows := make([]*cri.Image, 0, len(all))
 	for _, image := range all {
-		if filters.keepsRow(image) {
+		if filters.keepsRow(image, pulled[image.GetId()]) {
 			rows = append(rows, image)
 		}
 	}

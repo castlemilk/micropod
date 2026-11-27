@@ -329,6 +329,16 @@ func TestATagAndDigestPullKeepsItsName(t *testing.T) {
 	if len(rows[1].MicropodPulledAs) != 0 {
 		t.Fatalf("another image listed %v", rows[1].MicropodPulledAs)
 	}
+	// Without its tag it is still named: not dangling, kept by a prune of
+	// dangling images, and found by a reference filter on its pulled name.
+	image.RepoTags = nil
+	delete(runtime.catalog.rows, "ci:alpha")
+	for filter, want := range map[string]bool{`{"dangling":["true"]}`: false, `{"reference":["ci:0.1.15"]}`: true} {
+		w := listImagesV147(engine, filter)
+		if got := strings.Contains(w.Body.String(), image.GetId()); got != want {
+			t.Errorf("%s: listed %v, want %v (%s)", filter, got, want, w.Body)
+		}
+	}
 }
 
 type recordingImageStore struct {

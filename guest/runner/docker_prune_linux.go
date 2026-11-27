@@ -252,7 +252,8 @@ func (s *dockerEngine) pruneVolumes(w http.ResponseWriter, r *http.Request) erro
 }
 
 // pruneImages serves POST /images/prune: without dangling=false, the images
-// no tag names; with it, every image; in both, only those no container uses
+// nothing names (danglingImage: no tag, and no repo:tag@digest it was pulled
+// by); with it, every image; in both, only those no container uses
 // (running or not) and that pass the label, label! and until filters (until
 // by the image config's creation time). Tags go first, then the image with
 // its digest references. SpaceReclaimed counts the blobs and layer snapshots
@@ -284,7 +285,7 @@ func (s *dockerEngine) pruneImages(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	rows, err := s.node.visibleDockerImageRows(listCtx, listed.GetImages())
+	rows, pulled, err := s.node.visibleDockerImageNames(listCtx, listed.GetImages())
 	if err != nil {
 		return err
 	}
@@ -295,7 +296,7 @@ func (s *dockerEngine) pruneImages(w http.ResponseWriter, r *http.Request) error
 	configs := s.dockerImageConfigs(ctx, ids)
 	var candidates []*cri.Image
 	for _, row := range rows {
-		if dangling && len(row.GetRepoTags()) != 0 {
+		if dangling && !danglingImage(row, pulled[row.GetId()]) {
 			continue
 		}
 		var created time.Time
