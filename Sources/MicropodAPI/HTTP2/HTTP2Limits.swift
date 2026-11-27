@@ -73,6 +73,10 @@ struct HTTP2Limits: Sendable {
     var connectionIdle: TimeAmount = .seconds(120)
     /// Streams in flight at GOAWAY (idle, `stop()`) get this long to finish.
     var goAwayGrace: TimeAmount = .seconds(5)
+    /// Once the server's side of a connection closed, the client gets this
+    /// long to take the bytes already written (the GOAWAY, a last
+    /// response); then its connection is cancelled with the rest unsent.
+    var closeDrain: TimeAmount = .seconds(5)
 
     struct RateLimit: Sendable, Equatable {
         var count: Int

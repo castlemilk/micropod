@@ -15,7 +15,8 @@ import Network
 /// its last write before reading again, so a slow side holds the other back
 /// instead of filling memory. NIO's side closing (after its last frame, the
 /// trailers included) ends the client's connection once every byte before
-/// it was sent.
+/// it was sent, or after `HTTP2Limits.closeDrain` when the client does not
+/// take them: its connection is then cancelled with the bytes unsent.
 enum HTTP2Bridge {
     /// Both ends of a new socketpair, close-on-exec, non-blocking, without
     /// SIGPIPE and with 256 KiB buffers each way (a Unix stream socket's
@@ -67,16 +68,32 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
     private var ending = false
     private var ended = false
     private var removed = false
+    /// 1 once removed, for the sends that complete after it on the
+    /// connection's queue: the event loop may have stopped by then.
+    private let gone = LiveCount()
+    /// How long the client has to take the last bytes once NIO's side closed.
+    private let drain: TimeAmount
+    /// Cancels the client's connection when `drain` ran out.
+    private var deadline: Deadline?
 
-    init(connection: NWConnection, initial: Data) {
+    /// `DispatchWorkItem.cancel` may be called from any thread.
+    private final class Deadline: @unchecked Sendable {
+        let item: DispatchWorkItem
+        init(_ work: @escaping @Sendable () -> Void) { item = DispatchWorkItem(block: work) }
+    }
+
+    init(connection: NWConnection, initial: Data, drain: TimeAmount) {
         self.connection = connection
         self.initial = initial
+        self.drain = drain
     }
 
     func handlerAdded(context: ChannelHandlerContext) { HTTP2Bridge.live.add(1) }
     func handlerRemoved(context: ChannelHandlerContext) {
         removed = true
+        gone.add(1)
         HTTP2Bridge.live.add(-1)
+        expire()
         if !ended { end() }
     }
 
@@ -130,7 +147,8 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
         let bound = NIOLoopBound((self, context), eventLoop: context.eventLoop)
         connection.send(
             content: bytes,
-            completion: .contentProcessed { error in
+            completion: .contentProcessed { [gone] error in
+                guard gone.value == 0 else { return }
                 bound.eventLoop.execute {
                     let (handler, context) = bound.value
                     handler.sending -= 1
@@ -164,6 +182,7 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
 
     func channelInactive(context: ChannelHandlerContext) {
         ending = true
+        expire()
         if sending == 0 { end() }
         context.fireChannelInactive()
     }
@@ -172,13 +191,32 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
         context.close(promise: nil)
     }
 
-    /// Every byte NIO wrote was sent: close the client's connection after it.
+    /// NIO's side is gone, so nothing here waits on the client any more. A
+    /// send completes only once the client took its bytes: one that stopped
+    /// reading would keep its connection, descriptor and unsent bytes for
+    /// good. After `drain` the connection is cancelled whatever is unsent.
+    private func expire() {
+        guard deadline == nil else { return }
+        let connection = self.connection
+        let deadline = Deadline { connection.forceCancel() }
+        self.deadline = deadline
+        // Not the event loop's clock: the loops stop with the server.
+        DispatchQueue.global().asyncAfter(
+            deadline: .now() + .nanoseconds(Int(drain.nanoseconds)), execute: deadline.item)
+    }
+
+    /// Close the client's connection after every byte NIO wrote (the sends
+    /// still outstanding go first).
     private func end() {
         guard !ended else { return }
         ended = true
         let connection = self.connection
+        let deadline = self.deadline
         connection.send(
             content: nil, contentContext: .finalMessage, isComplete: true,
-            completion: .contentProcessed { _ in connection.cancel() })
+            completion: .contentProcessed { _ in
+                connection.cancel()
+                deadline?.item.cancel()
+            })
     }
 }

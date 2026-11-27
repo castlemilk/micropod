@@ -753,7 +753,9 @@ request body, 128 MiB buffered per connection, NIO's flood limits
 10 s — a grpc-go log flood peaks below 900), the HTTP/1.1 request deadlines
 (RST_STREAM CANCEL), a 120 s write-stall deadline, GOAWAY after
 `MICROPOD_API_KEEPALIVE_IDLE_MS` without a stream, and at most 64 HTTP/2
-connections per listener, each holding one of the 256 kept-connection places.
+connections per listener, each holding one of the 256 kept-connection places
+until its socket is closed (a client that stopped reading is cut off 5 s after
+the server's side closed).
 A health `Watch` does not count as a stream there: a connection with nothing
 but Watches on it gets the idle GOAWAY, and the client watches again on its
 next connection. A client that ends its side after its requests (`nc -N`) is
