@@ -398,9 +398,11 @@ final class HVFMachineReadinessTests: XCTestCase {
             try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), otherLayout.dockerSocket.path)
     }
 
-    /// Only `machine start`/`restart` (through the policy above) and an
-    /// explicit link-socket (CLI or API) reach the link: install, payload
-    /// activation, rollback and on-demand starts have no path to it.
+    /// Only `machine start`/`restart` and the explicit starts like them (the
+    /// API's ControlMachine start, `machine serve --link-socket`, which the
+    /// autostart LaunchAgent runs), through the policy above, and an explicit
+    /// link-socket (CLI or API) reach the link: install, payload activation,
+    /// rollback and on-demand starts have no path to it.
     func testOnlyStartRestartAndLinkSocketReachTheCanonicalLink() throws {
         let sources = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -419,8 +421,11 @@ final class HVFMachineReadinessTests: XCTestCase {
             [
                 // `machine link-socket`.
                 "MachineCommands.swift linkCanonicalDockerSocket(": 1,
-                // `machine start` and `machine restart`, through autoLink.
-                "MachineCommands.swift autoLinkCanonicalDockerSocket(": 1,
+                // `machine start` and `machine restart`, through autoLink, and
+                // `machine serve --link-socket` once the machine is ready.
+                "MachineCommands.swift autoLinkCanonicalDockerSocket(": 2,
+                // ControlMachine start (the app's Start button).
+                "RigMount.swift autoLinkCanonicalDockerSocket(": 1,
                 // POST /v1/rig/hvf/link-socket.
                 "APIHandlers.swift linkCanonicalDockerSocket(": 1,
             ])
