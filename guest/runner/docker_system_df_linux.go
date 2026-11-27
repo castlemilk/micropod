@@ -133,7 +133,7 @@ func (s *dockerEngine) systemDiskUsage(w http.ResponseWriter, r *http.Request) e
 	report := dockerDiskUsage{}
 	layers := newLayerUsage(s.node)
 	if want["image"] || want["container"] {
-		images, total, err := s.imageDiskUsage(ctx, layers)
+		images, total, err := s.imageDiskUsage(ctx, viewer, layers)
 		if err != nil {
 			return err
 		}
@@ -265,7 +265,10 @@ type diskImage struct {
 	digests []string
 }
 
-func (s *dockerEngine) imageDiskUsage(ctx context.Context, layers *layerUsage) ([]dockerDiskUsageImage, int64, error) {
+// imageDiskUsage lists every image (images are the machine's, whoever asks)
+// with its sizes; Containers counts only the containers viewer sees, so a
+// delegated socket does not learn how many containers other jobs run.
+func (s *dockerEngine) imageDiskUsage(ctx context.Context, viewer string, layers *layerUsage) ([]dockerDiskUsageImage, int64, error) {
 	listCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	listed, err := s.node.images.ListImages(listCtx, &cri.ListImagesRequest{})
@@ -297,7 +300,7 @@ func (s *dockerEngine) imageDiskUsage(ctx context.Context, layers *layerUsage) (
 	s.mu.Lock()
 	using := map[string]int64{}
 	for _, c := range s.containers {
-		if !c.removed {
+		if !c.removed && seesContainer(viewer, c) {
 			using[c.ImageID]++
 		}
 	}
@@ -444,7 +447,7 @@ func (s *dockerEngine) containerDiskUsage(ctx context.Context, viewer string, la
 }
 
 // volumeDiskUsage lists the volumes viewer sees with the disk their files
-// take and the containers that mount each.
+// take and how many of the containers viewer sees mount each.
 func (s *dockerEngine) volumeDiskUsage(viewer string) []dockerDiskUsageVolume {
 	entries, _ := os.ReadDir(filepath.Join(volumeStore, "volumes"))
 	s.mu.Lock()
@@ -459,7 +462,7 @@ func (s *dockerEngine) volumeDiskUsage(viewer string) []dockerDiskUsageVolume {
 		}
 		var refs int64
 		for _, c := range s.containers {
-			if !c.removed && c.mountsVolume(v.Name) {
+			if !c.removed && seesContainer(viewer, c) && c.mountsVolume(v.Name) {
 				refs++
 			}
 		}

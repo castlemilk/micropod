@@ -320,6 +320,88 @@ func TestSystemDFContainersAndVolumes(t *testing.T) {
 	}
 }
 
+// Another job's delegated socket learns nothing of this job's containers or
+// volumes from the report: no container row, no volume row, and no count of
+// them on the images (which are the machine's and stay listed) or on a
+// volume both jobs can see.
+func TestSystemDFDelegatedSocketCountsOnlyItsFamily(t *testing.T) {
+	f := newDFFixture(t)
+	useVolumeStore(t)
+	owner := strings.Repeat("a", 64)
+	child := strings.Repeat("b", 64)
+	other := strings.Repeat("c", 64)
+	for name, createdBy := range map[string]string{"mine": owner, "theirs": other, "shared": ""} {
+		if err := ensureVolumeBy(name, nil, createdBy); err != nil {
+			t.Fatal(err)
+		}
+	}
+	container := func(id, name, image, createdBy string, binds ...string) {
+		f.engine.containers[id] = &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, ImageID: image,
+			Phase: "running", RuntimeID: "cri-" + name, Created: time.Unix(100, 0), CreatedBy: createdBy,
+			Config: dockerConfig{Image: name, HostConfig: dockerHost{Binds: binds}}}}
+	}
+	container(owner, "owner", f.app, "", "shared:/shared")
+	container(child, "child", f.app, owner, "mine:/mine")
+	container(other, "other", f.app, "", "shared:/shared", "theirs:/theirs")
+
+	view := func(viewer string) (images map[string]int64, containers []string, volumes map[string]int64) {
+		t.Helper()
+		r := httptest.NewRequest(http.MethodGet, "/v1.47/system/df?type=image&type=container&type=volume", nil)
+		if viewer != "" {
+			r = r.WithContext(context.WithValue(r.Context(), apiViewerKey{}, viewer))
+		}
+		w := httptest.NewRecorder()
+		f.engine.ServeHTTP(w, r)
+		var body struct {
+			Images []struct {
+				ID         string `json:"Id"`
+				Containers int64
+			}
+			Containers []struct {
+				ID string `json:"Id"`
+			}
+			Volumes []struct {
+				Name      string
+				UsageData struct{ RefCount int64 }
+			}
+		}
+		if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &body) != nil {
+			t.Fatalf("df as %q = %d %s", viewer, w.Code, w.Body)
+		}
+		images, volumes = map[string]int64{}, map[string]int64{}
+		for _, i := range body.Images {
+			images[i.ID] = i.Containers
+		}
+		for _, c := range body.Containers {
+			containers = append(containers, c.ID)
+		}
+		slices.Sort(containers)
+		for _, v := range body.Volumes {
+			volumes[v.Name] = v.UsageData.RefCount
+		}
+		return images, containers, volumes
+	}
+
+	images, containers, volumes := view("")
+	if images[f.app] != 3 || len(containers) != 3 || len(volumes) != 3 || volumes["shared"] != 2 {
+		t.Fatalf("the host's view = images %v containers %v volumes %v, want everything", images, containers, volumes)
+	}
+	images, containers, volumes = view(owner)
+	if len(images) != 2 || images[f.app] != 2 || !slices.Equal(containers, []string{owner, child}) {
+		t.Fatalf("the owner's view = images %v containers %v, want both images and its 2 containers", images, containers)
+	}
+	if _, leaked := volumes["theirs"]; leaked || len(volumes) != 2 || volumes["mine"] != 1 || volumes["shared"] != 1 {
+		t.Fatalf("the owner's volumes = %v, want its own and the one it mounts, counting only its containers", volumes)
+	}
+	images, containers, volumes = view(other)
+	if len(images) != 2 || images[f.app] != 1 || !slices.Equal(containers, []string{other}) {
+		t.Fatalf("the other job's view = images %v containers %v, want both images and 1 container", images, containers)
+	}
+	if _, leaked := volumes["mine"]; leaked || len(volumes) != 2 || volumes["theirs"] != 1 || volumes["shared"] != 1 {
+		t.Fatalf("the other job's volumes = %v", volumes)
+	}
+}
+
 // The build cache is BuildKit's record list, asked for only when BuildKit
 // runs or has state; a bundle without BuildKit reports none.
 func TestSystemDFBuildCache(t *testing.T) {
