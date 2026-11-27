@@ -44,7 +44,8 @@
 #                     guest/runner for linux/arm64 and copy ci/runner's
 #                     start.sh and configuration over the payload's
 # --workloads         comma-separated, of runN aliveN buildN composeN churnN
-#                     netN (driver.py)
+#                     netN seqN goN gobuildN fsN (driver.py; goN and gobuildN
+#                     pull GATE_GO_IMAGE, golang:1.25-alpine)
 # Environment: GATE_ROOT (/tmp/mpg-sc, a throwaway directory under /tmp),
 # GATE_MICROPOD (.build/debug/micropod), GATE_DISK_FROM
 # (~/.micropod/ci/worker.ext4), GATE_DOCKER, GATE_API_PORT (19350),
@@ -281,7 +282,7 @@ check H "a container naming no limit has no CPU quota and the machine's memory" 
 check H "a container gets a Docker daemon's open-file limit" "$("$DOCKER" run --rm "$IMAGE" sh -c 'ulimit -n' 2>&1)" 1048576
 
 # W: the workloads.
-GATE_DOCKER_BIN="$DOCKER" GATE_TMP="$TMPD" python3 -I "$GATE/driver.py" "$SOCK" "$R" "$RUN" "$IMAGE" "$WORKLOADS"
+GATE_DOCKER_BIN="$DOCKER" GATE_TMP="$TMPD" GATE_WORKSPACE="$WS" python3 -I "$GATE/driver.py" "$SOCK" "$R" "$RUN" "$IMAGE" "$WORKLOADS"
 rc=$?
 [ "$rc" == 0 ] || abort "the driver could not run the workloads (exit $rc)"
 
