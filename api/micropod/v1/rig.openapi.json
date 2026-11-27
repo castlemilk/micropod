@@ -197,7 +197,7 @@
           "micropod.v1.RigService"
         ],
         "summary": "GetMachineStatus",
-        "description": "The machine as every process sees it: assets, supervisor, phase, the\n published state. Never boots anything and never asks the guest.",
+        "description": "The machine as every process sees it: assets, supervisor, phase, the\n published state, and its autostart LaunchAgent. Never boots anything;\n while it runs, the guest is asked for its engine version, its\n containers and its cache disk (one second each).",
         "operationId": "micropod.v1.RigService.GetMachineStatus",
         "parameters": [
           {
@@ -427,6 +427,65 @@
         }
       }
     },
+    "/api/micropod.v1.RigService/SetMachineAutostart": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "SetMachineAutostart",
+        "description": "Turn the machine's autostart LaunchAgent on or off (`micropod machine\n autostart on|off`): on, launchd starts the machine at login and stops it\n cleanly at logout. Loading or unloading the job restarts a running\n machine, so it is deferred (`failed_precondition`, nothing changed)\n while containers run, unless `force`. Replies with the machine status.",
+        "operationId": "micropod.v1.RigService.SetMachineAutostart",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.SetMachineAutostartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.HVFMachineStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.RigService/SetRigMode": {
       "post": {
         "tags": [
@@ -479,6 +538,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/micropod.v1.RigMode"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.RigService/SetupMachine": {
+      "post": {
+        "tags": [
+          "micropod.v1.RigService"
+        ],
+        "summary": "SetupMachine",
+        "description": "The machine's first run (`micropod setup`): its runtime files from the\n API's own app bundle or CLI package (or `payload_path`), its disk from\n `disk_from` or the package's base disk, and its cache disk; then a start\n when `start`. Local sources only: nothing is downloaded. Re-running\n keeps what is there. A step that cannot be done is a failed step in the\n reply (`ok` false), never a partial install: every source is checked\n before anything is written.",
+        "operationId": "micropod.v1.RigService.SetupMachine",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.SetupMachineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.SetupMachineResult"
                 }
               }
             }
@@ -604,6 +722,60 @@
         "title": "Empty",
         "additionalProperties": false,
         "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.HVFMachineAutostart": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled",
+            "description": "On: launchd starts the machine at login."
+          },
+          "loaded": {
+            "type": "boolean",
+            "title": "loaded",
+            "description": "launchd has the job loaded now."
+          },
+          "label": {
+            "type": "string",
+            "title": "label"
+          },
+          "plistPath": {
+            "type": "string",
+            "title": "plist_path"
+          },
+          "program": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "program"
+          },
+          "exitTimeoutSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "exit_timeout_seconds",
+            "format": "int32",
+            "description": "launchd's SIGTERM -> SIGKILL wait, in seconds."
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "problem",
+            "description": "Why the job cannot start the machine as recorded."
+          },
+          "summary": {
+            "type": "string",
+            "title": "summary"
+          }
+        },
+        "title": "HVFMachineAutostart",
+        "additionalProperties": false,
+        "description": "The machine's autostart LaunchAgent (`micropod machine autostart`)."
       },
       "micropod.v1.HVFMachineState": {
         "type": "object",
@@ -749,6 +921,92 @@
             "type": "boolean",
             "title": "stopped_on_request",
             "description": "The last machine stop was asked for: nothing starts it on demand."
+          },
+          "engineVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "engine_version",
+            "description": "The guest engine's /version, read only while the machine runs."
+          },
+          "engineApiVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "engine_api_version",
+            "description": "The newest and oldest Docker API versions the engine serves."
+          },
+          "engineMinApiVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "engine_min_api_version"
+          },
+          "diskFlush": {
+            "type": "string",
+            "title": "disk_flush",
+            "description": "Each disk's flush mode now and at the next start, as `micropod machine\n status` prints it."
+          },
+          "containersTotal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "containers_total",
+            "format": "int32",
+            "description": "The machine's containers (all, and running), read only while it runs."
+          },
+          "containersRunning": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "containers_running",
+            "format": "int32"
+          },
+          "readiness": {
+            "type": "string",
+            "title": "readiness",
+            "description": "running, starting, stopping, stopped, failed, not-ready, not-installed\n or unusable: whether it can take work now."
+          },
+          "failureReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "failure_reason",
+            "description": "Why it is failed, unusable, not ready or not installed."
+          },
+          "cacheDisk": {
+            "title": "cache_disk",
+            "$ref": "#/components/schemas/micropod.v1.RigCacheDisk"
+          },
+          "autostart": {
+            "title": "autostart",
+            "$ref": "#/components/schemas/micropod.v1.HVFMachineAutostart"
+          },
+          "dockerEndpoint": {
+            "type": "string",
+            "title": "docker_endpoint",
+            "description": "unix:// socket for DOCKER_HOST and the `micropod` docker context."
+          },
+          "payloadVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "payload_version",
+            "description": "The payload that runs (or the next start boots) and the one staged."
+          },
+          "stagedVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "staged_version"
           }
         },
         "title": "HVFMachineStatus",
@@ -1234,6 +1492,22 @@
         "title": "RigModeOption",
         "additionalProperties": false
       },
+      "micropod.v1.SetMachineAutostartRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "force",
+            "description": "Restart a machine that runs containers (interrupts them)."
+          }
+        },
+        "title": "SetMachineAutostartRequest",
+        "additionalProperties": false
+      },
       "micropod.v1.SetRigModeRequest": {
         "type": "object",
         "properties": {
@@ -1246,6 +1520,89 @@
         },
         "title": "SetRigModeRequest",
         "additionalProperties": false
+      },
+      "micropod.v1.SetupMachineRequest": {
+        "type": "object",
+        "properties": {
+          "payloadPath": {
+            "type": "string",
+            "title": "payload_path",
+            "description": "An app bundle, or a directory holding micropod-vmm, vmlinux-hvf,\n mp-hvf-init.cpio and micropod-oci-tools (and maybe hvf-base-disk.ext4);\n empty: the API's own package."
+          },
+          "diskFrom": {
+            "type": "string",
+            "title": "disk_from",
+            "description": "A local ext4 image the disk is cloned (or copied) from; empty: the\n package's base disk."
+          },
+          "cacheDiskBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "cache_disk_bytes",
+            "format": "int64",
+            "description": "The cache disk's size; 0: 32 GiB for a new machine."
+          },
+          "noCacheDisk": {
+            "type": "boolean",
+            "title": "no_cache_disk",
+            "description": "No cache disk: the dependency caches live on the OS disk."
+          },
+          "start": {
+            "type": "boolean",
+            "title": "start",
+            "description": "Boot the machine once it is installed (returns once the guest answers)."
+          }
+        },
+        "title": "SetupMachineRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.SetupMachineResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "ok",
+            "description": "No step failed."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.SetupMachineStep"
+            },
+            "title": "steps"
+          },
+          "machine": {
+            "title": "machine",
+            "description": "The machine afterwards.",
+            "$ref": "#/components/schemas/micropod.v1.HVFMachineStatus"
+          }
+        },
+        "title": "SetupMachineResult",
+        "additionalProperties": false
+      },
+      "micropod.v1.SetupMachineStep": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "description": "runtime-files, disk, cache-disk, start or default-runtime."
+          },
+          "state": {
+            "type": "string",
+            "title": "state",
+            "description": "done, kept (already there), skipped (not asked for), failed, or pending\n (not reached: an earlier step failed)."
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail",
+            "description": "What it did, or why it failed."
+          }
+        },
+        "title": "SetupMachineStep",
+        "additionalProperties": false,
+        "description": "One setup step."
       }
     }
   },

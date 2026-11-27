@@ -1164,6 +1164,10 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.HVFMachineAutostart"><span class="badge">M</span>HVFMachineAutostart</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.HVFMachineState"><span class="badge">M</span>HVFMachineState</a>
                 </li>
               
@@ -1220,7 +1224,23 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.SetMachineAutostartRequest"><span class="badge">M</span>SetMachineAutostartRequest</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.SetRigModeRequest"><span class="badge">M</span>SetRigModeRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SetupMachineRequest"><span class="badge">M</span>SetupMachineRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SetupMachineResult"><span class="badge">M</span>SetupMachineResult</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SetupMachineStep"><span class="badge">M</span>SetupMachineStep</a>
                 </li>
               
               
@@ -11662,6 +11682,79 @@ apart so a one-shot call still reports a real figure.</p></td>
 
         
       
+        <h3 id="micropod.v1.HVFMachineAutostart">HVFMachineAutostart</h3>
+        <p>The machine's autostart LaunchAgent (`micropod machine autostart`).</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>enabled</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>On: launchd starts the machine at login. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>loaded</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>launchd has the job loaded now. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>label</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>plist_path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>program</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exit_timeout_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p>launchd&#39;s SIGTERM -&gt; SIGKILL wait, in seconds. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>problem</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Why the job cannot start the machine as recorded. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>summary</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.HVFMachineState">HVFMachineState</h3>
         <p></p>
 
@@ -11849,6 +11942,99 @@ the lock, whatever a stale state file says. </p></td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
                   <td><p>The last machine stop was asked for: nothing starts it on demand. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>engine_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>The guest engine&#39;s /version, read only while the machine runs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>engine_api_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>The newest and oldest Docker API versions the engine serves. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>engine_min_api_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>disk_flush</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Each disk&#39;s flush mode now and at the next start, as `micropod machine
+status` prints it. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containers_total</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p>The machine&#39;s containers (all, and running), read only while it runs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containers_running</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>readiness</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>running, starting, stopping, stopped, failed, not-ready, not-installed
+or unusable: whether it can take work now. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>failure_reason</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Why it is failed, unusable, not ready or not installed. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cache_disk</td>
+                  <td><a href="#micropod.v1.RigCacheDisk">RigCacheDisk</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>autostart</td>
+                  <td><a href="#micropod.v1.HVFMachineAutostart">HVFMachineAutostart</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>docker_endpoint</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>unix:// socket for DOCKER_HOST and the `micropod` docker context. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>payload_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>The payload that runs (or the next start boots) and the one staged. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>staged_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
                 </tr>
               
             </tbody>
@@ -12567,6 +12753,37 @@ back as errors, deferred as `failed_precondition`. </p></td>
 
         
       
+        <h3 id="micropod.v1.SetMachineAutostartRequest">SetMachineAutostartRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>enabled</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>force</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Restart a machine that runs containers (interrupts them). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.SetRigModeRequest">SetRigModeRequest</h3>
         <p></p>
 
@@ -12582,6 +12799,138 @@ back as errors, deferred as `failed_precondition`. </p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>container or sandbox (an engine name is accepted too). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SetupMachineRequest">SetupMachineRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>payload_path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>An app bundle, or a directory holding micropod-vmm, vmlinux-hvf,
+mp-hvf-init.cpio and micropod-oci-tools (and maybe hvf-base-disk.ext4);
+empty: the API&#39;s own package. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>disk_from</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>A local ext4 image the disk is cloned (or copied) from; empty: the
+package&#39;s base disk. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cache_disk_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>The cache disk&#39;s size; 0: 32 GiB for a new machine. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>no_cache_disk</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>No cache disk: the dependency caches live on the OS disk. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>start</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Boot the machine once it is installed (returns once the guest answers). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SetupMachineResult">SetupMachineResult</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>ok</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>No step failed. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>steps</td>
+                  <td><a href="#micropod.v1.SetupMachineStep">SetupMachineStep</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>machine</td>
+                  <td><a href="#micropod.v1.HVFMachineStatus">HVFMachineStatus</a></td>
+                  <td></td>
+                  <td><p>The machine afterwards. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SetupMachineStep">SetupMachineStep</h3>
+        <p>One setup step.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>runtime-files, disk, cache-disk, start or default-runtime. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>state</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>done, kept (already there), skipped (not asked for), failed, or pending
+(not reached: an earlier step failed). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>detail</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>What it did, or why it failed. </p></td>
                 </tr>
               
             </tbody>
@@ -12658,7 +13007,9 @@ deferred like ApplyHVFUpdate.</p></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><a href="#micropod.v1.HVFMachineStatus">HVFMachineStatus</a></td>
                 <td><p>The machine as every process sees it: assets, supervisor, phase, the
-published state. Never boots anything and never asks the guest.</p></td>
+published state, and its autostart LaunchAgent. Never boots anything;
+while it runs, the guest is asked for its engine version, its
+containers and its cache disk (one second each).</p></td>
               </tr>
             
               <tr>
@@ -12670,6 +13021,30 @@ GetSystem then say stopped and nothing restarts it on demand) or restart
 the machine; replies with its status afterwards. Stop and restart are
 deferred (`failed_precondition`, nothing stopped) while containers run on
 a serving machine or its idleness cannot be confirmed, unless `force`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SetMachineAutostart</td>
+                <td><a href="#micropod.v1.SetMachineAutostartRequest">SetMachineAutostartRequest</a></td>
+                <td><a href="#micropod.v1.HVFMachineStatus">HVFMachineStatus</a></td>
+                <td><p>Turn the machine&#39;s autostart LaunchAgent on or off (`micropod machine
+autostart on|off`): on, launchd starts the machine at login and stops it
+cleanly at logout. Loading or unloading the job restarts a running
+machine, so it is deferred (`failed_precondition`, nothing changed)
+while containers run, unless `force`. Replies with the machine status.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SetupMachine</td>
+                <td><a href="#micropod.v1.SetupMachineRequest">SetupMachineRequest</a></td>
+                <td><a href="#micropod.v1.SetupMachineResult">SetupMachineResult</a></td>
+                <td><p>The machine&#39;s first run (`micropod setup`): its runtime files from the
+API&#39;s own app bundle or CLI package (or `payload_path`), its disk from
+`disk_from` or the package&#39;s base disk, and its cache disk; then a start
+when `start`. Local sources only: nothing is downloaded. Re-running
+keeps what is there. A step that cannot be done is a failed step in the
+reply (`ok` false), never a partial install: every source is checked
+before anything is written.</p></td>
               </tr>
             
           </tbody>
