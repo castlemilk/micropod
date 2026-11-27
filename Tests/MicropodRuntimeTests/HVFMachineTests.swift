@@ -1922,14 +1922,15 @@ extension HVFMachineTests {
                 ["--context", "micropod", "buildx", "inspect"],
             ])
 
-        // Remove undoes exactly those two, and keeps the user's selection.
+        // Remove undoes exactly those two, and keeps the user's selection
+        // (`micropod` is not the current context, so none is chosen).
         docker.calls = []
         _ = try setup.remove()
         XCTAssertEqual(
             docker.calls,
             [
+                ["context", "inspect", "micropod"], ["context", "show"],
                 ["buildx", "inspect", "micropod-buildkit"], ["buildx", "rm", "micropod-buildkit"],
-                ["context", "inspect", "micropod"],
                 ["context", "rm", "micropod"],
             ])
         XCTAssertEqual(try Data(contentsOf: buildx.appendingPathComponent("current")), theirs)
@@ -2075,6 +2076,8 @@ final class FakeDockerCLI: HVFCommandRunning, @unchecked Sendable {
         case ["context", "rm", "micropod"]:
             context = nil
             return HVFCommandResult(status: 0)
+        case ["context", "show"]:
+            return HVFCommandResult(status: 0, stdout: "default\n")
         case ["buildx", "inspect", "micropod-buildkit"]:
             guard let builder else {
                 return HVFCommandResult(status: 1, stderr: "ERROR: no builder \"micropod\" found")

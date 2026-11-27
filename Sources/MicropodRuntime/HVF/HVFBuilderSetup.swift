@@ -103,7 +103,8 @@ private final class HVFCapturedOutput: @unchecked Sendable {
 ///
 /// Every call is idempotent; `remove` undoes exactly what `install`
 /// created and leaves a same-named context or builder that points
-/// elsewhere alone.
+/// elsewhere alone. `HVFDockerWiring` (`micropod docker …`) builds the
+/// user-facing wiring from `ensureContext` and `ensureBuilder`.
 public struct HVFBuilderSetup: Sendable {
     /// The docker context on the machine's Docker socket.
     public static let contextName = "micropod"
@@ -230,18 +231,68 @@ public struct HVFBuilderSetup: Sendable {
             throw failure(arguments, result)
         }
         let host = Self.contextHost(fromInspect: result.stdout)
-        return (host == layout.dockerEndpoint ? .ok : .mismatch, host)
+        return (Self.sameEndpoint(host, layout.dockerEndpoint) ? .ok : .mismatch, host)
     }
 
     func builderState() throws -> (Piece, String?, String?) {
+        guard let state = try builderStateIfBuildx() else {
+            throw MicropodError.message(
+                "failedPrecondition: the docker buildx plugin was not found: a buildx builder needs it")
+        }
+        return state
+    }
+
+    /// `builderState`, or nil when the docker CLI has no buildx plugin (so
+    /// no builder can exist through it).
+    func builderStateIfBuildx() throws -> (Piece, String?, String?)? {
         let arguments = ["buildx", "inspect", Self.builderName]
         let result = try docker(arguments)
         guard result.status == 0 else {
+            if Self.saysNoBuildx(result) { return nil }
             if Self.saysMissing(result) { return (.absent, nil, nil) }
             throw failure(arguments, result)
         }
         let (endpoint, driver) = Self.builderEndpoint(fromInspect: result.stdout)
-        return (endpoint == layout.buildkitEndpoint && driver == "remote" ? .ok : .mismatch, endpoint, driver)
+        let ours = Self.sameEndpoint(endpoint, layout.buildkitEndpoint) && driver == "remote"
+        return (ours ? .ok : .mismatch, endpoint, driver)
+    }
+
+    /// "docker: unknown command: docker buildx" (docker 25 and later), or
+    /// "docker: 'buildx' is not a docker command." (earlier).
+    static func saysNoBuildx(_ result: HVFCommandResult) -> Bool {
+        let text = (result.stderr + "\n" + result.stdout).lowercased()
+        return text.contains("unknown command: docker buildx") || text.contains("'buildx' is not a docker command")
+    }
+
+    /// Two docker endpoints name the same socket: equal, or `unix://` paths
+    /// that resolve to one file, so `/tmp/x` and `/private/tmp/x` (or a
+    /// link to the socket) are the same machine. A path is resolved as far
+    /// as it exists: a stopped machine has no socket file yet.
+    public static func sameEndpoint(_ lhs: String?, _ rhs: String?) -> Bool {
+        guard let lhs, let rhs else { return false }
+        if lhs == rhs { return true }
+        let scheme = "unix://"
+        guard lhs.hasPrefix(scheme), rhs.hasPrefix(scheme) else { return false }
+        return resolvedPath(String(lhs.dropFirst(scheme.count)))
+            == resolvedPath(String(rhs.dropFirst(scheme.count)))
+    }
+
+    /// `path` with every symlink in its existing prefix resolved and the
+    /// components that do not exist yet appended unchanged.
+    static func resolvedPath(_ path: String) -> String {
+        var head = path
+        var tail: [String] = []
+        while !head.isEmpty {
+            if let real = realpath(head, nil) {
+                defer { free(real) }
+                return tail.reduce(String(cString: real)) { ($0 as NSString).appendingPathComponent($1) }
+            }
+            let parent = (head as NSString).deletingLastPathComponent
+            guard parent != head else { break }
+            tail.insert((head as NSString).lastPathComponent, at: 0)
+            head = parent
+        }
+        return path
     }
 
     /// The builder `docker --context micropod buildx build` would use. Asking
@@ -291,39 +342,110 @@ public struct HVFBuilderSetup: Sendable {
 
     /// Creates whatever is missing; returns what it did, one line each.
     public func install() throws -> [String] {
+        try requireBuildKit()
+        // Both checked before anything is created: a refusal changes nothing.
+        let context = try contextState()
+        let builder = try builderState()
+        if case (.mismatch, let host) = context {
+            throw contextRefusal(
+                host: host, remedy: "remove it (`docker context rm \(Self.contextName)`) and run this again")
+        }
+        try refuseForeignBuilder(builder)
+        var done: [String] = []
+        switch try applyContext(context, force: false) {
+        case .present:
+            done.append("docker context '\(Self.contextName)' already points at \(layout.dockerEndpoint)")
+        case .created, .updated:
+            done.append("created docker context '\(Self.contextName)' → \(layout.dockerEndpoint)")
+        }
+        done += try applyBuilder(builder)
+        return done
+    }
+
+    /// What `ensureContext` did to docker context `micropod`.
+    public enum ContextChange: String, Codable, Sendable, Equatable {
+        case created
+        /// It already pointed at this machine.
+        case present
+        /// It pointed elsewhere and `force` repointed it.
+        case updated
+    }
+
+    /// docker context `micropod` on this machine's Docker socket, created
+    /// when absent. One that points elsewhere is refused, naming its host,
+    /// unless `force` repoints it (`docker context update`).
+    public func ensureContext(force: Bool) throws -> ContextChange {
+        try applyContext(try contextState(), force: force)
+    }
+
+    /// The remote builder `micropod-buildkit` on this machine's BuildKit
+    /// socket, made the default builder of context `micropod` only. Refuses
+    /// a bundle without BuildKit and a same-named builder that is not ours
+    /// before creating anything.
+    public func ensureBuilder() throws -> [String] {
+        try requireBuildKit()
+        let builder = try builderState()
+        try refuseForeignBuilder(builder)
+        return try applyBuilder(builder)
+    }
+
+    func requireBuildKit() throws {
         let missing = layout.missingBuildKitFiles()
         guard missing.isEmpty else {
             throw MicropodError.message(
                 "failedPrecondition: the tool bundle in \(layout.tools.path) lacks buildkitd (missing "
                     + "\(missing.joined(separator: ", "))): there is no BuildKit for a builder to use")
         }
-        // Both checked before anything is created: a refusal changes nothing.
-        let context = try contextState()
-        let builder = try builderState()
-        if case (.mismatch, let host) = context {
-            throw MicropodError.message(
-                "failedPrecondition: docker context '\(Self.contextName)' already exists and points at "
-                    + "\(host ?? "another endpoint"), not \(layout.dockerEndpoint); remove it "
-                    + "(`docker context rm \(Self.contextName)`) and run this again")
-        }
+    }
+
+    func contextRefusal(host: String?, remedy: String) -> MicropodError {
+        .message(
+            "failedPrecondition: docker context '\(Self.contextName)' already exists and points at "
+                + "\(host ?? "another endpoint"), not \(layout.dockerEndpoint); \(remedy)")
+    }
+
+    func refuseForeignBuilder(_ builder: (Piece, String?, String?)) throws {
         if case (.mismatch, let endpoint, let driver) = builder {
             throw MicropodError.message(
                 "failedPrecondition: buildx builder '\(Self.builderName)' already exists (driver \(driver ?? "?"), endpoint "
                     + "\(endpoint ?? "?")), not a remote builder on \(layout.buildkitEndpoint); remove it "
                     + "(`docker buildx rm \(Self.builderName)`) and run this again")
         }
-        var done: [String] = []
-        if context.0 == .ok {
-            done.append("docker context '\(Self.contextName)' already points at \(layout.dockerEndpoint)")
-        } else {
-            let arguments = [
-                "context", "create", Self.contextName, "--description", "micropod hvf machine (\(layout.root.path))",
+    }
+
+    /// The context as `state` found it, made to point here.
+    func applyContext(_ state: (Piece, String?), force: Bool) throws -> ContextChange {
+        let description = "micropod hvf machine (\(layout.root.path))"
+        let arguments: [String]
+        let change: ContextChange
+        switch state {
+        case (.ok, _):
+            return .present
+        case (.mismatch, let host):
+            guard force else {
+                throw contextRefusal(host: host, remedy: "pass --force to point it at this machine")
+            }
+            arguments = [
+                "context", "update", Self.contextName, "--description", description,
                 "--docker", "host=\(layout.dockerEndpoint)",
             ]
-            let result = try docker(arguments)
-            guard result.status == 0 else { throw failure(arguments, result) }
-            done.append("created docker context '\(Self.contextName)' → \(layout.dockerEndpoint)")
+            change = .updated
+        case (.absent, _):
+            arguments = [
+                "context", "create", Self.contextName, "--description", description,
+                "--docker", "host=\(layout.dockerEndpoint)",
+            ]
+            change = .created
         }
+        let result = try docker(arguments)
+        guard result.status == 0 else { throw failure(arguments, result) }
+        return change
+    }
+
+    /// The builder as `builder` found it (absent or ours), created and made
+    /// the default of context `micropod`.
+    func applyBuilder(_ builder: (Piece, String?, String?)) throws -> [String] {
+        var done: [String] = []
         if builder.0 == .ok {
             done.append("buildx builder '\(Self.builderName)' already uses \(layout.buildkitEndpoint)")
         } else {
@@ -354,33 +476,42 @@ public struct HVFBuilderSetup: Sendable {
 
     // MARK: Remove
 
-    /// Removes the builder and the context if they are this machine's.
+    /// Removes the builder and the context if they are this machine's. A
+    /// selected `micropod` context is first replaced by the one
+    /// `micropod docker install --use` recorded (else `default`): the docker
+    /// CLI refuses to remove the context in use. `HVFDockerWiring.uninstall`.
     public func remove() throws -> [String] {
-        var done: [String] = []
-        switch try builderState() {
+        try HVFDockerWiring(setup: self).uninstall(force: false).actions
+    }
+
+    /// `micropod-buildkit` removed when it is this machine's; one line.
+    func removeBuilderIfOurs() throws -> String {
+        guard let state = try builderStateIfBuildx() else {
+            return "no buildx plugin: no buildx builder to remove"
+        }
+        switch state {
         case (.ok, _, _):
             let arguments = ["buildx", "rm", Self.builderName]
             let result = try preservingCurrentBuilder(unlessItNames: Self.builderName) { try docker(arguments) }
             guard result.status == 0 else { throw failure(arguments, result) }
-            done.append("removed buildx builder '\(Self.builderName)'")
+            return "removed buildx builder '\(Self.builderName)'"
         case (.mismatch, let endpoint, _):
-            done.append(
-                "left buildx builder '\(Self.builderName)' alone: it is not this machine's (\(endpoint ?? "?"))")
+            return "left buildx builder '\(Self.builderName)' alone: it is not this machine's (\(endpoint ?? "?"))"
         case (.absent, _, _):
-            done.append("no buildx builder '\(Self.builderName)'")
+            return "no buildx builder '\(Self.builderName)'"
         }
-        switch try contextState() {
-        case (.ok, _):
-            let arguments = ["context", "rm", Self.contextName]
-            let result = try docker(arguments)
-            guard result.status == 0 else { throw failure(arguments, result) }
-            done.append("removed docker context '\(Self.contextName)'")
-        case (.mismatch, let host):
-            done.append("left docker context '\(Self.contextName)' alone: it is not this machine's (\(host ?? "?"))")
-        case (.absent, _):
-            done.append("no docker context '\(Self.contextName)'")
-        }
-        return done
+    }
+
+    /// The docker CLI with `arguments`, failing on a non-zero exit.
+    func dockerChecked(_ arguments: [String]) throws -> HVFCommandResult {
+        let result = try docker(arguments)
+        guard result.status == 0 else { throw failure(arguments, result) }
+        return result
+    }
+
+    /// The docker CLI with `arguments`, whatever it exits with.
+    func dockerUnchecked(_ arguments: [String]) throws -> HVFCommandResult {
+        try docker(arguments)
     }
 
     /// Restores buildx's current selection even if the command fails. A
