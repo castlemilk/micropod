@@ -459,6 +459,21 @@ final class ResourceRoutingTests: XCTestCase {
         XCTAssertLessThan(ContinuousClock.now - started, .seconds(5))
     }
 
+    /// Cancelling the engine's stream ends it without an error, so a pull
+    /// that passed its deadline was reported as a completed pull whenever
+    /// that clean end reached the caller before the deadline's error did.
+    /// Here the cancellation is held long enough for the clean end to win
+    /// if the deadline cancels before it reports.
+    func testAPullPastItsDeadlineNeverEndsAsACompletedPull() async throws {
+        let inner = AsyncThrowingStream<ProgressEvent, Error> { continuation in
+            continuation.onTermination = { _ in Thread.sleep(forTimeInterval: 0.2) }
+        }
+        let failed = await failure {
+            for try await _ in ImageRouter.bounded(inner, by: Date().addingTimeInterval(0.05), reference: "x") {}
+        }
+        XCTAssertEqual(failed?.code, "deadline_exceeded", "the pull ended without an error")
+    }
+
     // MARK: Docker wire
 
     func testDockerImageAndVolumeMapping() throws {

@@ -360,9 +360,13 @@ public struct ImageRouter: ImageServing {
                 let remaining = deadline.timeIntervalSinceNow
                 if remaining > 0 { try? await Task.sleep(for: .milliseconds(Int64(remaining * 1000))) }
                 guard !Task.isCancelled else { return }
-                task.cancel()
+                // The error first: cancelling ends `inner` without one, and
+                // the forwarding task would finish the stream as a completed
+                // pull if it ran before this did. Finishing also cancels it
+                // (onTermination).
                 continuation.finish(
                     throwing: MicropodError.message("deadlineExceeded: pull of \(reference) passed its deadline"))
+                task.cancel()
             }
             continuation.onTermination = { _ in
                 task.cancel()
