@@ -437,6 +437,60 @@ func TestEmulatedTagLabelsFollowTheLastPull(t *testing.T) {
 	}
 }
 
+// An amd64 image whose tag stays on the native image is still named, by the
+// tag it was last pulled by; one pulled by repo:tag@digest is named by that
+// tag (as a native pinned pull is). Neither is dangling, so a prune of
+// dangling images keeps them; once the tag's label moves to a newer amd64
+// image, the older one is dangling.
+func TestEmulatedImagesAreNamedByTheTagTheyWerePulledBy(t *testing.T) {
+	observeImageSync(t, new([]string), nil)
+	f := newEmulatedPullFixture(t)
+	tag := "docker.io/library/alpine:3.20"
+	f.store.refs[tag] = &images.Image{Name: tag, Labels: map[string]string{criManagedImage: "managed"},
+		Target: &types.Descriptor{MediaType: f.index.MediaType, Digest: f.index.Digest.String(), Size: f.index.Size}}
+	if _, err := f.pull(t, "fromImage=alpine&tag=3.20&platform=linux/amd64"); err != nil {
+		t.Fatal(err)
+	}
+	pinned := "docker.io/library/alpine@" + f.amd64.Digest.String()
+	named := tag + "@" + f.amd64.Digest.String()
+	if got := pulledAs(f.store.refs[pinned]); !slices.Equal(got, []string{named}) {
+		t.Fatalf("pulled as %v, want %v", got, []string{named})
+	}
+	if danglingImage(&cri.Image{Id: f.cri.ids[f.amd64.Digest.String()]}, pulledAs(f.store.refs[pinned])) {
+		t.Fatal("the amd64 image pulled by the native image's tag is dangling")
+	}
+	// A label naming another repository names nothing here.
+	other := &images.Image{Name: pinned, Labels: map[string]string{emulatedTagLabel("docker.io/library/busybox:1"): "docker.io/library/busybox:1"}}
+	if got := pulledAs(other); len(got) != 0 {
+		t.Fatalf("another repository's tag named the image: %v", got)
+	}
+
+	g := newEmulatedPullFixture(t)
+	g.registry.roots[tag+"@"+g.index.Digest.String()] = g.index
+	if _, err := g.pull(t, "fromImage=alpine:3.20&tag="+g.index.Digest.String()+"&platform=linux/amd64"); err != nil {
+		t.Fatal(err)
+	}
+	record := g.store.refs[pinned]
+	if record.Labels[pulledTagLabel+"3.20"] != "1" || record.Labels[emulatedTagLabel(tag)] != "" {
+		t.Fatalf("a repo:tag@digest pull labelled %v", record.Labels)
+	}
+	if _, tagged := g.store.refs[tag]; tagged {
+		t.Fatal("a repo:tag@digest pull moved the tag")
+	}
+	if got := pulledAs(record); !slices.Equal(got, []string{named}) {
+		t.Fatalf("pulled as %v, want %v", got, []string{named})
+	}
+
+	older := "docker.io/library/alpine@" + digest.FromString("older amd64").String()
+	f.store.refs[older] = &images.Image{Name: older, Labels: map[string]string{emulatedTagLabel(tag): tag}}
+	if err := f.s.node.moveEmulatedTagLabel(context.Background(), tag, pinned); err != nil {
+		t.Fatal(err)
+	}
+	if got := pulledAs(f.store.refs[older]); len(got) != 0 {
+		t.Fatalf("the image the tag moved off is still named %v", got)
+	}
+}
+
 // A create for an image of a platform the engine cannot run is refused at
 // create, naming why, rather than failing at start with an exec format error.
 func TestRunsHere(t *testing.T) {

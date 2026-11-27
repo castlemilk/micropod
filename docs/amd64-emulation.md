@@ -120,6 +120,11 @@ service unpacks an image of any Linux architecture. So
   by name for amd64 images as for native ones. `docker images` hides an amd64
   image whose tag is the native one; `docker images -a` lists it untagged, with
   its digest.
+- **Prune.** An amd64 image is named by the tag it was last pulled by for
+  linux/amd64, and one pulled by `repo:tag@digest` by that tag (as a native
+  pinned pull is). Both are listed as `MicropodPulledAs` (`repo:tag@<its
+  manifest digest>`) and are not dangling, so `docker image prune` keeps them.
+  An amd64 image the tag's label has moved off to a newer pull is dangling.
 
 A pull for linux/amd64 makes two manifest GETs at the registry instead of one:
 one for the index and one for the manifest. That matters only for Docker Hub's

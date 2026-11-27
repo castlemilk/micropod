@@ -505,7 +505,12 @@ func (n node) rememberPulledTag(ctx context.Context, raw string) error {
 	return err
 }
 
-// pulledAs is every repo:tag@digest a record's pulled-tag labels name.
+// pulledAs is every repo:tag@digest a record's pulled-tag labels name, and
+// on an image pulled for another platform (docker_image_emulated_linux.go)
+// the tag its emulated tag label says it was last pulled by. Such an image
+// keeps its own repo@digest record while the tag stays on the native image,
+// so without the label's name it would read as dangling and a plain image
+// prune would remove it.
 func pulledAs(record *images.Image) []string {
 	var out []string
 	named, err := reference.ParseNormalizedNamed(record.GetName())
@@ -516,13 +521,20 @@ func pulledAs(record *images.Image) []string {
 	if _, tagged := named.(reference.Tagged); tagged {
 		return nil
 	}
-	for key := range record.GetLabels() {
-		tag, ok := strings.CutPrefix(key, pulledTagLabel)
-		if !ok {
-			continue
-		}
-		withTag, err := reference.WithTag(reference.TrimNamed(named), tag)
-		if err != nil {
+	for key, value := range record.GetLabels() {
+		var withTag reference.NamedTagged
+		if tag, ok := strings.CutPrefix(key, pulledTagLabel); ok {
+			if withTag, err = reference.WithTag(reference.TrimNamed(named), tag); err != nil {
+				continue
+			}
+		} else if strings.HasPrefix(key, emulatedTagLabelPrefix) {
+			ref, err := reference.ParseNormalizedNamed(value)
+			tagged, isTagged := ref.(reference.NamedTagged)
+			if err != nil || !isTagged || ref.Name() != named.Name() {
+				continue
+			}
+			withTag = tagged
+		} else {
 			continue
 		}
 		if full, err := reference.WithDigest(withTag, canonical.Digest()); err == nil {
@@ -530,7 +542,7 @@ func pulledAs(record *images.Image) []string {
 		}
 	}
 	slices.Sort(out)
-	return out
+	return slices.Compact(out)
 }
 
 // CRI uses an asynchronous inventory for readiness, size and labels. Join it

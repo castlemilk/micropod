@@ -277,6 +277,12 @@ func (s *dockerEngine) pullEmulatedImage(w http.ResponseWriter, r *http.Request,
 	tag, byTag := named.(reference.NamedTagged)
 	if _, digested := named.(reference.Canonical); digested {
 		byTag = false
+		if tag != nil {
+			// repo:tag@digest: the tag is kept on the record, as a native
+			// pinned pull keeps it (rememberPulledTag), so the image is
+			// named and a plain image prune keeps it.
+			labels[pulledTagLabel+tag.Tag()] = "1"
+		}
 	}
 	if byTag {
 		labels[emulatedTagLabel(tag.String())] = tag.String()
