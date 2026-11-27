@@ -50,13 +50,16 @@ enum MachineCommands {
                                                   machine's Docker socket gets (machine.json `cache`);
                                                   applied at once while running
           micropod machine builder install|status|rm
-                                                  the fallback `docker build` path for an engine that
-                                                  cannot build on its Docker socket: docker context
-                                                  `micropod` and remote buildx builder
-                                                  `micropod-buildkit` (then `BUILDX_BUILDER=
+                                                  the lower-level form of `micropod docker install
+                                                  --builder remote`: the fallback `docker build` path
+                                                  for an engine that cannot build on its Docker
+                                                  socket: docker context `micropod` and remote buildx
+                                                  builder `micropod-buildkit` (then `BUILDX_BUILDER=
                                                   micropod-buildkit docker --context micropod build
-                                                  …`); never changes the current context or any
-                                                  other builder
+                                                  …`); install never changes the current context or
+                                                  any other builder; rm first selects the context
+                                                  `micropod docker install --use` replaced when
+                                                  `micropod` is current
           micropod machine serve                  run the supervisor in the foreground
 
         The root is MICROPOD_HVF_ROOT or ~/.micropod/hvf. `micropod run --runtime hvf …`

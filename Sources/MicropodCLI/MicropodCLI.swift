@@ -79,6 +79,9 @@ struct MicropodCLI {
         if let machine = MachineCommands.route(args) {
             exit(await MachineCommands.main(machine.args, json: machine.json))
         }
+        if let docker = DockerCommands.route(args) {
+            exit(await DockerCommands.main(docker.args, json: docker.json))
+        }
         let globals = GlobalArguments(args)
         jsonOutput = globals.json
         if globals.noColor || ProcessInfo.processInfo.environment["NO_COLOR"] != nil || jsonOutput || !isTTY() {
@@ -246,6 +249,10 @@ struct MicropodCLI {
           machine cache policy|builder install|status|rm
                                              the shared hvf Linux machine behind --runtime hvf
                                              (`micropod machine help`)
+          docker install [--use]|uninstall|status
+                                             docker context `micropod` on the hvf machine for the
+                                             docker CLI, compose and buildx; --use selects it
+                                             (`micropod docker help`)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
