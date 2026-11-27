@@ -851,6 +851,20 @@ pub struct BlkMetrics {
     pub read_bytes: AtomicU64,
     pub write_bytes: AtomicU64,
     pub discarded_bytes: AtomicU64,
+    /// Host syncs run for guest flushes (one may answer several flushes).
+    pub flush_syncs: AtomicU64,
+    /// Time those host syncs took, in microseconds, and the longest one.
+    pub flush_sync_usec: AtomicU64,
+    pub flush_sync_usec_max: AtomicU64,
+}
+
+impl BlkMetrics {
+    fn record_flush_sync(&self, took: Duration) {
+        let us = took.as_micros() as u64;
+        self.flush_syncs.fetch_add(1, Ordering::Relaxed);
+        self.flush_sync_usec.fetch_add(us, Ordering::Relaxed);
+        self.flush_sync_usec_max.fetch_max(us, Ordering::Relaxed);
+    }
 }
 
 struct BlkQueueState {
@@ -1207,7 +1221,9 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
             if !pending_flushes.is_empty() {
                 // One host sync answers every flush of the batch: each was
                 // submitted after the writes it covers had completed.
+                let began = Instant::now();
                 let flush_status = if shared.flush.flush(fd).is_ok() { 0 } else { 1 };
+                shared.metrics.record_flush_sync(began.elapsed());
                 shared
                     .metrics
                     .flush_ops
