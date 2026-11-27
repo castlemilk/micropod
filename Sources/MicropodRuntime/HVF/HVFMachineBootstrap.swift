@@ -333,11 +333,12 @@ public struct HVFMachineBootstrap: Sendable {
     }
 
     func startPlan() -> Step {
+        if client.isServing { return Step(.start, .kept, "running") }
         guard options.start else {
             if let startedBy = options.startedBy { return Step(.start, .skipped, startedBy) }
             return Step(.start, .skipped, "not started (--no-start): `micropod machine start` boots it")
         }
-        return client.isServing ? Step(.start, .kept, "running") : Step(.start, .pending, "")
+        return Step(.start, .pending, "")
     }
 
     func defaultRuntimeDetail() -> String {

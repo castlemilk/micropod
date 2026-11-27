@@ -242,6 +242,23 @@ final class HVFMachineBootstrapTests: XCTestCase {
         XCTAssertFalse(HVFMachineLayout.isRegularFile(layout.cacheDisk))
     }
 
+    /// A machine that already serves is kept running, whether or not a
+    /// start was asked for (the API's second SetupMachine sends none).
+    func testAServingMachineIsKeptRunningWithOrWithoutAStart() async throws {
+        let dist = try package()
+        _ = await bootstrap(.init(payload: dist, cacheDiskBytes: 256 << 20, start: false)).run()
+        try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        try Data().write(to: layout.dockerSocket)
+        for start in [false, true] {
+            let steps = await bootstrap(.init(payload: dist, start: start)).run()
+            XCTAssertEqual(steps[3].state, .kept, "start: \(start)")
+            XCTAssertTrue(steps[3].detail.hasPrefix("running"), steps[3].detail)
+        }
+    }
+
     func testAnExistingInstallKeepsItsDefaultRuntime() async throws {
         let dist = try package()
         let existing = HVFMachineBootstrap.Runtimes(defaultName: { "apple" }, origin: { .existing })

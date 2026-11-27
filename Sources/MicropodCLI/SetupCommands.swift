@@ -185,7 +185,10 @@ enum SetupCommands {
                 if !json { report(item, index: steps.count + extra.count, total: total, out: out, err: err) }
             }
         }
-        let next = failed == nil ? nextSteps(bootstrap.layout, parsed: parsed, environment: environment) : []
+        let stopped = steps.contains { $0.id == .start && $0.state == .skipped } && parsed.options.startedBy == nil
+        let next =
+            failed == nil
+            ? nextSteps(bootstrap.layout, parsed: parsed, environment: environment, stopped: stopped) : []
         if failed == nil, let broken = extra.first(where: { $0.state == .failed }) {
             failed = HVFMachineBootstrap.Step(.defaultRuntime, .failed, "\(broken.id): \(broken.detail)")
         }
@@ -268,7 +271,9 @@ enum SetupCommands {
 
     /// The commands a finished setup suggests: the docker context and
     /// autostart, unless they are in place or were just done.
-    static func nextSteps(_ layout: HVFMachineLayout, parsed: Parsed, environment: [String: String]) -> [String] {
+    static func nextSteps(_ layout: HVFMachineLayout, parsed: Parsed, environment: [String: String], stopped: Bool)
+        -> [String]
+    {
         var next: [String] = []
         let wiring = HVFDockerWiring(layout: layout, environment: environment)
         if !parsed.docker, (try? wiring.loadRecord()) == nil { next.append("micropod docker install --use") }
@@ -276,7 +281,7 @@ enum SetupCommands {
         if !parsed.autostart, !FileManager.default.fileExists(atPath: autostartRecord.path) {
             next.append("micropod machine autostart on")
         }
-        if !parsed.options.start { next.insert("micropod machine start", at: 0) }
+        if stopped { next.insert("micropod machine start", at: 0) }
         return next
     }
 
