@@ -26,9 +26,10 @@ enum SetupCommands {
           3 cache disk      a sparse ext4 for dependency caches (32 GiB for a new machine)
           4 start           boots the machine and waits for its Docker API (--no-start skips it)
           5 default runtime hvf on a fresh install; an existing install keeps its default
-        --docker adds the docker context `micropod` (`micropod docker install`), --use also
-        selects it, --autostart starts the machine at login (`micropod machine autostart on`).
-        Nothing is selected or loaded without them. Re-running keeps what is there.
+        --autostart starts the machine at login (`micropod machine autostart on`; launchd then
+        starts it now too, instead of step 4), --docker adds the docker context `micropod`
+        (`micropod docker install`), --use also selects it. Nothing is selected or loaded
+        without them. Re-running keeps what is there.
         --dry-run prints the steps without changing anything (exit 1 when one would fail).
         """
 
@@ -81,15 +82,22 @@ enum SetupCommands {
             throw UsageError(message: "setup: --no-cache-disk and --cache-disk-size contradict each other")
         }
         let image = parsed.value("--disk-image").map { $0 == "default" ? HVFMachineInstaller.defaultDiskImage : $0 }
-        let options = HVFMachineBootstrap.Options(
+        var options = HVFMachineBootstrap.Options(
             payload: url("--payload"), diskFrom: url("--disk-from"), diskImage: image,
             diskBytes: try MachineCommands.diskBytes(parsed.value("--disk-size") ?? MachineCommands.defaultDiskSize),
             cacheDiskBytes: try parsed.value("--cache-disk-size").map { try MachineCommands.diskBytes($0) },
             noCacheDisk: parsed.has("--no-cache-disk"), cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
             start: !parsed.has("--no-start"), startTimeout: .seconds(try int("--timeout") ?? 180))
+        let autostart = parsed.has("--autostart")
+        if autostart, options.start {
+            // launchd starts it when the LaunchAgent loads (RunAtLoad): a
+            // machine started here first would only be restarted under it.
+            options.start = false
+            options.startedBy = "launchd starts it (--autostart, below)"
+        }
         return Parsed(
             options: options, docker: parsed.has("--docker") || parsed.has("--use"), use: parsed.has("--use"),
-            autostart: parsed.has("--autostart"), dryRun: parsed.has("--dry-run"))
+            autostart: autostart, dryRun: parsed.has("--dry-run"))
     }
 
     struct Help: Error {}
@@ -135,7 +143,9 @@ enum SetupCommands {
         out: @escaping @Sendable (String) -> Void = { print($0) },
         err: @escaping @Sendable (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }
     ) async -> Int32 {
-        let extras = (parsed.docker ? ["docker"] : []) + (parsed.autostart ? ["autostart"] : [])
+        // Autostart first: launchd starts the machine, and the docker
+        // context's builder is chosen from the running engine.
+        let extras = (parsed.autostart ? ["autostart"] : []) + (parsed.docker ? ["docker"] : [])
         let total = HVFMachineBootstrap.StepID.allCases.count + extras.count
         if parsed.dryRun {
             let steps = bootstrap.plan()
@@ -162,13 +172,15 @@ enum SetupCommands {
         var failed = steps.first { $0.state == .failed }
         var extra: [Extra] = []
         if failed == nil {
-            if parsed.docker {
-                let item = await dockerStep(bootstrap.layout, use: parsed.use, environment: environment)
+            if parsed.autostart {
+                let item = await autostartStep(
+                    bootstrap.layout, environment: environment,
+                    waitFor: parsed.options.startedBy != nil ? parsed.options.startTimeout : nil)
                 extra.append(item)
                 if !json { report(item, index: steps.count + extra.count, total: total, out: out, err: err) }
             }
-            if parsed.autostart, extra.allSatisfy({ $0.state != .failed }) {
-                let item = await autostartStep(bootstrap.layout, environment: environment)
+            if parsed.docker, extra.allSatisfy({ $0.state != .failed }) {
+                let item = await dockerStep(bootstrap.layout, use: parsed.use, environment: environment)
                 extra.append(item)
                 if !json { report(item, index: steps.count + extra.count, total: total, out: out, err: err) }
             }
@@ -232,14 +244,21 @@ enum SetupCommands {
         }
     }
 
-    /// `micropod machine autostart on` as a step.
-    static func autostartStep(_ layout: HVFMachineLayout, environment: [String: String]) async -> Extra {
+    /// `micropod machine autostart on` as a step; with `waitFor`, then waits
+    /// for the machine launchd starts (a start kickstarts the job).
+    static func autostartStep(_ layout: HVFMachineLayout, environment: [String: String], waitFor: Duration?) async
+        -> Extra
+    {
         let agent = HVFMachineAutostartAgent(layout: layout, environment: environment)
         let program = HVFMachineAutostartAgent.resolveProgram(
             explicit: nil, environment: environment, current: CLIInstall.currentExecutable())
         do {
-            let lines = try await agent.enable(load: true, program: program, force: false)
+            var lines = try await agent.enable(load: true, program: program, force: false)
             let summary = await agent.status().summary
+            if let waitFor {
+                try await HVFMachineClient(layout: layout, environment: environment).ensureRunning(timeout: waitFor)
+                lines.append("machine: running under launchd")
+            }
             return Extra(
                 id: "autostart", state: .done, detail: lines.first ?? summary, lines: Array(lines.dropFirst()))
         } catch {

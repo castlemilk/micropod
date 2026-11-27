@@ -32,6 +32,9 @@ public struct HVFMachineBootstrap: Sendable {
         public var memoryMiB: Int?
         public var start: Bool
         public var startTimeout: Duration
+        /// With `start` off: who starts the machine instead (`micropod setup
+        /// --autostart`: launchd, once the LaunchAgent loads), for the step.
+        public var startedBy: String?
 
         public init(
             payload: URL? = nil, diskFrom: URL? = nil, diskImage: String? = nil, diskBytes: UInt64 = 64 << 30,
@@ -48,6 +51,7 @@ public struct HVFMachineBootstrap: Sendable {
             self.memoryMiB = memoryMiB
             self.start = start
             self.startTimeout = startTimeout
+            startedBy = nil
         }
     }
 
@@ -330,6 +334,7 @@ public struct HVFMachineBootstrap: Sendable {
 
     func startPlan() -> Step {
         guard options.start else {
+            if let startedBy = options.startedBy { return Step(.start, .skipped, startedBy) }
             return Step(.start, .skipped, "not started (--no-start): `micropod machine start` boots it")
         }
         return client.isServing ? Step(.start, .kept, "running") : Step(.start, .pending, "")

@@ -43,9 +43,14 @@ final class SetupCommandsTests: XCTestCase {
         XCTAssertEqual(parsed.options.cpus, 2)
         XCTAssertEqual(parsed.options.memoryMiB, 2048)
         XCTAssertFalse(parsed.options.start)
+        XCTAssertNil(parsed.options.startedBy, "--no-start: nothing starts it")
         XCTAssertTrue(parsed.docker, "--use implies the docker context")
         XCTAssertTrue(parsed.use)
         XCTAssertTrue(parsed.autostart)
+
+        let launchd = try SetupCommands.parse(["--autostart"])
+        XCTAssertFalse(launchd.options.start, "launchd starts it once the LaunchAgent loads, not setup first")
+        XCTAssertEqual(launchd.options.startedBy, "launchd starts it (--autostart, below)")
 
         let plain = try SetupCommands.parse([])
         XCTAssertNil(plain.options.diskImage, "nothing is downloaded unless asked")
@@ -120,8 +125,10 @@ final class SetupCommandsTests: XCTestCase {
         XCTAssertEqual(result.code, ExitCode.failure, "no package: the runtime files would fail")
         XCTAssertTrue(result.out.contains { $0.hasPrefix("[1/7] runtime files   failed: pass --payload") }, "\(result)")
         XCTAssertTrue(result.out.contains { $0.hasPrefix("[2/7] disk            failed: no base disk") }, "\(result)")
-        XCTAssertTrue(result.out.contains("[6/7] docker          pending"), "\(result.out)")
-        XCTAssertTrue(result.out.contains("[7/7] autostart       pending"), "\(result.out)")
+        XCTAssertTrue(result.out.contains("[6/7] autostart       pending"), "\(result.out)")
+        XCTAssertTrue(result.out.contains("[7/7] docker          pending"), "\(result.out)")
+        XCTAssertTrue(
+            result.out.contains("[4/7] start           launchd starts it (--autostart, below)"), "\(result.out)")
         XCTAssertFalse(FileManager.default.fileExists(atPath: layout.root.path), "a dry run writes nothing")
     }
 
