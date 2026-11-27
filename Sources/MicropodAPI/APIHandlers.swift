@@ -488,6 +488,13 @@ final class APIHandlers: Sendable {
                         "dockerEndpoint": "unix://" + linkURL.path,
                     ])
 
+            case ("rig", .get) where segments == ["v1", "rig", "capacity"]:
+                do {
+                    return unary(try await machineCapacity())
+                } catch let error as ConnectDecodeError {
+                    return .json(503, ["code": "unavailable", "message": error.message, "error": error.message])
+                }
+
             case ("rig", .get) where segments == ["v1", "rig", "health"]:
                 return .json(200, Self.rigHealthBody(await rigHealthSnapshot()))
 
@@ -976,6 +983,8 @@ final class APIHandlers: Sendable {
             return .json(400, ["error": "Invalid image pull budget headers"])
         } catch let error as BadRequest {
             return .json(400, ["error": error.message])
+        } catch let error as OwnerSocketOnly {
+            return .json(403, ["code": "permission_denied", "message": error.message, "error": error.message])
         } catch let error as AppControlError {
             // App down / socket broken / updater refused → service unavailable.
             return .json(503, ["error": error.localizedDescription])
@@ -1252,6 +1261,21 @@ final class APIHandlers: Sendable {
 }
 
 /// A request the REST handlers refuse before it reaches a service — `400`.
+/// A change only the machine's owner may make was asked for on a listener
+/// other local processes reach (`RequestOrigin.ownerSocket`).
+struct OwnerSocketOnly: Error {
+    let message: String
+}
+
+/// Which listener the request being handled arrived on. Set by the server
+/// around every handler call; false wherever nothing set it, so a path that
+/// forgets is treated as loopback TCP.
+enum RequestOrigin {
+    /// True on the owner's private socket (`Admission.ownerOnly`): 0600,
+    /// verified to be this user's, with no TCP port and no browser access.
+    @TaskLocal static var ownerSocket = false
+}
+
 struct BadRequest: Error {
     let message: String
 }
@@ -1387,7 +1411,8 @@ extension APIHandlers {
 
     static let cachePolicyFields: Set<String> = [
         "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv", "sharedL0", "goProxy",
-        "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "defaultTrust", "proxyUntrusted",
+        "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "defaultTrust", "proxyUntrusted", "dockerSocket",
+        "defaultLimits",
     ]
     /// The optional settings `null` clears.
     static let cachePolicyClearableFields: Set<String> = [
@@ -1420,6 +1445,18 @@ extension APIHandlers {
             policy.defaultTrust = trust
         }
         if let proxy = try fields.bool("proxyUntrusted") { policy.proxyUntrusted = proxy }
+        if let raw = try fields.string("dockerSocket") {
+            guard let socket = HVFMachineCachePolicy.DockerSocket(rawValue: raw) else {
+                throw BadRequest(message: "cache policy: dockerSocket must be trusted or any, got '\(raw)'")
+            }
+            policy.dockerSocket = socket
+        }
+        if let raw = try fields.string("defaultLimits") {
+            guard let limits = HVFMachineCachePolicy.DefaultLimits(rawValue: raw) else {
+                throw BadRequest(message: "cache policy: defaultLimits must be job or none, got '\(raw)'")
+            }
+            policy.defaultLimits = limits
+        }
         if fields.contains("goProxy") {
             policy.goProxy = try fields.string("goProxy").flatMap { $0.isEmpty ? nil : $0 }
         }

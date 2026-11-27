@@ -59,6 +59,7 @@ extension RPCCatalog {
             "ApplyHVFUpdate": .unary,
             "ControlMachine": .unary,
             "GetHVFUpdateStatus": .unary,
+            "GetMachineCapacity": .unary,
             "GetMachineStatus": .unary,
             "GetRigHealth": .unary,
             "GetRigMode": .unary,

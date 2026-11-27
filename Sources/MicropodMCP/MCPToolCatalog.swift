@@ -307,7 +307,7 @@ enum MCPToolCatalog {
         MCPTool(
             name: "cache_policy",
             description:
-                "Show the active HVF machine dependency cache policy (defaultTrust, sharedL0, goProxy, npmRegistry, tools, budget)."
+                "Show the active HVF machine dependency cache policy (defaultTrust, dockerSocket, sharedL0, goProxy, npmRegistry, tools, budget)."
         ),
         MCPTool(
             name: "cache_policy_set",
@@ -320,6 +320,14 @@ enum MCPToolCatalog {
                     "default_trust", ["trusted", "untrusted"],
                     "Trust tier of containers naming none: untrusted ones only read the shared caches."),
                 .boolean("proxy_untrusted", "Also give untrusted containers go_proxy and npm_registry."),
+                .choice(
+                    "docker_socket", ["trusted", "any"],
+                    "Who may bind /var/run/docker.sock: trusted containers only, or any (shared-engine rig). "
+                        + "Accepted only over the owner's API socket."),
+                .choice(
+                    "default_limits", ["job", "none"],
+                    "What a container naming no limit gets: job (1 CPU, 1 GiB, 512 processes) or none (no CPU "
+                        + "quota, the machine's memory). Accepted only over the owner's API socket."),
                 .string(
                     "go_proxy", "GOPROXY for containers, e.g. http://10.42.0.1:7677/go|direct; off or \"\" clears it."),
                 .string("npm_registry", "npm registry URL for containers; off or \"\" clears it."),

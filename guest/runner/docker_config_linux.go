@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -343,6 +344,43 @@ func (h dockerHost) limits() dockerLimits {
 	}
 	return l
 }
+
+// applyDefaultLimits fills in what a create that names no limit gets under
+// defaultLimits: none (cachePolicy.DefaultLimits): no CPU quota, the
+// machine's memory and unlimitedPids processes, where the shipped default
+// (limits) is one CPU, 1 GiB and 512. The values go into the container's
+// record, so inspect shows them and a later policy change leaves the
+// container as it was created. A limit the create names is kept.
+func (h *dockerHost) applyDefaultLimits(pol cachePolicy) {
+	if !pol.unlimitedByDefault() {
+		return
+	}
+	if h.NanoCpus == 0 && h.CpuQuota == 0 {
+		h.CpuQuota = -1
+	}
+	if h.Memory == 0 {
+		h.Memory = machineMemory()
+	}
+	if h.PidsLimit == nil || *h.PidsLimit == 0 {
+		pids := int64(unlimitedPids)
+		h.PidsLimit = &pids
+	}
+}
+
+// unlimitedPids is the process limit of a container under defaultLimits:
+// none: high enough for any build, low enough that one container's fork bomb
+// leaves the machine its process table.
+const unlimitedPids = 65536
+
+// machineMemory is the machine's memory in bytes; 0 (no explicit limit, so
+// the 1 GiB default) if the kernel does not say.
+var machineMemory = sync.OnceValue(func() int64 {
+	var sys unix.Sysinfo_t
+	if unix.Sysinfo(&sys) != nil {
+		return 0
+	}
+	return int64(sys.Totalram * uint64(sys.Unit))
+})
 
 // clampTo lowers what h asks above most to most, so the container gets at most
 // those limits: a request for more, or for none (a CPU quota of -1), gets

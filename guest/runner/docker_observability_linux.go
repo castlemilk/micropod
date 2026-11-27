@@ -135,6 +135,8 @@ var micropodRouteKeys = map[string]bool{
 	"micropod/caches/debug":       true,
 	"micropod/caches/dedupe":      true,
 	"micropod/caches/prune":       true,
+	"micropod/capacity":           true,
+	"micropod/families/prune":     true,
 	"micropod/containers/summary": true,
 	"micropod/metrics":            true,
 	"micropod/storage":            true,
@@ -157,7 +159,7 @@ var micropodRouteKeys = map[string]bool{
 // sample, debug).
 func watchRequest(method, route string) bool {
 	switch route {
-	case "/micropod/metrics", "/micropod/traces", "/micropod/traces/clear":
+	case "/micropod/metrics", "/micropod/capacity", "/micropod/traces", "/micropod/traces/clear":
 		return true
 	case "/micropod/buildkit", "/micropod/storage", "/micropod/caches":
 		return method == http.MethodGet

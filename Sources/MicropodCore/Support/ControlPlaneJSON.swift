@@ -99,6 +99,8 @@ public enum ControlPlaneJSON {
         if p.hasMinFreeBytes, p.minFreeBytes > 0 { out["minFreeBytes"] = p.minFreeBytes }
         if p.hasDefaultTrust { out["defaultTrust"] = p.defaultTrust }
         if p.proxyUntrusted { out["proxyUntrusted"] = true }
+        if p.hasDockerSocket { out["dockerSocket"] = p.dockerSocket }
+        if p.hasDefaultLimits { out["defaultLimits"] = p.defaultLimits }
         var buildkit: [String: Any] = [:]
         for (key, value) in p.buildkit.extra.fields { buildkit[key] = foundation(jsonValue(value)) }
         buildkit["registerBuildx"] = p.buildkit.registerBuildx
@@ -277,6 +279,8 @@ public enum ControlPlaneJSON {
             "cachePolicy": [
                 "mode": h.cachePolicy.mode, "sharedL0": h.cachePolicy.sharedL0,
                 "defaultTrust": h.cachePolicy.defaultTrust, "goProxy": h.cachePolicy.goProxy,
+                "dockerSocket": h.cachePolicy.dockerSocket.isEmpty ? "trusted" : h.cachePolicy.dockerSocket,
+                "defaultLimits": h.cachePolicy.defaultLimits.isEmpty ? "job" : h.cachePolicy.defaultLimits,
                 "toolCount": Int(h.cachePolicy.toolCount),
             ] as [String: Any],
             "depproxy": ["url": h.depproxy.url, "healthy": h.depproxy.healthy] as [String: Any],

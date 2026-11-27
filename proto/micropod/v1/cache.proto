@@ -147,6 +147,14 @@ message CachePolicy {
   // Keys this server does not know, kept in machine.json and passed to the
   // guest unchanged.
   google.protobuf.Struct extra = 17;
+  // Which containers may be given the machine's Docker API by binding
+  // /var/run/docker.sock: trusted (only a trusted container) or any (a
+  // container of any tier; a shared-engine rig). Unset is trusted.
+  optional string docker_socket = 18;
+  // What a container that names no CPU, memory or process limit gets: job
+  // (1 CPU, 1 GiB, 512 processes) or none (no CPU quota, the machine's
+  // memory, 65536 processes). Unset is job.
+  optional string default_limits = 19;
 }
 
 message CacheStatus {
@@ -266,6 +274,12 @@ message SetCachePolicyRequest {
   optional uint64 max_bytes = 12;
   optional uint32 max_age_days = 13 [(buf.validate.field).uint32.lte = 36500];
   optional uint64 min_free_bytes = 14;
+  // trusted or any. Changed only on the owner's private socket: a call over
+  // loopback TCP that names it is refused (permission_denied).
+  optional string docker_socket = 15 [(buf.validate.field).string = {in: ["trusted", "any"]}];
+  // job or none. Changed only on the owner's private socket, like
+  // docker_socket.
+  optional string default_limits = 16 [(buf.validate.field).string = {in: ["job", "none"]}];
 }
 
 message SetCachePolicyResponse {

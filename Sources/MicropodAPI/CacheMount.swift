@@ -60,6 +60,8 @@ extension APIHandlers {
             }
         } catch let error as BadRequest {
             throw ConnectDecodeError(code: .invalidArgument, message: error.message)
+        } catch let error as OwnerSocketOnly {
+            throw ConnectDecodeError(code: .permissionDenied, message: error.message)
         }
     }
 
@@ -97,6 +99,17 @@ extension APIHandlers {
             throw BadRequest(
                 message: "cache policy: name at least one field to change "
                     + "(\(Self.cachePolicyFields.sorted().joined(separator: ", "))); nothing was written")
+        }
+        // Who may be given a Docker socket is the machine owner's to say:
+        // loopback TCP is open to every local process (and, through an
+        // allowed host port, to a container), the owner's socket is not.
+        // So is what a container that names no limit may use.
+        for (field, flag) in [
+            ("dockerSocket", "--docker-socket trusted|any"), ("defaultLimits", "--default-limits job|none"),
+        ] where patch.contains(field) && !RequestOrigin.ownerSocket {
+            throw OwnerSocketOnly(
+                message: "cache policy: \(field) is changed only on the owner's private API socket "
+                    + "(or with `micropod cache policy \(flag)`); nothing was written")
         }
         let client = hvfMachineClient()
         let layout = client.layout
@@ -148,6 +161,8 @@ extension APIHandlers {
         if req.hasSharedL0 { body["sharedL0"] = req.sharedL0 }
         if req.hasDefaultTrust { body["defaultTrust"] = req.defaultTrust }
         if req.hasProxyUntrusted { body["proxyUntrusted"] = req.proxyUntrusted }
+        if req.hasDockerSocket { body["dockerSocket"] = req.dockerSocket }
+        if req.hasDefaultLimits { body["defaultLimits"] = req.defaultLimits }
         if req.hasGoProxy { body["goProxy"] = req.goProxy }
         if req.hasNpmRegistry { body["npmRegistry"] = req.npmRegistry }
         if req.hasMaxBytes { body["maxBytes"] = req.maxBytes }
@@ -283,6 +298,8 @@ enum CacheProto {
             $0.sharedL0 = p.sharedL0
             if let trust = p.defaultTrust { $0.defaultTrust = trust.rawValue }
             $0.proxyUntrusted = p.proxyUntrusted
+            if let socket = p.dockerSocket { $0.dockerSocket = socket.rawValue }
+            if let limits = p.defaultLimits { $0.defaultLimits = limits.rawValue }
             if let proxy = p.goProxy { $0.goProxy = proxy }
             if let registry = p.npmRegistry { $0.npmRegistry = registry }
             if let bytes = p.maxBytes { $0.maxBytes = bytes }

@@ -814,7 +814,41 @@ type cachePolicy struct {
 	// ProxyUntrusted also injects goProxy and npmRegistry into containers
 	// that only read the stores (untrusted and read-only tiers).
 	ProxyUntrusted bool `json:"proxyUntrusted,omitempty"`
+	// DockerSocket says which containers the host may hand the machine's
+	// Docker API by binding docker.sock (engineSocketGrant): "" (only a
+	// trusted one, the shipped default) or dockerSocketAny (a container of
+	// any tier, on a rig whose owner accepts that its jobs share one
+	// machine). It changes nothing about cache trust. Host-owned, like
+	// DefaultTrust.
+	DockerSocket string `json:"dockerSocket,omitempty"`
+	// DefaultLimits says what a container that names no CPU, memory or
+	// process limit gets: "" (one CPU, 1 GiB, 512 processes: the shipped
+	// default) or defaultLimitsNone (no CPU quota, the machine's memory,
+	// unlimitedPids processes: what a Docker daemon gives, for a machine
+	// whose scheduler admits work by the machine's real load). Host-owned.
+	DefaultLimits string `json:"defaultLimits,omitempty"`
 }
+
+// The values of cachePolicy.DefaultLimits as the host writes them;
+// defaultLimitsJob is recorded as "".
+const (
+	defaultLimitsJob  = "job"
+	defaultLimitsNone = "none"
+)
+
+// unlimitedByDefault reports whether a container naming no limit gets none.
+func (p cachePolicy) unlimitedByDefault() bool { return p.DefaultLimits == defaultLimitsNone }
+
+// The values of cachePolicy.DockerSocket as the host writes them;
+// dockerSocketTrusted is recorded as "".
+const (
+	dockerSocketTrusted = "trusted"
+	dockerSocketAny     = "any"
+)
+
+// socketForAnyTier reports whether an untrusted or read-only container may be
+// given a delegated Docker socket.
+func (p cachePolicy) socketForAnyTier() bool { return p.DockerSocket == dockerSocketAny }
 
 // untrustedByDefault reports whether a container naming no tier is untrusted.
 func (p cachePolicy) untrustedByDefault() bool { return p.DefaultTrust == trustUntrusted }
@@ -880,9 +914,29 @@ func parseCachePolicy(b []byte) (cachePolicy, error) {
 		MinFreeBytes  *uint64   `json:"minFreeBytes"`
 		DefaultTrust  *string   `json:"defaultTrust"`
 		ProxyUntrust  *bool     `json:"proxyUntrusted"`
+		DockerSocket  *string   `json:"dockerSocket"`
+		DefaultLimits *string   `json:"defaultLimits"`
 	}
 	if err := json.Unmarshal(b, &wire); err != nil {
 		return pol, err
+	}
+	if wire.DockerSocket != nil {
+		switch *wire.DockerSocket {
+		case "", dockerSocketTrusted:
+		case dockerSocketAny:
+			pol.DockerSocket = dockerSocketAny
+		default:
+			return failClosedCachePolicy(), fmt.Errorf("unknown dockerSocket %q (expected trusted or any)", *wire.DockerSocket)
+		}
+	}
+	if wire.DefaultLimits != nil {
+		switch *wire.DefaultLimits {
+		case "", defaultLimitsJob:
+		case defaultLimitsNone:
+			pol.DefaultLimits = defaultLimitsNone
+		default:
+			return failClosedCachePolicy(), fmt.Errorf("unknown defaultLimits %q (expected job or none)", *wire.DefaultLimits)
+		}
 	}
 	if wire.DefaultTrust != nil {
 		switch *wire.DefaultTrust {

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/rig.proto.
  */
 export const file_micropod_v1_rig: GenFile = /*@__PURE__*/
-  fileDesc("ChVtaWNyb3BvZC92MS9yaWcucHJvdG8SC21pY3JvcG9kLnYxIj4KDVJpZ01vZGVPcHRpb24SDAoEbmFtZRgBIAEoCRIOCgZlbmdpbmUYAiABKAkSDwoHc3VtbWFyeRgDIAEoCSJbCgdSaWdNb2RlEgwKBG1vZGUYASABKAkSFwoPZGVmYXVsdF9ydW50aW1lGAIgASgJEikKBW1vZGVzGAMgAygLMhoubWljcm9wb2QudjEuUmlnTW9kZU9wdGlvbiIqChFTZXRSaWdNb2RlUmVxdWVzdBIVCgRtb2RlGAEgASgJQge6SARyAhABIpkDCgxSaWdDYWNoZURpc2sSDwoHbW91bnRlZBgBIAEoCBISCgpjb25maWd1cmVkGAIgASgIEhQKB21pc3NpbmcYAyABKAlIAIgBARIOCgZzb3VyY2UYBCABKAkSEwoGcmVhc29uGAUgASgJSAGIAQESEgoFc3RhdGUYBiABKAlIAogBARITCgZkZXZpY2UYByABKAlIA4gBARIdChBtb3VudF9pbmZvX2Vycm9yGAggASgJSASIAQESFwoKc2l6ZV9ieXRlcxgJIAEoBEgFiAEBEhcKCmZyZWVfYnl0ZXMYCiABKARIBogBARIVCg1zaGFyZWRfY2FjaGVzGAsgASgJEhgKC3VuYXZhaWxhYmxlGAwgASgJSAeIAQESDwoHc3VtbWFyeRgNIAEoCUIKCghfbWlzc2luZ0IJCgdfcmVhc29uQggKBl9zdGF0ZUIJCgdfZGV2aWNlQhMKEV9tb3VudF9pbmZvX2Vycm9yQg0KC19zaXplX2J5dGVzQg0KC19mcmVlX2J5dGVzQg4KDF91bmF2YWlsYWJsZSL7AQoMUmlnSFZGSGVhbHRoEhEKCWluc3RhbGxlZBgBIAEoCBINCgVwaGFzZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEgwKBHJvb3QYBCABKAkSFwoPZG9ja2VyX2VuZHBvaW50GAUgASgJEhoKEmNhY2hlX2Rpc2tfcHJlc2VudBgGIAEoCBItCgpjYWNoZV9kaXNrGAcgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEhUKDXNoYXJlZF9jYWNoZXMYCCABKAkSFgoOdXBkYXRlX3BlbmRpbmcYCSABKAgSFwoPcGF5bG9hZF92ZXJzaW9uGAogASgJInUKFVJpZ0NhY2hlUG9saWN5U3VtbWFyeRIMCgRtb2RlGAEgASgJEhEKCXNoYXJlZF9sMBgCIAEoCBIVCg1kZWZhdWx0X3RydXN0GAMgASgJEhAKCGdvX3Byb3h5GAQgASgJEhIKCnRvb2xfY291bnQYBSABKAUiKwoLUmlnRGVwcHJveHkSCwoDdXJsGAEgASgJEg8KB2hlYWx0aHkYAiABKAgi7AEKCVJpZ0hlYWx0aBIMCgRtb2RlGAEgASgJEhcKD2RlZmF1bHRfcnVudGltZRgCIAEoCRImCgNodmYYAyABKAsyGS5taWNyb3BvZC52MS5SaWdIVkZIZWFsdGgSOAoMY2FjaGVfcG9saWN5GAQgASgLMiIubWljcm9wb2QudjEuUmlnQ2FjaGVQb2xpY3lTdW1tYXJ5EioKCGRlcHByb3h5GAUgASgLMhgubWljcm9wb2QudjEuUmlnRGVwcHJveHkSGQoMY29uZmlnX2Vycm9yGAYgASgJSACIAQFCDwoNX2NvbmZpZ19lcnJvciLsAQoSSFZGUGF5bG9hZE1hbmlmZXN0Eg4KBnNjaGVtYRgBIAEoBRIPCgd2ZXJzaW9uGAIgASgJEhAKCHJldmlzaW9uGAMgASgJEhQKDGluc3RhbGxlZF9hdBgEIAEoCRI9CgdkaWdlc3RzGAUgAygLMiwubWljcm9wb2QudjEuSFZGUGF5bG9hZE1hbmlmZXN0LkRpZ2VzdHNFbnRyeRITCgZvcmlnaW4YBiABKAlIAIgBARouCgxEaWdlc3RzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfb3JpZ2luIpoFCg9IVkZVcGRhdGVTdGF0dXMSGQoMY3VycmVudF9wYXRoGAEgASgJSACIAQESGgoNcHJldmlvdXNfcGF0aBgCIAEoCUgBiAEBEhgKC3N0YWdlZF9wYXRoGAMgASgJSAKIAQESHAoPa25vd25fZ29vZF9wYXRoGAQgASgJSAOIAQESMAoHY3VycmVudBgFIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIxCghwcmV2aW91cxgGIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIvCgZzdGFnZWQYByABKAsyHy5taWNyb3BvZC52MS5IVkZQYXlsb2FkTWFuaWZlc3QSMwoKa25vd25fZ29vZBgIIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIZCgxydW5uaW5nX3BhdGgYCSABKAlIBIgBARIcCg9ydW5uaW5nX3ZlcnNpb24YCiABKAlIBYgBARIdChBydW5uaW5nX3JldmlzaW9uGAsgASgJSAaIAQESFgoOdXBkYXRlX3BlbmRpbmcYDCABKAgSGgoSYXZhaWxhYmxlX3ZlcnNpb25zGA0gAygJEiQKF2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlGA4gASgJSAeIAQFCDwoNX2N1cnJlbnRfcGF0aEIQCg5fcHJldmlvdXNfcGF0aEIOCgxfc3RhZ2VkX3BhdGhCEgoQX2tub3duX2dvb2RfcGF0aEIPCg1fcnVubmluZ19wYXRoQhIKEF9ydW5uaW5nX3ZlcnNpb25CEwoRX3J1bm5pbmdfcmV2aXNpb25CGgoYX2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlIiEKEEhWRlVwZGF0ZVJlcXVlc3QSDQoFZm9yY2UYASABKAgikgIKD0hWRlVwZGF0ZVJlc3VsdBIOCgZhY3Rpb24YASABKAkSGQoMZnJvbV92ZXJzaW9uGAIgASgJSACIAQESFwoKdG9fdmVyc2lvbhgDIAEoCUgBiAEBEhkKEWFjdGl2ZV9jb250YWluZXJzGAQgASgFEg4KBmRldGFpbBgFIAEoCRIbCg50YXJnZXRfdmVyc2lvbhgGIAEoCUgCiAEBEiQKF3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzGAcgASgDSAOIAQFCDwoNX2Zyb21fdmVyc2lvbkINCgtfdG9fdmVyc2lvbkIRCg9fdGFyZ2V0X3ZlcnNpb25CGgoYX3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzIq8DCg9IVkZNYWNoaW5lU3RhdGUSDQoFcGhhc2UYASABKAkSFgoOc3VwZXJ2aXNvcl9waWQYAiABKAUSFAoHdm1tX3BpZBgDIAEoBUgAiAEBEhcKCnN0YXJ0ZWRfYXQYBCABKAlIAYgBARIVCghyZWFkeV9hdBgFIAEoCUgCiAEBEhUKDXJlc3RhcnRfY291bnQYBiABKAUSHQoQbGFzdF9leGl0X3JlYXNvbhgHIAEoCUgDiAEBEhsKDmxhc3RfZXhpdF9jb2RlGAggASgFSASIAQESIAoTbG9hZGVkX3BheWxvYWRfcGF0aBgJIAEoCUgFiAEBEiMKFmxvYWRlZF9wYXlsb2FkX3ZlcnNpb24YCiABKAlIBogBARISCgp1cGRhdGVkX2F0GAsgASgJQgoKCF92bW1fcGlkQg0KC19zdGFydGVkX2F0QgsKCV9yZWFkeV9hdEITChFfbGFzdF9leGl0X3JlYXNvbkIRCg9fbGFzdF9leGl0X2NvZGVCFgoUX2xvYWRlZF9wYXlsb2FkX3BhdGhCGQoXX2xvYWRlZF9wYXlsb2FkX3ZlcnNpb24ihQcKEEhWRk1hY2hpbmVTdGF0dXMSDAoEcm9vdBgBIAEoCRIOCgZzb2NrZXQYAiABKAkSDwoHbWlzc2luZxgDIAMoCRIRCglpbnN0YWxsZWQYBCABKAgSFAoHcHJvYmxlbRgFIAEoCUgAiAEBEhgKEHN1cGVydmlzb3JfYWxpdmUYBiABKAgSDQoFcGhhc2UYByABKAkSKwoFc3RhdGUYCCABKAsyHC5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdGUSGAoLc3RhdGVfZXJyb3IYCSABKAlIAYgBARIWCg51cGRhdGVfcGVuZGluZxgKIAEoCBIPCgdzdW1tYXJ5GAsgASgJEhoKEnN0b3BwZWRfb25fcmVxdWVzdBgMIAEoCBIbCg5lbmdpbmVfdmVyc2lvbhgNIAEoCUgCiAEBEh8KEmVuZ2luZV9hcGlfdmVyc2lvbhgOIAEoCUgDiAEBEiMKFmVuZ2luZV9taW5fYXBpX3ZlcnNpb24YDyABKAlIBIgBARISCgpkaXNrX2ZsdXNoGBAgASgJEh0KEGNvbnRhaW5lcnNfdG90YWwYESABKAVIBYgBARIfChJjb250YWluZXJzX3J1bm5pbmcYEiABKAVIBogBARIRCglyZWFkaW5lc3MYEyABKAkSGwoOZmFpbHVyZV9yZWFzb24YFCABKAlIB4gBARItCgpjYWNoZV9kaXNrGBUgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEjMKCWF1dG9zdGFydBgWIAEoCzIgLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVBdXRvc3RhcnQSFwoPZG9ja2VyX2VuZHBvaW50GBcgASgJEhwKD3BheWxvYWRfdmVyc2lvbhgYIAEoCUgIiAEBEhsKDnN0YWdlZF92ZXJzaW9uGBkgASgJSAmIAQFCCgoIX3Byb2JsZW1CDgoMX3N0YXRlX2Vycm9yQhEKD19lbmdpbmVfdmVyc2lvbkIVChNfZW5naW5lX2FwaV92ZXJzaW9uQhkKF19lbmdpbmVfbWluX2FwaV92ZXJzaW9uQhMKEV9jb250YWluZXJzX3RvdGFsQhUKE19jb250YWluZXJzX3J1bm5pbmdCEQoPX2ZhaWx1cmVfcmVhc29uQhIKEF9wYXlsb2FkX3ZlcnNpb25CEQoPX3N0YWdlZF92ZXJzaW9uIuoBChNIVkZNYWNoaW5lQXV0b3N0YXJ0Eg8KB2VuYWJsZWQYASABKAgSDgoGbG9hZGVkGAIgASgIEg0KBWxhYmVsGAMgASgJEhIKCnBsaXN0X3BhdGgYBCABKAkSFAoHcHJvZ3JhbRgFIAEoCUgAiAEBEiEKFGV4aXRfdGltZW91dF9zZWNvbmRzGAYgASgFSAGIAQESFAoHcHJvYmxlbRgHIAEoCUgCiAEBEg8KB3N1bW1hcnkYCCABKAlCCgoIX3Byb2dyYW1CFwoVX2V4aXRfdGltZW91dF9zZWNvbmRzQgoKCF9wcm9ibGVtIjwKGlNldE1hY2hpbmVBdXRvc3RhcnRSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgSDQoFZm9yY2UYAiABKAgifgoTU2V0dXBNYWNoaW5lUmVxdWVzdBIUCgxwYXlsb2FkX3BhdGgYASABKAkSEQoJZGlza19mcm9tGAIgASgJEhgKEGNhY2hlX2Rpc2tfYnl0ZXMYAyABKAQSFQoNbm9fY2FjaGVfZGlzaxgEIAEoCBINCgVzdGFydBgFIAEoCCI9ChBTZXR1cE1hY2hpbmVTdGVwEgoKAmlkGAEgASgJEg0KBXN0YXRlGAIgASgJEg4KBmRldGFpbBgDIAEoCSJ+ChJTZXR1cE1hY2hpbmVSZXN1bHQSCgoCb2sYASABKAgSLAoFc3RlcHMYAiADKAsyHS5taWNyb3BvZC52MS5TZXR1cE1hY2hpbmVTdGVwEi4KB21hY2hpbmUYAyABKAsyHS5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdHVzIlMKFUNvbnRyb2xNYWNoaW5lUmVxdWVzdBIrCgZhY3Rpb24YASABKAlCG7pIGHIWUgVzdGFydFIEc3RvcFIHcmVzdGFydBINCgVmb3JjZRgCIAEoCDL7BQoKUmlnU2VydmljZRI6CgxHZXRSaWdIZWFsdGgSEi5taWNyb3BvZC52MS5FbXB0eRoWLm1pY3JvcG9kLnYxLlJpZ0hlYWx0aBI2CgpHZXRSaWdNb2RlEhIubWljcm9wb2QudjEuRW1wdHkaFC5taWNyb3BvZC52MS5SaWdNb2RlEkIKClNldFJpZ01vZGUSHi5taWNyb3BvZC52MS5TZXRSaWdNb2RlUmVxdWVzdBoULm1pY3JvcG9kLnYxLlJpZ01vZGUSRgoSR2V0SFZGVXBkYXRlU3RhdHVzEhIubWljcm9wb2QudjEuRW1wdHkaHC5taWNyb3BvZC52MS5IVkZVcGRhdGVTdGF0dXMSTQoOQXBwbHlIVkZVcGRhdGUSHS5taWNyb3BvZC52MS5IVkZVcGRhdGVSZXF1ZXN0GhwubWljcm9wb2QudjEuSFZGVXBkYXRlUmVzdWx0ElAKEVJvbGxiYWNrSFZGVXBkYXRlEh0ubWljcm9wb2QudjEuSFZGVXBkYXRlUmVxdWVzdBocLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVJlc3VsdBJFChBHZXRNYWNoaW5lU3RhdHVzEhIubWljcm9wb2QudjEuRW1wdHkaHS5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdHVzElMKDkNvbnRyb2xNYWNoaW5lEiIubWljcm9wb2QudjEuQ29udHJvbE1hY2hpbmVSZXF1ZXN0Gh0ubWljcm9wb2QudjEuSFZGTWFjaGluZVN0YXR1cxJdChNTZXRNYWNoaW5lQXV0b3N0YXJ0EicubWljcm9wb2QudjEuU2V0TWFjaGluZUF1dG9zdGFydFJlcXVlc3QaHS5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdHVzElEKDFNldHVwTWFjaGluZRIgLm1pY3JvcG9kLnYxLlNldHVwTWFjaGluZVJlcXVlc3QaHy5taWNyb3BvZC52MS5TZXR1cE1hY2hpbmVSZXN1bHRCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_micropod_v1_api]);
+  fileDesc("ChVtaWNyb3BvZC92MS9yaWcucHJvdG8SC21pY3JvcG9kLnYxIj4KDVJpZ01vZGVPcHRpb24SDAoEbmFtZRgBIAEoCRIOCgZlbmdpbmUYAiABKAkSDwoHc3VtbWFyeRgDIAEoCSJbCgdSaWdNb2RlEgwKBG1vZGUYASABKAkSFwoPZGVmYXVsdF9ydW50aW1lGAIgASgJEikKBW1vZGVzGAMgAygLMhoubWljcm9wb2QudjEuUmlnTW9kZU9wdGlvbiIqChFTZXRSaWdNb2RlUmVxdWVzdBIVCgRtb2RlGAEgASgJQge6SARyAhABIpkDCgxSaWdDYWNoZURpc2sSDwoHbW91bnRlZBgBIAEoCBISCgpjb25maWd1cmVkGAIgASgIEhQKB21pc3NpbmcYAyABKAlIAIgBARIOCgZzb3VyY2UYBCABKAkSEwoGcmVhc29uGAUgASgJSAGIAQESEgoFc3RhdGUYBiABKAlIAogBARITCgZkZXZpY2UYByABKAlIA4gBARIdChBtb3VudF9pbmZvX2Vycm9yGAggASgJSASIAQESFwoKc2l6ZV9ieXRlcxgJIAEoBEgFiAEBEhcKCmZyZWVfYnl0ZXMYCiABKARIBogBARIVCg1zaGFyZWRfY2FjaGVzGAsgASgJEhgKC3VuYXZhaWxhYmxlGAwgASgJSAeIAQESDwoHc3VtbWFyeRgNIAEoCUIKCghfbWlzc2luZ0IJCgdfcmVhc29uQggKBl9zdGF0ZUIJCgdfZGV2aWNlQhMKEV9tb3VudF9pbmZvX2Vycm9yQg0KC19zaXplX2J5dGVzQg0KC19mcmVlX2J5dGVzQg4KDF91bmF2YWlsYWJsZSL7AQoMUmlnSFZGSGVhbHRoEhEKCWluc3RhbGxlZBgBIAEoCBINCgVwaGFzZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEgwKBHJvb3QYBCABKAkSFwoPZG9ja2VyX2VuZHBvaW50GAUgASgJEhoKEmNhY2hlX2Rpc2tfcHJlc2VudBgGIAEoCBItCgpjYWNoZV9kaXNrGAcgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEhUKDXNoYXJlZF9jYWNoZXMYCCABKAkSFgoOdXBkYXRlX3BlbmRpbmcYCSABKAgSFwoPcGF5bG9hZF92ZXJzaW9uGAogASgJIqQBChVSaWdDYWNoZVBvbGljeVN1bW1hcnkSDAoEbW9kZRgBIAEoCRIRCglzaGFyZWRfbDAYAiABKAgSFQoNZGVmYXVsdF90cnVzdBgDIAEoCRIQCghnb19wcm94eRgEIAEoCRISCgp0b29sX2NvdW50GAUgASgFEhUKDWRvY2tlcl9zb2NrZXQYBiABKAkSFgoOZGVmYXVsdF9saW1pdHMYByABKAkiKwoLUmlnRGVwcHJveHkSCwoDdXJsGAEgASgJEg8KB2hlYWx0aHkYAiABKAgi7AEKCVJpZ0hlYWx0aBIMCgRtb2RlGAEgASgJEhcKD2RlZmF1bHRfcnVudGltZRgCIAEoCRImCgNodmYYAyABKAsyGS5taWNyb3BvZC52MS5SaWdIVkZIZWFsdGgSOAoMY2FjaGVfcG9saWN5GAQgASgLMiIubWljcm9wb2QudjEuUmlnQ2FjaGVQb2xpY3lTdW1tYXJ5EioKCGRlcHByb3h5GAUgASgLMhgubWljcm9wb2QudjEuUmlnRGVwcHJveHkSGQoMY29uZmlnX2Vycm9yGAYgASgJSACIAQFCDwoNX2NvbmZpZ19lcnJvciLsAQoSSFZGUGF5bG9hZE1hbmlmZXN0Eg4KBnNjaGVtYRgBIAEoBRIPCgd2ZXJzaW9uGAIgASgJEhAKCHJldmlzaW9uGAMgASgJEhQKDGluc3RhbGxlZF9hdBgEIAEoCRI9CgdkaWdlc3RzGAUgAygLMiwubWljcm9wb2QudjEuSFZGUGF5bG9hZE1hbmlmZXN0LkRpZ2VzdHNFbnRyeRITCgZvcmlnaW4YBiABKAlIAIgBARouCgxEaWdlc3RzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfb3JpZ2luIpoFCg9IVkZVcGRhdGVTdGF0dXMSGQoMY3VycmVudF9wYXRoGAEgASgJSACIAQESGgoNcHJldmlvdXNfcGF0aBgCIAEoCUgBiAEBEhgKC3N0YWdlZF9wYXRoGAMgASgJSAKIAQESHAoPa25vd25fZ29vZF9wYXRoGAQgASgJSAOIAQESMAoHY3VycmVudBgFIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIxCghwcmV2aW91cxgGIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIvCgZzdGFnZWQYByABKAsyHy5taWNyb3BvZC52MS5IVkZQYXlsb2FkTWFuaWZlc3QSMwoKa25vd25fZ29vZBgIIAEoCzIfLm1pY3JvcG9kLnYxLkhWRlBheWxvYWRNYW5pZmVzdBIZCgxydW5uaW5nX3BhdGgYCSABKAlIBIgBARIcCg9ydW5uaW5nX3ZlcnNpb24YCiABKAlIBYgBARIdChBydW5uaW5nX3JldmlzaW9uGAsgASgJSAaIAQESFgoOdXBkYXRlX3BlbmRpbmcYDCABKAgSGgoSYXZhaWxhYmxlX3ZlcnNpb25zGA0gAygJEiQKF2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlGA4gASgJSAeIAQFCDwoNX2N1cnJlbnRfcGF0aEIQCg5fcHJldmlvdXNfcGF0aEIOCgxfc3RhZ2VkX3BhdGhCEgoQX2tub3duX2dvb2RfcGF0aEIPCg1fcnVubmluZ19wYXRoQhIKEF9ydW5uaW5nX3ZlcnNpb25CEwoRX3J1bm5pbmdfcmV2aXNpb25CGgoYX2xhc3RfYWN0aXZhdGlvbl9mYWlsdXJlIiEKEEhWRlVwZGF0ZVJlcXVlc3QSDQoFZm9yY2UYASABKAgikgIKD0hWRlVwZGF0ZVJlc3VsdBIOCgZhY3Rpb24YASABKAkSGQoMZnJvbV92ZXJzaW9uGAIgASgJSACIAQESFwoKdG9fdmVyc2lvbhgDIAEoCUgBiAEBEhkKEWFjdGl2ZV9jb250YWluZXJzGAQgASgFEg4KBmRldGFpbBgFIAEoCRIbCg50YXJnZXRfdmVyc2lvbhgGIAEoCUgCiAEBEiQKF3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzGAcgASgDSAOIAQFCDwoNX2Zyb21fdmVyc2lvbkINCgtfdG9fdmVyc2lvbkIRCg9fdGFyZ2V0X3ZlcnNpb25CGgoYX3N3aXRjaG92ZXJfbWlsbGlzZWNvbmRzIq8DCg9IVkZNYWNoaW5lU3RhdGUSDQoFcGhhc2UYASABKAkSFgoOc3VwZXJ2aXNvcl9waWQYAiABKAUSFAoHdm1tX3BpZBgDIAEoBUgAiAEBEhcKCnN0YXJ0ZWRfYXQYBCABKAlIAYgBARIVCghyZWFkeV9hdBgFIAEoCUgCiAEBEhUKDXJlc3RhcnRfY291bnQYBiABKAUSHQoQbGFzdF9leGl0X3JlYXNvbhgHIAEoCUgDiAEBEhsKDmxhc3RfZXhpdF9jb2RlGAggASgFSASIAQESIAoTbG9hZGVkX3BheWxvYWRfcGF0aBgJIAEoCUgFiAEBEiMKFmxvYWRlZF9wYXlsb2FkX3ZlcnNpb24YCiABKAlIBogBARISCgp1cGRhdGVkX2F0GAsgASgJQgoKCF92bW1fcGlkQg0KC19zdGFydGVkX2F0QgsKCV9yZWFkeV9hdEITChFfbGFzdF9leGl0X3JlYXNvbkIRCg9fbGFzdF9leGl0X2NvZGVCFgoUX2xvYWRlZF9wYXlsb2FkX3BhdGhCGQoXX2xvYWRlZF9wYXlsb2FkX3ZlcnNpb24ihQcKEEhWRk1hY2hpbmVTdGF0dXMSDAoEcm9vdBgBIAEoCRIOCgZzb2NrZXQYAiABKAkSDwoHbWlzc2luZxgDIAMoCRIRCglpbnN0YWxsZWQYBCABKAgSFAoHcHJvYmxlbRgFIAEoCUgAiAEBEhgKEHN1cGVydmlzb3JfYWxpdmUYBiABKAgSDQoFcGhhc2UYByABKAkSKwoFc3RhdGUYCCABKAsyHC5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdGUSGAoLc3RhdGVfZXJyb3IYCSABKAlIAYgBARIWCg51cGRhdGVfcGVuZGluZxgKIAEoCBIPCgdzdW1tYXJ5GAsgASgJEhoKEnN0b3BwZWRfb25fcmVxdWVzdBgMIAEoCBIbCg5lbmdpbmVfdmVyc2lvbhgNIAEoCUgCiAEBEh8KEmVuZ2luZV9hcGlfdmVyc2lvbhgOIAEoCUgDiAEBEiMKFmVuZ2luZV9taW5fYXBpX3ZlcnNpb24YDyABKAlIBIgBARISCgpkaXNrX2ZsdXNoGBAgASgJEh0KEGNvbnRhaW5lcnNfdG90YWwYESABKAVIBYgBARIfChJjb250YWluZXJzX3J1bm5pbmcYEiABKAVIBogBARIRCglyZWFkaW5lc3MYEyABKAkSGwoOZmFpbHVyZV9yZWFzb24YFCABKAlIB4gBARItCgpjYWNoZV9kaXNrGBUgASgLMhkubWljcm9wb2QudjEuUmlnQ2FjaGVEaXNrEjMKCWF1dG9zdGFydBgWIAEoCzIgLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVBdXRvc3RhcnQSFwoPZG9ja2VyX2VuZHBvaW50GBcgASgJEhwKD3BheWxvYWRfdmVyc2lvbhgYIAEoCUgIiAEBEhsKDnN0YWdlZF92ZXJzaW9uGBkgASgJSAmIAQFCCgoIX3Byb2JsZW1CDgoMX3N0YXRlX2Vycm9yQhEKD19lbmdpbmVfdmVyc2lvbkIVChNfZW5naW5lX2FwaV92ZXJzaW9uQhkKF19lbmdpbmVfbWluX2FwaV92ZXJzaW9uQhMKEV9jb250YWluZXJzX3RvdGFsQhUKE19jb250YWluZXJzX3J1bm5pbmdCEQoPX2ZhaWx1cmVfcmVhc29uQhIKEF9wYXlsb2FkX3ZlcnNpb25CEQoPX3N0YWdlZF92ZXJzaW9uIuoBChNIVkZNYWNoaW5lQXV0b3N0YXJ0Eg8KB2VuYWJsZWQYASABKAgSDgoGbG9hZGVkGAIgASgIEg0KBWxhYmVsGAMgASgJEhIKCnBsaXN0X3BhdGgYBCABKAkSFAoHcHJvZ3JhbRgFIAEoCUgAiAEBEiEKFGV4aXRfdGltZW91dF9zZWNvbmRzGAYgASgFSAGIAQESFAoHcHJvYmxlbRgHIAEoCUgCiAEBEg8KB3N1bW1hcnkYCCABKAlCCgoIX3Byb2dyYW1CFwoVX2V4aXRfdGltZW91dF9zZWNvbmRzQgoKCF9wcm9ibGVtIjwKGlNldE1hY2hpbmVBdXRvc3RhcnRSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgSDQoFZm9yY2UYAiABKAgifgoTU2V0dXBNYWNoaW5lUmVxdWVzdBIUCgxwYXlsb2FkX3BhdGgYASABKAkSEQoJZGlza19mcm9tGAIgASgJEhgKEGNhY2hlX2Rpc2tfYnl0ZXMYAyABKAQSFQoNbm9fY2FjaGVfZGlzaxgEIAEoCBINCgVzdGFydBgFIAEoCCI9ChBTZXR1cE1hY2hpbmVTdGVwEgoKAmlkGAEgASgJEg0KBXN0YXRlGAIgASgJEg4KBmRldGFpbBgDIAEoCSJ+ChJTZXR1cE1hY2hpbmVSZXN1bHQSCgoCb2sYASABKAgSLAoFc3RlcHMYAiADKAsyHS5taWNyb3BvZC52MS5TZXR1cE1hY2hpbmVTdGVwEi4KB21hY2hpbmUYAyABKAsyHS5taWNyb3BvZC52MS5IVkZNYWNoaW5lU3RhdHVzIlMKFUNvbnRyb2xNYWNoaW5lUmVxdWVzdBIrCgZhY3Rpb24YASABKAlCG7pIGHIWUgVzdGFydFIEc3RvcFIHcmVzdGFydBINCgVmb3JjZRgCIAEoCCK4BAoPTWFjaGluZUNhcGFjaXR5EhcKD3NhbXBsZWRfdW5peF9tcxgBIAEoAxIMCgRjcHVzGAIgASgNEhQKDG1lbW9yeV9ieXRlcxgDIAEoBBIPCgdwaWRfbWF4GAQgASgEEhYKDm1heF9jb250YWluZXJzGAUgASgNEh0KFWZhbWlseV9jb250YWluZXJzX21heBgGIAEoDRIdChVyZWxheV9jb25uZWN0aW9uc19tYXgYByABKA0SKAoFdXNhZ2UYCCABKAsyGS5taWNyb3BvZC52MS5NYWNoaW5lVXNhZ2USMgoKY29udGFpbmVycxgJIAEoCzIeLm1pY3JvcG9kLnYxLk1hY2hpbmVDb250YWluZXJzEi4KBmVuZ2luZRgKIAEoCzIeLm1pY3JvcG9kLnYxLk1hY2hpbmVFbmdpbmVMb2FkEi4KCHByZXNzdXJlGAsgASgLMhwubWljcm9wb2QudjEuTWFjaGluZVByZXNzdXJlEikKB29zX2Rpc2sYDCABKAsyGC5taWNyb3BvZC52MS5NYWNoaW5lRGlzaxIxCgpjYWNoZV9kaXNrGA0gASgLMhgubWljcm9wb2QudjEuTWFjaGluZURpc2tIAIgBARIuCghoZWFkcm9vbRgOIAEoCzIcLm1pY3JvcG9kLnYxLk1hY2hpbmVIZWFkcm9vbRImCgRob3N0GA8gASgLMhgubWljcm9wb2QudjEuTWFjaGluZUhvc3RCDQoLX2NhY2hlX2Rpc2sirQIKDE1hY2hpbmVVc2FnZRIZChFjcHVfYnVzeV9mcmFjdGlvbhgBIAEoARIVCg1jcHVfYnVzeV9jcHVzGAIgASgBEg0KBWxvYWQxGAMgASgBEg0KBWxvYWQ1GAQgASgBEg4KBmxvYWQxNRgFIAEoARIQCghydW5uYWJsZRgGIAEoDRINCgV0YXNrcxgHIAEoDRIeChZtZW1vcnlfYXZhaWxhYmxlX2J5dGVzGAggASgEEhkKEW1lbW9yeV91c2VkX2J5dGVzGAkgASgEEhcKD3N3YXBfdXNlZF9ieXRlcxgKIAEoBBISCgpvcGVuX2ZpbGVzGAsgASgEEhkKEWNvbm50cmFja19lbnRyaWVzGAwgASgEEhkKEXJlbGF5X2Nvbm5lY3Rpb25zGA0gASgNIuwBChFNYWNoaW5lQ29udGFpbmVycxINCgV0b3RhbBgBIAEoDRIPCgdydW5uaW5nGAIgASgNEhAKCHN0YXJ0aW5nGAMgASgNEg8KB2NyZWF0ZWQYBCABKA0SDgoGZXhpdGVkGAUgASgNEhsKE3JlcXVlc3RlZF9taWxsaV9jcHUYBiABKAMSHgoWcmVxdWVzdGVkX21lbW9yeV9ieXRlcxgHIAEoAxIZChF3aXRob3V0X2NwdV9saW1pdBgIIAEoDRIsCghmYW1pbGllcxgJIAMoCzIaLm1pY3JvcG9kLnYxLk1hY2hpbmVGYW1pbHkiegoNTWFjaGluZUZhbWlseRIMCgRuYW1lGAEgASgJEg8KB3J1bm5pbmcYAiABKA0SDQoFdG90YWwYAyABKA0SGwoTcmVxdWVzdGVkX21pbGxpX2NwdRgEIAEoAxIeChZyZXF1ZXN0ZWRfbWVtb3J5X2J5dGVzGAUgASgDIowBChFNYWNoaW5lRW5naW5lTG9hZBIZChFjcmVhdGVzX2luX2ZsaWdodBgBIAEoDRIYChBzdGFydHNfaW5fZmxpZ2h0GAIgASgNEhQKDHN0YXJ0X3A1MF9tcxgDIAEoDRIUCgxzdGFydF9wOTVfbXMYBCABKA0SFgoOc3RhcnRzX3NhbXBsZWQYBSABKA0iqgEKD01hY2hpbmVQcmVzc3VyZRIRCglhdmFpbGFibGUYASABKAgSKgoDY3B1GAIgASgLMh0ubWljcm9wb2QudjEuUHJlc3N1cmVSZXNvdXJjZRItCgZtZW1vcnkYAyABKAsyHS5taWNyb3BvZC52MS5QcmVzc3VyZVJlc291cmNlEikKAmlvGAQgASgLMh0ubWljcm9wb2QudjEuUHJlc3N1cmVSZXNvdXJjZSJsChBQcmVzc3VyZVJlc291cmNlEisKBHNvbWUYASABKAsyHS5taWNyb3BvZC52MS5QcmVzc3VyZUF2ZXJhZ2VzEisKBGZ1bGwYAiABKAsyHS5taWNyb3BvZC52MS5QcmVzc3VyZUF2ZXJhZ2VzIkAKEFByZXNzdXJlQXZlcmFnZXMSDQoFYXZnMTAYASABKAESDQoFYXZnNjAYAiABKAESDgoGYXZnMzAwGAMgASgBIjYKC01hY2hpbmVEaXNrEhMKC3RvdGFsX2J5dGVzGAEgASgEEhIKCmZyZWVfYnl0ZXMYAiABKAQi2wEKD01hY2hpbmVIZWFkcm9vbRISCgpjb250YWluZXJzGAEgASgNEhYKDnVuZGVyX3ByZXNzdXJlGAIgASgIEg8KB3JlYXNvbnMYAyADKAkSEgoKbGltaXRlZF9ieRgEIAEoCRIQCgh1bml0X2NwdRgFIAEoARIZChF1bml0X21lbW9yeV9ieXRlcxgGIAEoBBIOCgZieV9jcHUYByABKA0SEQoJYnlfbWVtb3J5GAggASgNEhAKCGJ5X3Rhc2tzGAkgASgNEhUKDWJ5X2NvbnRhaW5lcnMYCiABKA0ieQoLTWFjaGluZUhvc3QSDAoEY3B1cxgBIAEoDRIUCgxtZW1vcnlfYnl0ZXMYAiABKAQSHgoWbWVtb3J5X2F2YWlsYWJsZV9ieXRlcxgDIAEoBBIXCg9tZW1vcnlfcHJlc3N1cmUYBCABKAkSDQoFbG9hZDEYBSABKAEywwYKClJpZ1NlcnZpY2USOgoMR2V0UmlnSGVhbHRoEhIubWljcm9wb2QudjEuRW1wdHkaFi5taWNyb3BvZC52MS5SaWdIZWFsdGgSNgoKR2V0UmlnTW9kZRISLm1pY3JvcG9kLnYxLkVtcHR5GhQubWljcm9wb2QudjEuUmlnTW9kZRJCCgpTZXRSaWdNb2RlEh4ubWljcm9wb2QudjEuU2V0UmlnTW9kZVJlcXVlc3QaFC5taWNyb3BvZC52MS5SaWdNb2RlEkYKEkdldEhWRlVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhwubWljcm9wb2QudjEuSFZGVXBkYXRlU3RhdHVzEk0KDkFwcGx5SFZGVXBkYXRlEh0ubWljcm9wb2QudjEuSFZGVXBkYXRlUmVxdWVzdBocLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVJlc3VsdBJQChFSb2xsYmFja0hWRlVwZGF0ZRIdLm1pY3JvcG9kLnYxLkhWRlVwZGF0ZVJlcXVlc3QaHC5taWNyb3BvZC52MS5IVkZVcGRhdGVSZXN1bHQSRQoQR2V0TWFjaGluZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5Gh0ubWljcm9wb2QudjEuSFZGTWFjaGluZVN0YXR1cxJGChJHZXRNYWNoaW5lQ2FwYWNpdHkSEi5taWNyb3BvZC52MS5FbXB0eRocLm1pY3JvcG9kLnYxLk1hY2hpbmVDYXBhY2l0eRJTCg5Db250cm9sTWFjaGluZRIiLm1pY3JvcG9kLnYxLkNvbnRyb2xNYWNoaW5lUmVxdWVzdBodLm1pY3JvcG9kLnYxLkhWRk1hY2hpbmVTdGF0dXMSXQoTU2V0TWFjaGluZUF1dG9zdGFydBInLm1pY3JvcG9kLnYxLlNldE1hY2hpbmVBdXRvc3RhcnRSZXF1ZXN0Gh0ubWljcm9wb2QudjEuSFZGTWFjaGluZVN0YXR1cxJRCgxTZXR1cE1hY2hpbmUSIC5taWNyb3BvZC52MS5TZXR1cE1hY2hpbmVSZXF1ZXN0Gh8ubWljcm9wb2QudjEuU2V0dXBNYWNoaW5lUmVzdWx0QkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw", [file_buf_validate_validate, file_micropod_v1_api]);
 
 /**
  * @generated from message micropod.v1.RigModeOption
@@ -278,6 +278,22 @@ export type RigCachePolicySummary = Message<"micropod.v1.RigCachePolicySummary">
    * @generated from field: int32 tool_count = 5;
    */
   toolCount: number;
+
+  /**
+   * trusted or any: which containers may be given a Docker socket
+   * (CachePolicy.docker_socket as the guest applies it).
+   *
+   * @generated from field: string docker_socket = 6;
+   */
+  dockerSocket: string;
+
+  /**
+   * job or none: what a container naming no limit gets
+   * (CachePolicy.default_limits as the guest applies it).
+   *
+   * @generated from field: string default_limits = 7;
+   */
+  defaultLimits: string;
 };
 
 /**
@@ -1033,6 +1049,576 @@ export const ControlMachineRequestSchema: GenMessage<ControlMachineRequest> = /*
   messageDesc(file_micropod_v1_rig, 19);
 
 /**
+ * The hvf machine's capacity, load and headroom (GetMachineCapacity).
+ *
+ * @generated from message micropod.v1.MachineCapacity
+ */
+export type MachineCapacity = Message<"micropod.v1.MachineCapacity"> & {
+  /**
+   * When the guest sampled its kernel figures (Unix milliseconds). The
+   * container counts and the engine's own counters are of the request.
+   *
+   * @generated from field: int64 sampled_unix_ms = 1;
+   */
+  sampledUnixMs: bigint;
+
+  /**
+   * What the machine has.
+   *
+   * @generated from field: uint32 cpus = 2;
+   */
+  cpus: number;
+
+  /**
+   * @generated from field: uint64 memory_bytes = 3;
+   */
+  memoryBytes: bigint;
+
+  /**
+   * The most tasks (processes and threads) the guest kernel runs at once.
+   *
+   * @generated from field: uint64 pid_max = 4;
+   */
+  pidMax: bigint;
+
+  /**
+   * The most containers running at once the headroom is counted against.
+   *
+   * @generated from field: uint32 max_containers = 5;
+   */
+  maxContainers: number;
+
+  /**
+   * The most containers one delegated Docker socket may hold at once.
+   *
+   * @generated from field: uint32 family_containers_max = 6;
+   */
+  familyContainersMax: number;
+
+  /**
+   * The most gateway relay connections (published ports reached from
+   * containers) the engine holds at once.
+   *
+   * @generated from field: uint32 relay_connections_max = 7;
+   */
+  relayConnectionsMax: number;
+
+  /**
+   * @generated from field: micropod.v1.MachineUsage usage = 8;
+   */
+  usage?: MachineUsage;
+
+  /**
+   * @generated from field: micropod.v1.MachineContainers containers = 9;
+   */
+  containers?: MachineContainers;
+
+  /**
+   * @generated from field: micropod.v1.MachineEngineLoad engine = 10;
+   */
+  engine?: MachineEngineLoad;
+
+  /**
+   * @generated from field: micropod.v1.MachinePressure pressure = 11;
+   */
+  pressure?: MachinePressure;
+
+  /**
+   * @generated from field: micropod.v1.MachineDisk os_disk = 12;
+   */
+  osDisk?: MachineDisk;
+
+  /**
+   * Unset when the machine has no cache disk.
+   *
+   * @generated from field: optional micropod.v1.MachineDisk cache_disk = 13;
+   */
+  cacheDisk?: MachineDisk;
+
+  /**
+   * @generated from field: micropod.v1.MachineHeadroom headroom = 14;
+   */
+  headroom?: MachineHeadroom;
+
+  /**
+   * @generated from field: micropod.v1.MachineHost host = 15;
+   */
+  host?: MachineHost;
+};
+
+/**
+ * Describes the message micropod.v1.MachineCapacity.
+ * Use `create(MachineCapacitySchema)` to create a new message.
+ */
+export const MachineCapacitySchema: GenMessage<MachineCapacity> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 20);
+
+/**
+ * @generated from message micropod.v1.MachineUsage
+ */
+export type MachineUsage = Message<"micropod.v1.MachineUsage"> & {
+  /**
+   * The share of all CPUs busy over the second before the sample (0..1),
+   * and the same as a number of CPUs.
+   *
+   * @generated from field: double cpu_busy_fraction = 1;
+   */
+  cpuBusyFraction: number;
+
+  /**
+   * @generated from field: double cpu_busy_cpus = 2;
+   */
+  cpuBusyCpus: number;
+
+  /**
+   * @generated from field: double load1 = 3;
+   */
+  load1: number;
+
+  /**
+   * @generated from field: double load5 = 4;
+   */
+  load5: number;
+
+  /**
+   * @generated from field: double load15 = 5;
+   */
+  load15: number;
+
+  /**
+   * Tasks runnable now, and all tasks.
+   *
+   * @generated from field: uint32 runnable = 6;
+   */
+  runnable: number;
+
+  /**
+   * @generated from field: uint32 tasks = 7;
+   */
+  tasks: number;
+
+  /**
+   * @generated from field: uint64 memory_available_bytes = 8;
+   */
+  memoryAvailableBytes: bigint;
+
+  /**
+   * @generated from field: uint64 memory_used_bytes = 9;
+   */
+  memoryUsedBytes: bigint;
+
+  /**
+   * @generated from field: uint64 swap_used_bytes = 10;
+   */
+  swapUsedBytes: bigint;
+
+  /**
+   * @generated from field: uint64 open_files = 11;
+   */
+  openFiles: bigint;
+
+  /**
+   * @generated from field: uint64 conntrack_entries = 12;
+   */
+  conntrackEntries: bigint;
+
+  /**
+   * @generated from field: uint32 relay_connections = 13;
+   */
+  relayConnections: number;
+};
+
+/**
+ * Describes the message micropod.v1.MachineUsage.
+ * Use `create(MachineUsageSchema)` to create a new message.
+ */
+export const MachineUsageSchema: GenMessage<MachineUsage> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 21);
+
+/**
+ * @generated from message micropod.v1.MachineContainers
+ */
+export type MachineContainers = Message<"micropod.v1.MachineContainers"> & {
+  /**
+   * @generated from field: uint32 total = 1;
+   */
+  total: number;
+
+  /**
+   * @generated from field: uint32 running = 2;
+   */
+  running: number;
+
+  /**
+   * @generated from field: uint32 starting = 3;
+   */
+  starting: number;
+
+  /**
+   * @generated from field: uint32 created = 4;
+   */
+  created: number;
+
+  /**
+   * @generated from field: uint32 exited = 5;
+   */
+  exited: number;
+
+  /**
+   * The CPU limits (thousandths of a CPU) and memory limits of the running
+   * and starting containers, summed; without_cpu_limit counts those with no
+   * CPU limit, which the sum leaves out, as it does a memory limit of the
+   * whole machine.
+   *
+   * @generated from field: int64 requested_milli_cpu = 6;
+   */
+  requestedMilliCpu: bigint;
+
+  /**
+   * @generated from field: int64 requested_memory_bytes = 7;
+   */
+  requestedMemoryBytes: bigint;
+
+  /**
+   * @generated from field: uint32 without_cpu_limit = 8;
+   */
+  withoutCpuLimit: number;
+
+  /**
+   * By family, the largest first, at most 64 rows (the rest summed as
+   * "(other)"). A family is a delegated Docker socket's owner and what it
+   * created, named by the owner's io.micropod.family label or its name; or
+   * every container the host created with the same io.micropod.family
+   * label; "" is what the host created without one.
+   *
+   * @generated from field: repeated micropod.v1.MachineFamily families = 9;
+   */
+  families: MachineFamily[];
+};
+
+/**
+ * Describes the message micropod.v1.MachineContainers.
+ * Use `create(MachineContainersSchema)` to create a new message.
+ */
+export const MachineContainersSchema: GenMessage<MachineContainers> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 22);
+
+/**
+ * @generated from message micropod.v1.MachineFamily
+ */
+export type MachineFamily = Message<"micropod.v1.MachineFamily"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: uint32 running = 2;
+   */
+  running: number;
+
+  /**
+   * @generated from field: uint32 total = 3;
+   */
+  total: number;
+
+  /**
+   * @generated from field: int64 requested_milli_cpu = 4;
+   */
+  requestedMilliCpu: bigint;
+
+  /**
+   * @generated from field: int64 requested_memory_bytes = 5;
+   */
+  requestedMemoryBytes: bigint;
+};
+
+/**
+ * Describes the message micropod.v1.MachineFamily.
+ * Use `create(MachineFamilySchema)` to create a new message.
+ */
+export const MachineFamilySchema: GenMessage<MachineFamily> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 23);
+
+/**
+ * @generated from message micropod.v1.MachineEngineLoad
+ */
+export type MachineEngineLoad = Message<"micropod.v1.MachineEngineLoad"> & {
+  /**
+   * @generated from field: uint32 creates_in_flight = 1;
+   */
+  createsInFlight: number;
+
+  /**
+   * @generated from field: uint32 starts_in_flight = 2;
+   */
+  startsInFlight: number;
+
+  /**
+   * Over the latest starts_sampled starts (256 at most): from the start
+   * request to the container's process running, in milliseconds.
+   *
+   * @generated from field: uint32 start_p50_ms = 3;
+   */
+  startP50Ms: number;
+
+  /**
+   * @generated from field: uint32 start_p95_ms = 4;
+   */
+  startP95Ms: number;
+
+  /**
+   * @generated from field: uint32 starts_sampled = 5;
+   */
+  startsSampled: number;
+};
+
+/**
+ * Describes the message micropod.v1.MachineEngineLoad.
+ * Use `create(MachineEngineLoadSchema)` to create a new message.
+ */
+export const MachineEngineLoadSchema: GenMessage<MachineEngineLoad> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 24);
+
+/**
+ * The guest kernel's pressure stall information: the percentage of the last
+ * 10, 60 and 300 seconds in which some, or all, tasks were stalled on a
+ * resource. available is false on a kernel without it.
+ *
+ * @generated from message micropod.v1.MachinePressure
+ */
+export type MachinePressure = Message<"micropod.v1.MachinePressure"> & {
+  /**
+   * @generated from field: bool available = 1;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: micropod.v1.PressureResource cpu = 2;
+   */
+  cpu?: PressureResource;
+
+  /**
+   * @generated from field: micropod.v1.PressureResource memory = 3;
+   */
+  memory?: PressureResource;
+
+  /**
+   * @generated from field: micropod.v1.PressureResource io = 4;
+   */
+  io?: PressureResource;
+};
+
+/**
+ * Describes the message micropod.v1.MachinePressure.
+ * Use `create(MachinePressureSchema)` to create a new message.
+ */
+export const MachinePressureSchema: GenMessage<MachinePressure> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 25);
+
+/**
+ * @generated from message micropod.v1.PressureResource
+ */
+export type PressureResource = Message<"micropod.v1.PressureResource"> & {
+  /**
+   * @generated from field: micropod.v1.PressureAverages some = 1;
+   */
+  some?: PressureAverages;
+
+  /**
+   * @generated from field: micropod.v1.PressureAverages full = 2;
+   */
+  full?: PressureAverages;
+};
+
+/**
+ * Describes the message micropod.v1.PressureResource.
+ * Use `create(PressureResourceSchema)` to create a new message.
+ */
+export const PressureResourceSchema: GenMessage<PressureResource> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 26);
+
+/**
+ * @generated from message micropod.v1.PressureAverages
+ */
+export type PressureAverages = Message<"micropod.v1.PressureAverages"> & {
+  /**
+   * @generated from field: double avg10 = 1;
+   */
+  avg10: number;
+
+  /**
+   * @generated from field: double avg60 = 2;
+   */
+  avg60: number;
+
+  /**
+   * @generated from field: double avg300 = 3;
+   */
+  avg300: number;
+};
+
+/**
+ * Describes the message micropod.v1.PressureAverages.
+ * Use `create(PressureAveragesSchema)` to create a new message.
+ */
+export const PressureAveragesSchema: GenMessage<PressureAverages> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 27);
+
+/**
+ * @generated from message micropod.v1.MachineDisk
+ */
+export type MachineDisk = Message<"micropod.v1.MachineDisk"> & {
+  /**
+   * @generated from field: uint64 total_bytes = 1;
+   */
+  totalBytes: bigint;
+
+  /**
+   * @generated from field: uint64 free_bytes = 2;
+   */
+  freeBytes: bigint;
+};
+
+/**
+ * Describes the message micropod.v1.MachineDisk.
+ * Use `create(MachineDiskSchema)` to create a new message.
+ */
+export const MachineDiskSchema: GenMessage<MachineDisk> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 28);
+
+/**
+ * How many more typical containers the machine can take now.
+ *
+ * The unit is one typical container: what the running ones use on average
+ * (busy CPUs / running, used memory / running), held to 0.25..2 CPUs and
+ * 256 MiB..4 GiB; 0.5 CPU and 512 MiB when nothing runs.
+ *
+ *   by_cpu        = (cpus * 0.90 - busy CPUs) / unit_cpu
+ *   by_memory     = (memory available - max(5% of memory, 1 GiB)) / unit_memory_bytes
+ *   by_tasks      = (pid_max * 0.80 - tasks) / 64
+ *   by_containers = max_containers - containers running or starting
+ *   containers    = max(0, the smallest of the four)
+ *
+ * and 0 under pressure: memory PSI some avg10 >= 10 or full avg10 >= 2, CPU
+ * PSI some avg10 >= 80, IO PSI full avg10 >= 25, less memory available than
+ * the reserve, a disk with less than max(5%, 2 GiB) free, a start-latency
+ * p95 of 10 s or more, or the Mac itself under memory pressure (warning or
+ * critical). CPU and memory are counted on what is used, not on the limits
+ * containers were given: a limit is a ceiling, and the pressure terms catch
+ * a machine whose promised memory is being used after all.
+ *
+ * @generated from message micropod.v1.MachineHeadroom
+ */
+export type MachineHeadroom = Message<"micropod.v1.MachineHeadroom"> & {
+  /**
+   * @generated from field: uint32 containers = 1;
+   */
+  containers: number;
+
+  /**
+   * @generated from field: bool under_pressure = 2;
+   */
+  underPressure: boolean;
+
+  /**
+   * Why it is under pressure; empty when it is not.
+   *
+   * @generated from field: repeated string reasons = 3;
+   */
+  reasons: string[];
+
+  /**
+   * The resource containers is the smallest for: cpu, memory, tasks,
+   * containers, os-disk, cache-disk, pressure or host-memory.
+   *
+   * @generated from field: string limited_by = 4;
+   */
+  limitedBy: string;
+
+  /**
+   * @generated from field: double unit_cpu = 5;
+   */
+  unitCpu: number;
+
+  /**
+   * @generated from field: uint64 unit_memory_bytes = 6;
+   */
+  unitMemoryBytes: bigint;
+
+  /**
+   * @generated from field: uint32 by_cpu = 7;
+   */
+  byCpu: number;
+
+  /**
+   * @generated from field: uint32 by_memory = 8;
+   */
+  byMemory: number;
+
+  /**
+   * @generated from field: uint32 by_tasks = 9;
+   */
+  byTasks: number;
+
+  /**
+   * @generated from field: uint32 by_containers = 10;
+   */
+  byContainers: number;
+};
+
+/**
+ * Describes the message micropod.v1.MachineHeadroom.
+ * Use `create(MachineHeadroomSchema)` to create a new message.
+ */
+export const MachineHeadroomSchema: GenMessage<MachineHeadroom> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 29);
+
+/**
+ * The Mac the machine runs on, read by the API process.
+ *
+ * @generated from message micropod.v1.MachineHost
+ */
+export type MachineHost = Message<"micropod.v1.MachineHost"> & {
+  /**
+   * @generated from field: uint32 cpus = 1;
+   */
+  cpus: number;
+
+  /**
+   * @generated from field: uint64 memory_bytes = 2;
+   */
+  memoryBytes: bigint;
+
+  /**
+   * Free, inactive, speculative and purgeable memory.
+   *
+   * @generated from field: uint64 memory_available_bytes = 3;
+   */
+  memoryAvailableBytes: bigint;
+
+  /**
+   * normal, warning or critical (the kernel's memory pressure level); empty
+   * when it could not be read.
+   *
+   * @generated from field: string memory_pressure = 4;
+   */
+  memoryPressure: string;
+
+  /**
+   * @generated from field: double load1 = 5;
+   */
+  load1: number;
+};
+
+/**
+ * Describes the message micropod.v1.MachineHost.
+ * Use `create(MachineHostSchema)` to create a new message.
+ */
+export const MachineHostSchema: GenMessage<MachineHost> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_rig, 30);
+
+/**
  * The rootless rig: which execution mode new workloads use, the shared hvf
  * machine's state and lifecycle, and its versioned payload (VMM, kernel,
  * initrd, guest tools). The machine is the one MICROPOD_HVF_ROOT names for
@@ -1119,6 +1705,21 @@ export const RigService: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof HVFMachineStatusSchema;
+  },
+  /**
+   * What the hvf machine has, what is in use, how hard it is being pushed
+   * and how many more containers it can take now: the figures a scheduler
+   * admits work by. One request to the guest engine, which answers from its
+   * own counters and a once-a-second sample of the kernel's (no subprocess,
+   * no listing); the Mac's memory pressure is read in this process. Never
+   * boots anything: unavailable while the machine does not serve.
+   *
+   * @generated from rpc micropod.v1.RigService.GetMachineCapacity
+   */
+  getMachineCapacity: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof MachineCapacitySchema;
   },
   /**
    * Start (returns once the guest answers), stop (a stop on request: Ping and

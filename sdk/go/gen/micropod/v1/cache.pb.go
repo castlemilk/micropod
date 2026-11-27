@@ -679,7 +679,15 @@ type CachePolicy struct {
 	Buildkit       *CacheBuildKit `protobuf:"bytes,16,opt,name=buildkit,proto3" json:"buildkit,omitempty"`
 	// Keys this server does not know, kept in machine.json and passed to the
 	// guest unchanged.
-	Extra         *structpb.Struct `protobuf:"bytes,17,opt,name=extra,proto3" json:"extra,omitempty"`
+	Extra *structpb.Struct `protobuf:"bytes,17,opt,name=extra,proto3" json:"extra,omitempty"`
+	// Which containers may be given the machine's Docker API by binding
+	// /var/run/docker.sock: trusted (only a trusted container) or any (a
+	// container of any tier; a shared-engine rig). Unset is trusted.
+	DockerSocket *string `protobuf:"bytes,18,opt,name=docker_socket,json=dockerSocket,proto3,oneof" json:"docker_socket,omitempty"`
+	// What a container that names no CPU, memory or process limit gets: job
+	// (1 CPU, 1 GiB, 512 processes) or none (no CPU quota, the machine's
+	// memory, 65536 processes). Unset is job.
+	DefaultLimits *string `protobuf:"bytes,19,opt,name=default_limits,json=defaultLimits,proto3,oneof" json:"default_limits,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -831,6 +839,20 @@ func (x *CachePolicy) GetExtra() *structpb.Struct {
 		return x.Extra
 	}
 	return nil
+}
+
+func (x *CachePolicy) GetDockerSocket() string {
+	if x != nil && x.DockerSocket != nil {
+		return *x.DockerSocket
+	}
+	return ""
+}
+
+func (x *CachePolicy) GetDefaultLimits() string {
+	if x != nil && x.DefaultLimits != nil {
+		return *x.DefaultLimits
+	}
+	return ""
 }
 
 type CacheStatus struct {
@@ -1619,8 +1641,14 @@ type SetCachePolicyRequest struct {
 	MaxBytes       *uint64                `protobuf:"varint,12,opt,name=max_bytes,json=maxBytes,proto3,oneof" json:"max_bytes,omitempty"`
 	MaxAgeDays     *uint32                `protobuf:"varint,13,opt,name=max_age_days,json=maxAgeDays,proto3,oneof" json:"max_age_days,omitempty"`
 	MinFreeBytes   *uint64                `protobuf:"varint,14,opt,name=min_free_bytes,json=minFreeBytes,proto3,oneof" json:"min_free_bytes,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// trusted or any. Changed only on the owner's private socket: a call over
+	// loopback TCP that names it is refused (permission_denied).
+	DockerSocket *string `protobuf:"bytes,15,opt,name=docker_socket,json=dockerSocket,proto3,oneof" json:"docker_socket,omitempty"`
+	// job or none. Changed only on the owner's private socket, like
+	// docker_socket.
+	DefaultLimits *string `protobuf:"bytes,16,opt,name=default_limits,json=defaultLimits,proto3,oneof" json:"default_limits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SetCachePolicyRequest) Reset() {
@@ -1749,6 +1777,20 @@ func (x *SetCachePolicyRequest) GetMinFreeBytes() uint64 {
 		return *x.MinFreeBytes
 	}
 	return 0
+}
+
+func (x *SetCachePolicyRequest) GetDockerSocket() string {
+	if x != nil && x.DockerSocket != nil {
+		return *x.DockerSocket
+	}
+	return ""
+}
+
+func (x *SetCachePolicyRequest) GetDefaultLimits() string {
+	if x != nil && x.DefaultLimits != nil {
+		return *x.DefaultLimits
+	}
+	return ""
 }
 
 type SetCachePolicyResponse struct {
@@ -2181,7 +2223,7 @@ const file_micropod_v1_cache_proto_rawDesc = "" +
 	"\x05units\x18\x01 \x03(\tR\x05units\"g\n" +
 	"\rCacheBuildKit\x12'\n" +
 	"\x0fregister_buildx\x18\x01 \x01(\bR\x0eregisterBuildx\x12-\n" +
-	"\x05extra\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x05extra\"\xdb\x05\n" +
+	"\x05extra\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x05extra\"\xd6\x06\n" +
 	"\vCachePolicy\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x12\n" +
 	"\x04mode\x18\x02 \x01(\tR\x04mode\x12#\n" +
@@ -2202,14 +2244,18 @@ const file_micropod_v1_cache_proto_rawDesc = "" +
 	"maxAgeDays\x88\x01\x01\x12)\n" +
 	"\x0emin_free_bytes\x18\x0f \x01(\x04H\x05R\fminFreeBytes\x88\x01\x01\x126\n" +
 	"\bbuildkit\x18\x10 \x01(\v2\x1a.micropod.v1.CacheBuildKitR\bbuildkit\x12-\n" +
-	"\x05extra\x18\x11 \x01(\v2\x17.google.protobuf.StructR\x05extraB\x10\n" +
+	"\x05extra\x18\x11 \x01(\v2\x17.google.protobuf.StructR\x05extra\x12(\n" +
+	"\rdocker_socket\x18\x12 \x01(\tH\x06R\fdockerSocket\x88\x01\x01\x12*\n" +
+	"\x0edefault_limits\x18\x13 \x01(\tH\aR\rdefaultLimits\x88\x01\x01B\x10\n" +
 	"\x0e_default_trustB\v\n" +
 	"\t_go_proxyB\x0f\n" +
 	"\r_npm_registryB\f\n" +
 	"\n" +
 	"_max_bytesB\x0f\n" +
 	"\r_max_age_daysB\x11\n" +
-	"\x0f_min_free_bytes\"\xfb\x05\n" +
+	"\x0f_min_free_bytesB\x10\n" +
+	"\x0e_docker_socketB\x11\n" +
+	"\x0f_default_limits\"\xfb\x05\n" +
 	"\vCacheStatus\x12\x12\n" +
 	"\x04root\x18\x01 \x01(\tR\x04root\x12\x1f\n" +
 	"\vmount_point\x18\x02 \x01(\tR\n" +
@@ -2297,7 +2343,7 @@ const file_micropod_v1_cache_proto_rawDesc = "" +
 	" \x01(\x04H\x00R\fskippedDirty\x88\x01\x01B\x10\n" +
 	"\x0e_skipped_dirty\")\n" +
 	"\x0fCacheStringList\x12\x16\n" +
-	"\x06values\x18\x01 \x03(\tR\x06values\"\xaa\x06\n" +
+	"\x06values\x18\x01 \x03(\tR\x06values\"\xcc\a\n" +
 	"\x15SetCachePolicyRequest\x12\x17\n" +
 	"\x04mode\x18\x01 \x01(\tH\x00R\x04mode\x88\x01\x01\x12(\n" +
 	"\rdefault_scope\x18\x02 \x01(\tH\x01R\fdefaultScope\x88\x01\x01\x12C\n" +
@@ -2316,7 +2362,9 @@ const file_micropod_v1_cache_proto_rawDesc = "" +
 	"\fmax_age_days\x18\r \x01(\rB\t\xbaH\x06*\x04\x18\x94\x9d\x02H\n" +
 	"R\n" +
 	"maxAgeDays\x88\x01\x01\x12)\n" +
-	"\x0emin_free_bytes\x18\x0e \x01(\x04H\vR\fminFreeBytes\x88\x01\x01B\a\n" +
+	"\x0emin_free_bytes\x18\x0e \x01(\x04H\vR\fminFreeBytes\x88\x01\x01\x12=\n" +
+	"\rdocker_socket\x18\x0f \x01(\tB\x13\xbaH\x10r\x0eR\atrustedR\x03anyH\fR\fdockerSocket\x88\x01\x01\x12<\n" +
+	"\x0edefault_limits\x18\x10 \x01(\tB\x10\xbaH\rr\vR\x03jobR\x04noneH\rR\rdefaultLimits\x88\x01\x01B\a\n" +
 	"\x05_modeB\x10\n" +
 	"\x0e_default_scopeB\x0e\n" +
 	"\f_go_trimpathB\x12\n" +
@@ -2330,7 +2378,9 @@ const file_micropod_v1_cache_proto_rawDesc = "" +
 	"\n" +
 	"_max_bytesB\x0f\n" +
 	"\r_max_age_daysB\x11\n" +
-	"\x0f_min_free_bytes\"f\n" +
+	"\x0f_min_free_bytesB\x10\n" +
+	"\x0e_docker_socketB\x11\n" +
+	"\x0f_default_limits\"f\n" +
 	"\x16SetCachePolicyResponse\x120\n" +
 	"\x06policy\x18\x01 \x01(\v2\x18.micropod.v1.CachePolicyR\x06policy\x12\x1a\n" +
 	"\bwarnings\x18\x02 \x03(\tR\bwarnings\"\xc4\x01\n" +

@@ -32,6 +32,10 @@ enum MachineCommands {
           micropod machine status [--json]        phase, pids, restarts, last exit, endpoints and
                                                   capabilities (caches, docker build, BuildKit,
                                                   engine API range)
+          micropod machine capacity [--json]      what the machine has, uses and can still take:
+                                                  CPUs, memory, containers by family, the guest's
+                                                  pressure (PSI), disk space, start latency and the
+                                                  recommended headroom (RigService/GetMachineCapacity)
           micropod machine logs [-f] [-n N] [--supervisor]
                                                   micropod-vmm console (or supervisor) log
           micropod machine docker-endpoint        unix:// socket for DOCKER_HOST
@@ -45,6 +49,7 @@ enum MachineCommands {
           micropod machine cache policy [show] [--mode auto|off] [--default-scope S|none]
                                    [--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off]
                                    [--default-trust trusted|untrusted] [--proxy-untrusted on|off]
+                                   [--docker-socket trusted|any] [--default-limits job|none]
                                    [--pnpm-legacy-env on|off] [--register-buildx on|off]
                                                   the dependency-cache policy every container on the
                                                   machine's Docker socket gets (machine.json `cache`);
@@ -91,7 +96,8 @@ enum MachineCommands {
         """
 
     static let hvfOnly: Set<String> = [
-        "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "link-socket",
+        "install", "start", "restart", "status", "capacity", "serve", "docker-endpoint", "buildkit-endpoint",
+        "link-socket",
         "help", "cache", "builder", "autostart",
     ]
 
@@ -153,6 +159,9 @@ enum MachineCommands {
             case "status":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine status")
                 return try await status(client, json: json)
+            case "capacity":
+                _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine capacity")
+                try await capacity(client, json: json)
             case "logs": try await logs(rest, layout: client.layout)
             case "docker-endpoint":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine docker-endpoint")
@@ -431,8 +440,73 @@ enum MachineCommands {
     static let policyValueFlags: Set<String> = [
         "--mode", "--default-scope", "--allow-scopes", "--tools", "--go-trimpath", "--pnpm-legacy-env",
         "--register-buildx", "--share-l0", "--go-proxy", "--npm-registry", "--max-bytes", "--max-age-days",
-        "--min-free-bytes", "--default-trust", "--proxy-untrusted",
+        "--min-free-bytes", "--default-trust", "--proxy-untrusted", "--docker-socket",
+        "--default-limits",
     ]
+
+    /// `machine capacity`: the report `GetMachineCapacity` answers, read
+    /// from the guest in this process.
+    static func capacity(_ client: HVFMachineClient, json: Bool) async throws {
+        let report: Micropod_V1_MachineCapacity
+        do {
+            report = try await client.capacityMessage()
+        } catch let error as HVFMachineClient.CapacityUnavailable {
+            throw MicropodError.message("unavailable: \(error.message)")
+        }
+        if json {
+            print(try report.jsonString())
+            return
+        }
+        for line in capacityLines(report) { print(line) }
+    }
+
+    static func capacityLines(_ r: Micropod_V1_MachineCapacity) -> [String] {
+        func gib(_ bytes: UInt64) -> String { String(format: "%.1f GiB", Double(bytes) / 1_073_741_824) }
+        func one(_ value: Double) -> String { String(format: "%.1f", value) }
+        var lines = [
+            "machine:    \(r.cpus) CPUs, \(gib(r.memoryBytes))",
+            "cpu:        \(one(r.usage.cpuBusyCpus)) of \(r.cpus) busy, load \(one(r.usage.load1)) "
+                + "\(one(r.usage.load5)) \(one(r.usage.load15)), \(r.usage.tasks) tasks of \(r.pidMax)",
+            "memory:     \(gib(r.usage.memoryUsedBytes)) used, \(gib(r.usage.memoryAvailableBytes)) available",
+            "containers: \(r.containers.running) running, \(r.containers.starting) starting, "
+                + "\(r.containers.created) created, \(r.containers.exited) exited (limits: "
+                + "\(one(Double(r.containers.requestedMilliCpu) / 1000)) CPUs, "
+                + "\(gib(UInt64(max(0, r.containers.requestedMemoryBytes)))); \(r.containers.withoutCpuLimit) without a CPU limit)",
+        ]
+        for family in r.containers.families where family.running > 0 {
+            lines.append(
+                "  \(family.name.isEmpty ? "(host)" : family.name): \(family.running) running of \(family.total)")
+        }
+        lines.append(
+            "starts:     \(r.engine.startsInFlight) in flight, p50 \(r.engine.startP50Ms) ms, "
+                + "p95 \(r.engine.startP95Ms) ms over the last \(r.engine.startsSampled)")
+        if r.pressure.available {
+            lines.append(
+                "pressure:   cpu \(one(r.pressure.cpu.some.avg10)), memory \(one(r.pressure.memory.some.avg10))/"
+                    + "\(one(r.pressure.memory.full.avg10)), io \(one(r.pressure.io.some.avg10))/"
+                    + "\(one(r.pressure.io.full.avg10)) (PSI avg10: some, or some/full)")
+        } else {
+            lines.append("pressure:   the guest kernel reports none (PSI is off)")
+        }
+        lines.append(
+            "disks:      OS \(gib(r.osDisk.freeBytes)) free of \(gib(r.osDisk.totalBytes))"
+                + (r.hasCacheDisk ? ", cache \(gib(r.cacheDisk.freeBytes)) free of \(gib(r.cacheDisk.totalBytes))" : "")
+        )
+        lines.append(
+            "mac:        memory pressure \(r.host.memoryPressure.isEmpty ? "unknown" : r.host.memoryPressure), "
+                + "\(gib(r.host.memoryAvailableBytes)) available of \(gib(r.host.memoryBytes)), load \(one(r.host.load1))"
+        )
+        let unit = "\(one(r.headroom.unitCpu)) CPU, \(gib(r.headroom.unitMemoryBytes))"
+        if r.headroom.underPressure {
+            lines.append("headroom:   0 — under pressure: \(r.headroom.reasons.joined(separator: "; "))")
+        } else {
+            lines.append(
+                "headroom:   \(r.headroom.containers) more containers of \(unit) each (limited by "
+                    + "\(r.headroom.limitedBy); cpu \(r.headroom.byCpu), memory \(r.headroom.byMemory), "
+                    + "tasks \(r.headroom.byTasks), containers \(r.headroom.byContainers))")
+        }
+        return lines
+    }
 
     static func cache(_ args: [String], client: HVFMachineClient, json: Bool) throws {
         guard args.first == "policy" else {
@@ -442,6 +516,7 @@ enum MachineCommands {
                     + "[--go-proxy URL|off] [--npm-registry URL|off] [--max-bytes SIZE|off] "
                     + "[--max-age-days N|off] [--min-free-bytes SIZE|off] "
                     + "[--default-trust trusted|untrusted] [--proxy-untrusted on|off] "
+                    + "[--docker-socket trusted|any] [--default-limits job|none] "
                     + "[--go-trimpath on|off] [--pnpm-legacy-env on|off] [--register-buildx on|off]")
         }
         let parsed = try parseArgs(
@@ -535,6 +610,20 @@ enum MachineCommands {
             policy.defaultTrust = trust
         }
         if let value = try toggle("--proxy-untrusted") { policy.proxyUntrusted = value }
+        if let raw = parsed.value("--docker-socket") {
+            guard let socket = HVFMachineCachePolicy.DockerSocket(rawValue: raw.lowercased()) else {
+                throw UsageError(
+                    message: "machine cache policy: --docker-socket wants trusted or any, got '\(raw)'")
+            }
+            policy.dockerSocket = socket
+        }
+        if let raw = parsed.value("--default-limits") {
+            guard let limits = HVFMachineCachePolicy.DefaultLimits(rawValue: raw.lowercased()) else {
+                throw UsageError(
+                    message: "machine cache policy: --default-limits wants job or none, got '\(raw)'")
+            }
+            policy.defaultLimits = limits
+        }
         if let raw = parsed.value("--go-proxy") {
             let trimmed = raw.trimmingCharacters(in: .whitespaces)
             policy.goProxy = ["off", "none", ""].contains(trimmed.lowercased()) ? nil : trimmed
@@ -669,6 +758,18 @@ enum MachineCommands {
                 + (policy.defaultTrust == nil ? " (not set)" : "")
                 + " (containers naming no io.micropod.cache.trust)")
         print("proxy untrusted: \(onOff(policy.proxyUntrusted)) (goProxy/npmRegistry for untrusted containers)")
+        print(
+            "docker socket:   \(policy.effectiveDockerSocket.rawValue)"
+                + (policy.dockerSocket == nil ? " (not set)" : "")
+                + (policy.effectiveDockerSocket == .any
+                    ? " (a container of any tier that binds /var/run/docker.sock gets its own family-scoped socket)"
+                    : " (only a trusted container that binds /var/run/docker.sock gets a socket)"))
+        print(
+            "default limits:  \(policy.effectiveDefaultLimits.rawValue)"
+                + (policy.defaultLimits == nil ? " (not set)" : "")
+                + (policy.effectiveDefaultLimits == .none
+                    ? " (a container naming no limit gets no CPU quota, the machine's memory and 65536 processes)"
+                    : " (a container naming no limit gets 1 CPU, 1 GiB and 512 processes)"))
         if let gp = policy.goProxy { print("go proxy (L0):   \(gp)") }
         if let nr = policy.npmRegistry { print("npm proxy (L0):  \(nr)") }
         if let maxB = policy.maxBytes { print("budget ceiling:  \(CacheCommands.formatBytes(maxB))") }

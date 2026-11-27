@@ -51,6 +51,9 @@ const (
 	// RigServiceGetMachineStatusProcedure is the fully-qualified name of the RigService's
 	// GetMachineStatus RPC.
 	RigServiceGetMachineStatusProcedure = "/micropod.v1.RigService/GetMachineStatus"
+	// RigServiceGetMachineCapacityProcedure is the fully-qualified name of the RigService's
+	// GetMachineCapacity RPC.
+	RigServiceGetMachineCapacityProcedure = "/micropod.v1.RigService/GetMachineCapacity"
 	// RigServiceControlMachineProcedure is the fully-qualified name of the RigService's ControlMachine
 	// RPC.
 	RigServiceControlMachineProcedure = "/micropod.v1.RigService/ControlMachine"
@@ -86,6 +89,13 @@ type RigServiceClient interface {
 	// while it runs, the guest is asked for its engine version, its
 	// containers and its cache disk (one second each).
 	GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error)
+	// What the hvf machine has, what is in use, how hard it is being pushed
+	// and how many more containers it can take now: the figures a scheduler
+	// admits work by. One request to the guest engine, which answers from its
+	// own counters and a once-a-second sample of the kernel's (no subprocess,
+	// no listing); the Mac's memory pressure is read in this process. Never
+	// boots anything: unavailable while the machine does not serve.
+	GetMachineCapacity(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.MachineCapacity], error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
 	// the machine; replies with its status afterwards. Stop and restart are
@@ -161,6 +171,12 @@ func NewRigServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(rigServiceMethods.ByName("GetMachineStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		getMachineCapacity: connect.NewClient[v1.Empty, v1.MachineCapacity](
+			httpClient,
+			baseURL+RigServiceGetMachineCapacityProcedure,
+			connect.WithSchema(rigServiceMethods.ByName("GetMachineCapacity")),
+			connect.WithClientOptions(opts...),
+		),
 		controlMachine: connect.NewClient[v1.ControlMachineRequest, v1.HVFMachineStatus](
 			httpClient,
 			baseURL+RigServiceControlMachineProcedure,
@@ -191,6 +207,7 @@ type rigServiceClient struct {
 	applyHVFUpdate      *connect.Client[v1.HVFUpdateRequest, v1.HVFUpdateResult]
 	rollbackHVFUpdate   *connect.Client[v1.HVFUpdateRequest, v1.HVFUpdateResult]
 	getMachineStatus    *connect.Client[v1.Empty, v1.HVFMachineStatus]
+	getMachineCapacity  *connect.Client[v1.Empty, v1.MachineCapacity]
 	controlMachine      *connect.Client[v1.ControlMachineRequest, v1.HVFMachineStatus]
 	setMachineAutostart *connect.Client[v1.SetMachineAutostartRequest, v1.HVFMachineStatus]
 	setupMachine        *connect.Client[v1.SetupMachineRequest, v1.SetupMachineResult]
@@ -229,6 +246,11 @@ func (c *rigServiceClient) RollbackHVFUpdate(ctx context.Context, req *connect.R
 // GetMachineStatus calls micropod.v1.RigService.GetMachineStatus.
 func (c *rigServiceClient) GetMachineStatus(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error) {
 	return c.getMachineStatus.CallUnary(ctx, req)
+}
+
+// GetMachineCapacity calls micropod.v1.RigService.GetMachineCapacity.
+func (c *rigServiceClient) GetMachineCapacity(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.MachineCapacity], error) {
+	return c.getMachineCapacity.CallUnary(ctx, req)
 }
 
 // ControlMachine calls micropod.v1.RigService.ControlMachine.
@@ -271,6 +293,13 @@ type RigServiceHandler interface {
 	// while it runs, the guest is asked for its engine version, its
 	// containers and its cache disk (one second each).
 	GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error)
+	// What the hvf machine has, what is in use, how hard it is being pushed
+	// and how many more containers it can take now: the figures a scheduler
+	// admits work by. One request to the guest engine, which answers from its
+	// own counters and a once-a-second sample of the kernel's (no subprocess,
+	// no listing); the Mac's memory pressure is read in this process. Never
+	// boots anything: unavailable while the machine does not serve.
+	GetMachineCapacity(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.MachineCapacity], error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
 	// the machine; replies with its status afterwards. Stop and restart are
@@ -342,6 +371,12 @@ func NewRigServiceHandler(svc RigServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(rigServiceMethods.ByName("GetMachineStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	rigServiceGetMachineCapacityHandler := connect.NewUnaryHandler(
+		RigServiceGetMachineCapacityProcedure,
+		svc.GetMachineCapacity,
+		connect.WithSchema(rigServiceMethods.ByName("GetMachineCapacity")),
+		connect.WithHandlerOptions(opts...),
+	)
 	rigServiceControlMachineHandler := connect.NewUnaryHandler(
 		RigServiceControlMachineProcedure,
 		svc.ControlMachine,
@@ -376,6 +411,8 @@ func NewRigServiceHandler(svc RigServiceHandler, opts ...connect.HandlerOption) 
 			rigServiceRollbackHVFUpdateHandler.ServeHTTP(w, r)
 		case RigServiceGetMachineStatusProcedure:
 			rigServiceGetMachineStatusHandler.ServeHTTP(w, r)
+		case RigServiceGetMachineCapacityProcedure:
+			rigServiceGetMachineCapacityHandler.ServeHTTP(w, r)
 		case RigServiceControlMachineProcedure:
 			rigServiceControlMachineHandler.ServeHTTP(w, r)
 		case RigServiceSetMachineAutostartProcedure:
@@ -417,6 +454,10 @@ func (UnimplementedRigServiceHandler) RollbackHVFUpdate(context.Context, *connec
 
 func (UnimplementedRigServiceHandler) GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.RigService.GetMachineStatus is not implemented"))
+}
+
+func (UnimplementedRigServiceHandler) GetMachineCapacity(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.MachineCapacity], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.RigService.GetMachineCapacity is not implemented"))
 }
 
 func (UnimplementedRigServiceHandler) ControlMachine(context.Context, *connect.Request[v1.ControlMachineRequest]) (*connect.Response[v1.HVFMachineStatus], error) {

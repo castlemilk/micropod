@@ -114,3 +114,22 @@ func mergeImageExposedPorts(exposed map[string]struct{}, info string) map[string
 	}
 	return ports
 }
+
+// imageEnv is the environment an image's config sets, from the image
+// status's verbose info; nil when it sets none or the info cannot be read.
+func imageEnv(info string) []string {
+	if info == "" {
+		return nil
+	}
+	var details struct {
+		ImageSpec struct {
+			Config struct {
+				Env []string
+			}
+		}
+	}
+	if err := json.Unmarshal([]byte(info), &details); err != nil {
+		return nil
+	}
+	return details.ImageSpec.Config.Env
+}

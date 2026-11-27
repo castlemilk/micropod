@@ -163,7 +163,7 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		s.mu.Lock()
 		err = s.socketOwnerGoneLocked(viewer)
 		if err == nil {
-			err = ensureVolumeBy(opts.Name, opts.Labels, viewer)
+			err = ensureVolumeBy(opts.Name, stampFamily(r.Context(), opts.Labels), viewer)
 		}
 		var v volumeInfo
 		if err == nil {

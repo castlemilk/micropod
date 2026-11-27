@@ -437,6 +437,30 @@ public nonisolated struct Micropod_V1_CachePolicy: @unchecked Sendable {
   /// Clears the value of `extra`. Subsequent reads from it will return its default value.
   public mutating func clearExtra() {_uniqueStorage()._extra = nil}
 
+  /// Which containers may be given the machine's Docker API by binding
+  /// /var/run/docker.sock: trusted (only a trusted container) or any (a
+  /// container of any tier; a shared-engine rig). Unset is trusted.
+  public var dockerSocket: String {
+    get {_storage._dockerSocket ?? String()}
+    set {_uniqueStorage()._dockerSocket = newValue}
+  }
+  /// Returns true if `dockerSocket` has been explicitly set.
+  public var hasDockerSocket: Bool {_storage._dockerSocket != nil}
+  /// Clears the value of `dockerSocket`. Subsequent reads from it will return its default value.
+  public mutating func clearDockerSocket() {_uniqueStorage()._dockerSocket = nil}
+
+  /// What a container that names no CPU, memory or process limit gets: job
+  /// (1 CPU, 1 GiB, 512 processes) or none (no CPU quota, the machine's
+  /// memory, 65536 processes). Unset is job.
+  public var defaultLimits: String {
+    get {_storage._defaultLimits ?? String()}
+    set {_uniqueStorage()._defaultLimits = newValue}
+  }
+  /// Returns true if `defaultLimits` has been explicitly set.
+  public var hasDefaultLimits: Bool {_storage._defaultLimits != nil}
+  /// Clears the value of `defaultLimits`. Subsequent reads from it will return its default value.
+  public mutating func clearDefaultLimits() {_uniqueStorage()._defaultLimits = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -948,6 +972,28 @@ public nonisolated struct Micropod_V1_SetCachePolicyRequest: Sendable {
   /// Clears the value of `minFreeBytes`. Subsequent reads from it will return its default value.
   public mutating func clearMinFreeBytes() {self._minFreeBytes = nil}
 
+  /// trusted or any. Changed only on the owner's private socket: a call over
+  /// loopback TCP that names it is refused (permission_denied).
+  public var dockerSocket: String {
+    get {_dockerSocket ?? String()}
+    set {_dockerSocket = newValue}
+  }
+  /// Returns true if `dockerSocket` has been explicitly set.
+  public var hasDockerSocket: Bool {self._dockerSocket != nil}
+  /// Clears the value of `dockerSocket`. Subsequent reads from it will return its default value.
+  public mutating func clearDockerSocket() {self._dockerSocket = nil}
+
+  /// job or none. Changed only on the owner's private socket, like
+  /// docker_socket.
+  public var defaultLimits: String {
+    get {_defaultLimits ?? String()}
+    set {_defaultLimits = newValue}
+  }
+  /// Returns true if `defaultLimits` has been explicitly set.
+  public var hasDefaultLimits: Bool {self._defaultLimits != nil}
+  /// Clears the value of `defaultLimits`. Subsequent reads from it will return its default value.
+  public mutating func clearDefaultLimits() {self._defaultLimits = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -966,6 +1012,8 @@ public nonisolated struct Micropod_V1_SetCachePolicyRequest: Sendable {
   fileprivate var _maxBytes: UInt64? = nil
   fileprivate var _maxAgeDays: UInt32? = nil
   fileprivate var _minFreeBytes: UInt64? = nil
+  fileprivate var _dockerSocket: String? = nil
+  fileprivate var _defaultLimits: String? = nil
 }
 
 public nonisolated struct Micropod_V1_SetCachePolicyResponse: Sendable {
@@ -1632,7 +1680,7 @@ nonisolated extension Micropod_V1_CacheBuildKit: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Micropod_V1_CachePolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CachePolicy"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}mode\0\u{3}default_scope\0\u{3}allowed_scopes\0\u{1}tools\0\u{3}go_trimpath\0\u{3}pnpm_legacy_env\0\u{3}shared_l0\0\u{3}default_trust\0\u{3}proxy_untrusted\0\u{3}go_proxy\0\u{3}npm_registry\0\u{3}max_bytes\0\u{3}max_age_days\0\u{3}min_free_bytes\0\u{1}buildkit\0\u{1}extra\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}mode\0\u{3}default_scope\0\u{3}allowed_scopes\0\u{1}tools\0\u{3}go_trimpath\0\u{3}pnpm_legacy_env\0\u{3}shared_l0\0\u{3}default_trust\0\u{3}proxy_untrusted\0\u{3}go_proxy\0\u{3}npm_registry\0\u{3}max_bytes\0\u{3}max_age_days\0\u{3}min_free_bytes\0\u{1}buildkit\0\u{1}extra\0\u{3}docker_socket\0\u{3}default_limits\0")
 
   fileprivate class _StorageClass {
     var _version: Int32 = 0
@@ -1652,6 +1700,8 @@ nonisolated extension Micropod_V1_CachePolicy: SwiftProtobuf.Message, SwiftProto
     var _minFreeBytes: UInt64? = nil
     var _buildkit: Micropod_V1_CacheBuildKit? = nil
     var _extra: SwiftProtobuf.Google_Protobuf_Struct? = nil
+    var _dockerSocket: String? = nil
+    var _defaultLimits: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1679,6 +1729,8 @@ nonisolated extension Micropod_V1_CachePolicy: SwiftProtobuf.Message, SwiftProto
       _minFreeBytes = source._minFreeBytes
       _buildkit = source._buildkit
       _extra = source._extra
+      _dockerSocket = source._dockerSocket
+      _defaultLimits = source._defaultLimits
     }
   }
 
@@ -1714,6 +1766,8 @@ nonisolated extension Micropod_V1_CachePolicy: SwiftProtobuf.Message, SwiftProto
         case 15: try { try decoder.decodeSingularUInt64Field(value: &_storage._minFreeBytes) }()
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._buildkit) }()
         case 17: try { try decoder.decodeSingularMessageField(value: &_storage._extra) }()
+        case 18: try { try decoder.decodeSingularStringField(value: &_storage._dockerSocket) }()
+        case 19: try { try decoder.decodeSingularStringField(value: &_storage._defaultLimits) }()
         default: break
         }
       }
@@ -1777,6 +1831,12 @@ nonisolated extension Micropod_V1_CachePolicy: SwiftProtobuf.Message, SwiftProto
       try { if let v = _storage._extra {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
       } }()
+      try { if let v = _storage._dockerSocket {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 18)
+      } }()
+      try { if let v = _storage._defaultLimits {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 19)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1803,6 +1863,8 @@ nonisolated extension Micropod_V1_CachePolicy: SwiftProtobuf.Message, SwiftProto
         if _storage._minFreeBytes != rhs_storage._minFreeBytes {return false}
         if _storage._buildkit != rhs_storage._buildkit {return false}
         if _storage._extra != rhs_storage._extra {return false}
+        if _storage._dockerSocket != rhs_storage._dockerSocket {return false}
+        if _storage._defaultLimits != rhs_storage._defaultLimits {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -2382,7 +2444,7 @@ nonisolated extension Micropod_V1_CacheStringList: SwiftProtobuf.Message, SwiftP
 
 nonisolated extension Micropod_V1_SetCachePolicyRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetCachePolicyRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mode\0\u{3}default_scope\0\u{3}allowed_scopes\0\u{1}tools\0\u{3}go_trimpath\0\u{3}pnpm_legacy_env\0\u{3}shared_l0\0\u{3}default_trust\0\u{3}proxy_untrusted\0\u{3}go_proxy\0\u{3}npm_registry\0\u{3}max_bytes\0\u{3}max_age_days\0\u{3}min_free_bytes\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mode\0\u{3}default_scope\0\u{3}allowed_scopes\0\u{1}tools\0\u{3}go_trimpath\0\u{3}pnpm_legacy_env\0\u{3}shared_l0\0\u{3}default_trust\0\u{3}proxy_untrusted\0\u{3}go_proxy\0\u{3}npm_registry\0\u{3}max_bytes\0\u{3}max_age_days\0\u{3}min_free_bytes\0\u{3}docker_socket\0\u{3}default_limits\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2404,6 +2466,8 @@ nonisolated extension Micropod_V1_SetCachePolicyRequest: SwiftProtobuf.Message, 
       case 12: try { try decoder.decodeSingularUInt64Field(value: &self._maxBytes) }()
       case 13: try { try decoder.decodeSingularUInt32Field(value: &self._maxAgeDays) }()
       case 14: try { try decoder.decodeSingularUInt64Field(value: &self._minFreeBytes) }()
+      case 15: try { try decoder.decodeSingularStringField(value: &self._dockerSocket) }()
+      case 16: try { try decoder.decodeSingularStringField(value: &self._defaultLimits) }()
       default: break
       }
     }
@@ -2456,6 +2520,12 @@ nonisolated extension Micropod_V1_SetCachePolicyRequest: SwiftProtobuf.Message, 
     try { if let v = self._minFreeBytes {
       try visitor.visitSingularUInt64Field(value: v, fieldNumber: 14)
     } }()
+    try { if let v = self._dockerSocket {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 15)
+    } }()
+    try { if let v = self._defaultLimits {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 16)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2474,6 +2544,8 @@ nonisolated extension Micropod_V1_SetCachePolicyRequest: SwiftProtobuf.Message, 
     if lhs._maxBytes != rhs._maxBytes {return false}
     if lhs._maxAgeDays != rhs._maxAgeDays {return false}
     if lhs._minFreeBytes != rhs._minFreeBytes {return false}
+    if lhs._dockerSocket != rhs._dockerSocket {return false}
+    if lhs._defaultLimits != rhs._defaultLimits {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

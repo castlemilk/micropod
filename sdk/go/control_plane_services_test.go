@@ -103,6 +103,11 @@ func (c *controlPlane) GetMachineStatus(_ context.Context, r *connect.Request[mi
 	return connect.NewResponse(&micropodv1.HVFMachineStatus{Phase: "running"}), nil
 }
 
+func (c *controlPlane) GetMachineCapacity(_ context.Context, r *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.MachineCapacity], error) {
+	c.saw(r.Spec().Procedure)
+	return connect.NewResponse(&micropodv1.MachineCapacity{Cpus: 16, Headroom: &micropodv1.MachineHeadroom{Containers: 28, LimitedBy: "cpu"}}), nil
+}
+
 func (c *controlPlane) ControlMachine(_ context.Context, r *connect.Request[micropodv1.ControlMachineRequest]) (*connect.Response[micropodv1.HVFMachineStatus], error) {
 	c.saw(r.Spec().Procedure)
 	return connect.NewResponse(&micropodv1.HVFMachineStatus{Phase: map[string]string{"stop": "stopped"}[r.Msg.GetAction()], StoppedOnRequest: r.Msg.GetAction() == "stop"}), nil
@@ -233,6 +238,11 @@ func TestClientReachesEveryControlPlaneRPC(t *testing.T) {
 			}
 			_, err = c.GetMachineStatus(ctx, empty())
 			must(err)
+			capacity, err := c.GetMachineCapacity(ctx, empty())
+			must(err)
+			if capacity.Msg.GetCpus() != 16 || capacity.Msg.GetHeadroom().GetContainers() != 28 {
+				t.Fatalf("GetMachineCapacity: %v", capacity.Msg)
+			}
 			stopped, err := c.ControlMachine(ctx, connect.NewRequest(&micropodv1.ControlMachineRequest{Action: "stop"}))
 			must(err)
 			if !stopped.Msg.GetStoppedOnRequest() {

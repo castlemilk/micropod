@@ -214,6 +214,86 @@ final class CacheRoutesTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: layout.config), saved, "a refused write leaves machine.json alone")
     }
 
+    /// What a container naming no limit may use is the owner's to say too.
+    func testPolicyPutChangesTheDefaultLimitsOnlyOnTheOwnersSocket() async throws {
+        let saved = try writeConfig(HVFMachineConfig())
+        let api = await makeHandlers()
+        var reply = await send(api, .put, "/v1/caches/policy", #"{"defaultLimits": "none"}"#)
+        XCTAssertEqual(reply.status, 403, "\(reply.body)")
+        XCTAssertTrue(
+            (reply.body["message"] as? String ?? "").contains("--default-limits job|none"), "\(reply.body)")
+        XCTAssertEqual(try Data(contentsOf: layout.config), saved, "a refused write leaves machine.json alone")
+
+        reply = await RequestOrigin.$ownerSocket.withValue(true) {
+            await send(api, .put, "/v1/caches/policy", #"{"defaultLimits": "none"}"#)
+        }
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+        XCTAssertEqual(
+            try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy.defaultLimits,
+            HVFMachineCachePolicy.DefaultLimits.none)
+        let rendered = try String(contentsOf: layout.cachePolicyFile, encoding: .utf8)
+        XCTAssertTrue(rendered.contains(#""defaultLimits" : "none""#), rendered)
+
+        reply = await RequestOrigin.$ownerSocket.withValue(true) {
+            await send(api, .put, "/v1/caches/policy", #"{"defaultLimits": "unlimited"}"#)
+        }
+        XCTAssertEqual(reply.status, 400, "\(reply.body)")
+        XCTAssertTrue(
+            (reply.body["error"] as? String ?? "").contains("defaultLimits must be job or none"), "\(reply.body)")
+    }
+
+    /// Who may be given a Docker socket is the owner's to say: the field is
+    /// written only by a request that arrived on the owner's private socket.
+    func testPolicyPutChangesTheDockerSocketPolicyOnlyOnTheOwnersSocket() async throws {
+        let saved = try writeConfig(HVFMachineConfig())
+        let api = await makeHandlers()
+        for body in [
+            #"{"dockerSocket": "any"}"#, #"{"dockerSocket": "trusted"}"#,
+            #"{"sharedL0": true, "dockerSocket": "any"}"#, #"{"dockerSocket": "everyone"}"#,
+        ] {
+            let reply = await send(api, .put, "/v1/caches/policy", body)
+            XCTAssertEqual(reply.status, 403, "\(body): \(reply.body)")
+            XCTAssertEqual(reply.body["code"] as? String, "permission_denied", "\(reply.body)")
+            XCTAssertTrue(
+                (reply.body["message"] as? String ?? "").contains("owner's private API socket"), "\(reply.body)")
+        }
+        XCTAssertEqual(try Data(contentsOf: layout.config), saved, "a refused write leaves machine.json alone")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.cachePolicyFile.path))
+
+        var reply = await RequestOrigin.$ownerSocket.withValue(true) {
+            await send(api, .put, "/v1/caches/policy", #"{"dockerSocket": "any", "defaultTrust": "untrusted"}"#)
+        }
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+        var policy = try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy
+        XCTAssertEqual(policy.dockerSocket, .any)
+        XCTAssertEqual(policy.defaultTrust, .untrusted)
+        let rendered = try String(contentsOf: layout.cachePolicyFile, encoding: .utf8)
+        XCTAssertTrue(rendered.contains(#""dockerSocket" : "any""#), rendered)
+
+        // Loopback TCP still changes every other field, and leaves this one.
+        reply = await send(api, .put, "/v1/caches/policy", #"{"sharedL0": true}"#)
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+        policy = try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy
+        XCTAssertEqual(policy.dockerSocket, .any, "fields the body does not name keep their values")
+        reply = await send(api, .get, "/v1/caches/policy", "")
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+
+        let before = try Data(contentsOf: layout.config)
+        reply = await RequestOrigin.$ownerSocket.withValue(true) {
+            await send(api, .put, "/v1/caches/policy", #"{"dockerSocket": "everyone"}"#)
+        }
+        XCTAssertEqual(reply.status, 400, "\(reply.body)")
+        XCTAssertTrue(
+            (reply.body["error"] as? String ?? "").contains("dockerSocket must be trusted or any"), "\(reply.body)")
+        XCTAssertEqual(try Data(contentsOf: layout.config), before)
+
+        reply = await RequestOrigin.$ownerSocket.withValue(true) {
+            await send(api, .put, "/v1/caches/policy", #"{"dockerSocket": "trusted"}"#)
+        }
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy.dockerSocket, .trusted)
+    }
+
     func testPolicyPutNeverReplacesAnUnreadableMachineConfigWithDefaults() async throws {
         let broken = Data(#"{"cpus": "#.utf8)
         try broken.write(to: layout.config)

@@ -26,6 +26,7 @@ const (
 	RigService_ApplyHVFUpdate_FullMethodName      = "/micropod.v1.RigService/ApplyHVFUpdate"
 	RigService_RollbackHVFUpdate_FullMethodName   = "/micropod.v1.RigService/RollbackHVFUpdate"
 	RigService_GetMachineStatus_FullMethodName    = "/micropod.v1.RigService/GetMachineStatus"
+	RigService_GetMachineCapacity_FullMethodName  = "/micropod.v1.RigService/GetMachineCapacity"
 	RigService_ControlMachine_FullMethodName      = "/micropod.v1.RigService/ControlMachine"
 	RigService_SetMachineAutostart_FullMethodName = "/micropod.v1.RigService/SetMachineAutostart"
 	RigService_SetupMachine_FullMethodName        = "/micropod.v1.RigService/SetupMachine"
@@ -63,6 +64,13 @@ type RigServiceClient interface {
 	// while it runs, the guest is asked for its engine version, its
 	// containers and its cache disk (one second each).
 	GetMachineStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HVFMachineStatus, error)
+	// What the hvf machine has, what is in use, how hard it is being pushed
+	// and how many more containers it can take now: the figures a scheduler
+	// admits work by. One request to the guest engine, which answers from its
+	// own counters and a once-a-second sample of the kernel's (no subprocess,
+	// no listing); the Mac's memory pressure is read in this process. Never
+	// boots anything: unavailable while the machine does not serve.
+	GetMachineCapacity(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MachineCapacity, error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
 	// the machine; replies with its status afterwards. Stop and restart are
@@ -163,6 +171,16 @@ func (c *rigServiceClient) GetMachineStatus(ctx context.Context, in *Empty, opts
 	return out, nil
 }
 
+func (c *rigServiceClient) GetMachineCapacity(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MachineCapacity, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MachineCapacity)
+	err := c.cc.Invoke(ctx, RigService_GetMachineCapacity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rigServiceClient) ControlMachine(ctx context.Context, in *ControlMachineRequest, opts ...grpc.CallOption) (*HVFMachineStatus, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HVFMachineStatus)
@@ -225,6 +243,13 @@ type RigServiceServer interface {
 	// while it runs, the guest is asked for its engine version, its
 	// containers and its cache disk (one second each).
 	GetMachineStatus(context.Context, *Empty) (*HVFMachineStatus, error)
+	// What the hvf machine has, what is in use, how hard it is being pushed
+	// and how many more containers it can take now: the figures a scheduler
+	// admits work by. One request to the guest engine, which answers from its
+	// own counters and a once-a-second sample of the kernel's (no subprocess,
+	// no listing); the Mac's memory pressure is read in this process. Never
+	// boots anything: unavailable while the machine does not serve.
+	GetMachineCapacity(context.Context, *Empty) (*MachineCapacity, error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
 	// the machine; replies with its status afterwards. Stop and restart are
@@ -275,6 +300,9 @@ func (UnimplementedRigServiceServer) RollbackHVFUpdate(context.Context, *HVFUpda
 }
 func (UnimplementedRigServiceServer) GetMachineStatus(context.Context, *Empty) (*HVFMachineStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMachineStatus not implemented")
+}
+func (UnimplementedRigServiceServer) GetMachineCapacity(context.Context, *Empty) (*MachineCapacity, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMachineCapacity not implemented")
 }
 func (UnimplementedRigServiceServer) ControlMachine(context.Context, *ControlMachineRequest) (*HVFMachineStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method ControlMachine not implemented")
@@ -432,6 +460,24 @@ func _RigService_GetMachineStatus_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RigService_GetMachineCapacity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RigServiceServer).GetMachineCapacity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RigService_GetMachineCapacity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RigServiceServer).GetMachineCapacity(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RigService_ControlMachine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ControlMachineRequest)
 	if err := dec(in); err != nil {
@@ -520,6 +566,10 @@ var RigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMachineStatus",
 			Handler:    _RigService_GetMachineStatus_Handler,
+		},
+		{
+			MethodName: "GetMachineCapacity",
+			Handler:    _RigService_GetMachineCapacity_Handler,
 		},
 		{
 			MethodName: "ControlMachine",

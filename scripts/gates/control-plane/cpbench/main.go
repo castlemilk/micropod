@@ -246,6 +246,8 @@ func newCaller(c *counted, t target, spec rpcSpec) (caller, error) {
 			path = "/v1/caches/explain/" + spec.id
 		case "Runtimes":
 			path = "/v1/runtimes"
+		case "GetMachineCapacity":
+			path = "/v1/rig/capacity"
 		default:
 			return nil, fmt.Errorf("%s has no REST route", spec.rpc)
 		}
@@ -287,6 +289,7 @@ func newCaller(c *counted, t target, spec rpcSpec) (caller, error) {
 	sys := micropodv1connect.NewSystemServiceClient(c.client, base+"/api", opts...)
 	ctr := micropodv1connect.NewContainerServiceClient(c.client, base+"/api", opts...)
 	cache := micropodv1connect.NewCacheServiceClient(c.client, base+"/api", opts...)
+	rig := micropodv1connect.NewRigServiceClient(c.client, base+"/api", opts...)
 	ct := func(h http.Header) string { return h.Get("Content-Type") }
 	switch spec.rpc {
 	case "Ping":
@@ -324,6 +327,15 @@ func newCaller(c *counted, t target, spec rpcSpec) (caller, error) {
 				return outcome{}, err
 			}
 			return outcome{contentType: ct(r.Header()), detail: r.Msg.GetId() + "/" + r.Msg.GetState()}, nil
+		}, nil
+	case "GetMachineCapacity":
+		return func(ctx context.Context) (outcome, error) {
+			r, err := rig.GetMachineCapacity(ctx, connect.NewRequest(&micropodv1.Empty{}))
+			if err != nil {
+				return outcome{}, err
+			}
+			return outcome{contentType: ct(r.Header()), detail: fmt.Sprintf("%d cpus/%d running/headroom %d",
+				r.Msg.GetCpus(), r.Msg.GetContainers().GetRunning(), r.Msg.GetHeadroom().GetContainers())}, nil
 		}, nil
 	case "GetCacheStatus":
 		// The default request: with stats, as GET /v1/caches answers.
@@ -407,7 +419,7 @@ func runUnary(args []string) (any, error) {
 	tspec := fs.String("target", "", "unix:/path or tcp:host:port")
 	codec := fs.String("codec", "proto", "proto | json | rest | auto (Cuttlefish's negotiation) | grpc")
 	httpVersion := fs.String("http", "1", "1 (HTTP/1.1) | 2 (h2c prior knowledge; -codec grpc implies it)")
-	rpc := fs.String("rpc", "Ping", "Ping | GetSystem | ListContainers | GetContainer | GetCacheStatus | ExplainContainerCache | CacheSummary | CacheExplain | Health")
+	rpc := fs.String("rpc", "Ping", "Ping | GetSystem | ListContainers | GetContainer | GetMachineCapacity | GetCacheStatus | ExplainContainerCache | CacheSummary | CacheExplain | Health")
 	id := fs.String("id", "", "container id for GetContainer / ExplainContainerCache / CacheExplain")
 	n := fs.Int("n", 200, "measured calls")
 	warmup := fs.Int("warmup", 20, "unmeasured calls before measuring")

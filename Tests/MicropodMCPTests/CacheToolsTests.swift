@@ -152,6 +152,17 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertEqual(second.mode, "auto")
     }
 
+    func testPolicySetSendsTheDockerSocketPolicy() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath)
+        defer { fake.stop() }
+        let server = makeServer()
+        let reply = try await call(server, "cache_policy_set", ["docker_socket": "any"])
+        XCTAssertFalse(reply.isError, reply.text)
+        let requests = try policyWrites(fake)
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertEqual(try requests.first?.jsonString(), #"{"dockerSocket":"any"}"#)
+    }
+
     func testPolicySetSendsTheDefaultTrustTier() async throws {
         let fake = try FakeLocalAPI(unixSocket: socketPath)
         defer { fake.stop() }

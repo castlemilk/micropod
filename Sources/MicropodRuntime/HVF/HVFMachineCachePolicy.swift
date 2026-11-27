@@ -44,6 +44,33 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         case untrusted
     }
 
+    /// Which containers the host may hand the machine's Docker API by
+    /// binding `/var/run/docker.sock` into them (the delegated, family-scoped
+    /// socket a CI step uses for Testcontainers, compose and `docker build`).
+    public enum DockerSocket: String, Codable, Sendable, Equatable, CaseIterable {
+        /// Only a trusted container: the shipped default.
+        case trusted
+        /// A container of any tier. For a machine whose owner accepts that
+        /// its jobs share one engine (a CI rig in shared-engine mode): an
+        /// untrusted job then shares the machine's kernel, image store and
+        /// BuildKit layer cache with every other job. Nothing about cache
+        /// trust changes: an untrusted container and everything it creates
+        /// on its socket still only read the shared dependency caches.
+        case any
+    }
+
+    /// What a container that names no CPU, memory or process limit gets.
+    public enum DefaultLimits: String, Codable, Sendable, Equatable, CaseIterable {
+        /// One CPU, 1 GiB and 512 processes: the shipped default.
+        case job
+        /// No CPU quota, the machine's memory and 65536 processes, as a
+        /// Docker daemon gives: for a machine whose scheduler admits work by
+        /// the machine's real load (`GetMachineCapacity`), and for clients
+        /// that never name a limit (a GitHub Actions runner's job and
+        /// service containers, compose files, Testcontainers).
+        case none
+    }
+
     /// `buildkit` settings: what `machine start` does about BuildKit.
     public struct BuildKit: Codable, Sendable, Equatable {
         /// `machine start` installs the fallback buildx builder
@@ -117,6 +144,13 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     public var defaultTrust: Trust?
     /// Also inject `goProxy` and `npmRegistry` into untrusted containers.
     public var proxyUntrusted: Bool
+    /// Who may be given a Docker socket (`DockerSocket`). nil is not set:
+    /// trusted containers only. Host-owned like `defaultTrust`: the CLI
+    /// writes it, and the API changes it only on the owner's private socket.
+    public var dockerSocket: DockerSocket?
+    /// What a container naming no limit gets (`DefaultLimits`). nil is not
+    /// set: `job`. Host-owned like `dockerSocket`.
+    public var defaultLimits: DefaultLimits?
     /// Optional L0 rig Go proxy list, a `GOPROXY` value (e.g.
     /// `http://10.42.0.1:7677/go|direct`). A gateway URL opens a host port
     /// only as `HVFHostPortAllowlist` allows.
@@ -139,7 +173,8 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         allowedScopes: [String] = ["*"], tools: [String] = HVFMachineCachePolicy.toolKinds, goTrimpath: Bool = true,
         pnpmLegacyEnv: Bool = true, sharedL0: Bool = false, goProxy: String? = nil, npmRegistry: String? = nil,
         maxBytes: UInt64? = nil, maxAgeDays: Int? = nil, minFreeBytes: UInt64? = nil,
-        defaultTrust: Trust? = nil, proxyUntrusted: Bool = false,
+        defaultTrust: Trust? = nil, proxyUntrusted: Bool = false, dockerSocket: DockerSocket? = nil,
+        defaultLimits: DefaultLimits? = nil,
         buildkit: BuildKit = BuildKit(), extra: [String: JSONValue] = [:]
     ) {
         self.version = version
@@ -157,6 +192,8 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         self.minFreeBytes = minFreeBytes
         self.defaultTrust = defaultTrust
         self.proxyUntrusted = proxyUntrusted
+        self.dockerSocket = dockerSocket
+        self.defaultLimits = defaultLimits
         self.buildkit = buildkit
         self.extra = extra
     }
@@ -164,10 +201,16 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// `defaultTrust` as the guest applies it.
     public var effectiveDefaultTrust: Trust { defaultTrust ?? .trusted }
 
+    /// `dockerSocket` as the guest applies it.
+    public var effectiveDockerSocket: DockerSocket { dockerSocket ?? .trusted }
+
+    /// `defaultLimits` as the guest applies it.
+    public var effectiveDefaultLimits: DefaultLimits { defaultLimits ?? .job }
+
     static let knownKeys: Set<String> = [
         "version", "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv",
         "sharedL0", "goProxy", "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "defaultTrust",
-        "proxyUntrusted", "buildkit",
+        "proxyUntrusted", "dockerSocket", "defaultLimits", "buildkit",
     ]
 
     /// Missing keys take their defaults, like the rest of machine.json.
@@ -207,6 +250,26 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
             defaultTrust = nil
         }
         proxyUntrusted = try c.decodeIfPresent(Bool.self, forKey: key("proxyUntrusted")) ?? false
+        if let raw = try c.decodeIfPresent(String.self, forKey: key("dockerSocket")) {
+            guard let socket = DockerSocket(rawValue: raw) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: key("dockerSocket"), in: c,
+                    debugDescription: "cache dockerSocket must be trusted or any, got '\(raw)'")
+            }
+            dockerSocket = socket
+        } else {
+            dockerSocket = nil
+        }
+        if let raw = try c.decodeIfPresent(String.self, forKey: key("defaultLimits")) {
+            guard let limits = DefaultLimits(rawValue: raw) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: key("defaultLimits"), in: c,
+                    debugDescription: "cache defaultLimits must be job or none, got '\(raw)'")
+            }
+            defaultLimits = limits
+        } else {
+            defaultLimits = nil
+        }
         buildkit = try c.decodeIfPresent(BuildKit.self, forKey: key("buildkit")) ?? defaults.buildkit
         extra = try HVFJSONKey.unknown(in: c, known: Self.knownKeys)
     }
@@ -233,6 +296,8 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         if let minFreeBytes, minFreeBytes > 0 { try c.encode(minFreeBytes, forKey: HVFJSONKey("minFreeBytes")) }
         if let defaultTrust { try c.encode(defaultTrust.rawValue, forKey: HVFJSONKey("defaultTrust")) }
         if proxyUntrusted { try c.encode(proxyUntrusted, forKey: HVFJSONKey("proxyUntrusted")) }
+        if let dockerSocket { try c.encode(dockerSocket.rawValue, forKey: HVFJSONKey("dockerSocket")) }
+        if let defaultLimits { try c.encode(defaultLimits.rawValue, forKey: HVFJSONKey("defaultLimits")) }
         try c.encode(buildkit, forKey: HVFJSONKey("buildkit"))
         for (name, value) in extra where !Self.knownKeys.contains(name) {
             try c.encode(value, forKey: HVFJSONKey(name))
@@ -369,19 +434,34 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         func encode(to encoder: any Encoder) throws { try policy.encode(to: encoder, tools: tools) }
     }
 
-    /// `caches: …` in `machine status`.
+    /// `caches: …` in `machine status`, the supervisor's log line at every
+    /// start and `cache status`. A machine that hands any container a Docker
+    /// socket says so here, whatever the cache mode.
     public var summary: String {
+        let socket =
+            (effectiveDockerSocket == .any ? "; \(Self.dockerSocketAnySummary)" : "")
+            + (effectiveDefaultLimits == .none ? "; \(Self.defaultLimitsNoneSummary)" : "")
         switch mode {
-        case .off: return "off"
+        case .off: return "off\(socket)"
         case .auto:
             let scope =
                 defaultScope.isEmpty ? "no default scope (only containers naming a scope)" : "scope \(defaultScope)"
             let kinds = (try? Self.normalizedTools(tools)) ?? tools
             let which = kinds == Self.toolKinds ? "" : ", tools \(kinds.joined(separator: ","))"
             let trust = effectiveDefaultTrust == .untrusted ? ", untrusted by default" : ""
-            return "auto, \(scope)\(which)\(trust)"
+            return "auto, \(scope)\(which)\(trust)\(socket)"
         }
     }
+
+    /// What `defaultLimits: none` relaxes, in one line.
+    public static let defaultLimitsNoneSummary =
+        "no default container limits (a container naming no limit gets no CPU quota and the machine's memory, "
+        + "not 1 CPU and 1 GiB)"
+
+    /// What `dockerSocket: any` relaxes, in one line.
+    public static let dockerSocketAnySummary =
+        "docker socket for any container (shared engine: untrusted jobs get a family-scoped Docker socket and "
+        + "share this machine's kernel, images and build cache; they still only read the dependency caches)"
 }
 
 // MARK: - The rendered file

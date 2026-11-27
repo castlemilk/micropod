@@ -547,6 +547,13 @@ public enum HVFVMMCommand {
     /// every boot, and so every payload switchover, ~30 ms. A configured
     /// `loglevel=` (machine.json `kernelArguments`) comes later and wins.
     public static let kernelLogLevelBootArgument = "loglevel=6"
+    /// Turns on the guest kernel's pressure stall accounting (PSI), which
+    /// the kernel is built with and leaves off until asked: the share of
+    /// time tasks stalled on CPU, memory and IO is what the machine's
+    /// capacity report (`GetMachineCapacity`) reads to say it is under
+    /// pressure. A configured `psi=` (machine.json `kernelArguments`) comes
+    /// later and wins.
+    public static let pressureBootArgument = "psi=1"
     /// Names the machine root for guest init (`mp.private_b64`, base64 with a
     /// trailing "." as micropod-vmm writes `mp.workspace_b64`) when it lies
     /// inside the workspace share, as the standard machine's `~/.micropod/hvf`
@@ -602,6 +609,7 @@ public enum HVFVMMCommand {
             args += ["--cmdline-append", privateRoot]
         }
         args += ["--cmdline-append", kernelLogLevelBootArgument]
+        args += ["--cmdline-append", pressureBootArgument]
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if osDiskFlushFlag, let osDiskFlush = config.osDiskFlush {
             args += [HVFVMMFeatures.osDiskFlushFlag, osDiskFlush]

@@ -456,12 +456,18 @@ func (x *RigHVFHealth) GetPayloadVersion() string {
 }
 
 type RigCachePolicySummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mode          string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
-	SharedL0      bool                   `protobuf:"varint,2,opt,name=shared_l0,json=sharedL0,proto3" json:"shared_l0,omitempty"`
-	DefaultTrust  string                 `protobuf:"bytes,3,opt,name=default_trust,json=defaultTrust,proto3" json:"default_trust,omitempty"`
-	GoProxy       string                 `protobuf:"bytes,4,opt,name=go_proxy,json=goProxy,proto3" json:"go_proxy,omitempty"`
-	ToolCount     int32                  `protobuf:"varint,5,opt,name=tool_count,json=toolCount,proto3" json:"tool_count,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Mode         string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	SharedL0     bool                   `protobuf:"varint,2,opt,name=shared_l0,json=sharedL0,proto3" json:"shared_l0,omitempty"`
+	DefaultTrust string                 `protobuf:"bytes,3,opt,name=default_trust,json=defaultTrust,proto3" json:"default_trust,omitempty"`
+	GoProxy      string                 `protobuf:"bytes,4,opt,name=go_proxy,json=goProxy,proto3" json:"go_proxy,omitempty"`
+	ToolCount    int32                  `protobuf:"varint,5,opt,name=tool_count,json=toolCount,proto3" json:"tool_count,omitempty"`
+	// trusted or any: which containers may be given a Docker socket
+	// (CachePolicy.docker_socket as the guest applies it).
+	DockerSocket string `protobuf:"bytes,6,opt,name=docker_socket,json=dockerSocket,proto3" json:"docker_socket,omitempty"`
+	// job or none: what a container naming no limit gets
+	// (CachePolicy.default_limits as the guest applies it).
+	DefaultLimits string `protobuf:"bytes,7,opt,name=default_limits,json=defaultLimits,proto3" json:"default_limits,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -529,6 +535,20 @@ func (x *RigCachePolicySummary) GetToolCount() int32 {
 		return x.ToolCount
 	}
 	return 0
+}
+
+func (x *RigCachePolicySummary) GetDockerSocket() string {
+	if x != nil {
+		return x.DockerSocket
+	}
+	return ""
+}
+
+func (x *RigCachePolicySummary) GetDefaultLimits() string {
+	if x != nil {
+		return x.DefaultLimits
+	}
+	return ""
 }
 
 type RigDepproxy struct {
@@ -1850,6 +1870,1039 @@ func (x *ControlMachineRequest) GetForce() bool {
 	return false
 }
 
+// The hvf machine's capacity, load and headroom (GetMachineCapacity).
+type MachineCapacity struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the guest sampled its kernel figures (Unix milliseconds). The
+	// container counts and the engine's own counters are of the request.
+	SampledUnixMs int64 `protobuf:"varint,1,opt,name=sampled_unix_ms,json=sampledUnixMs,proto3" json:"sampled_unix_ms,omitempty"`
+	// What the machine has.
+	Cpus        uint32 `protobuf:"varint,2,opt,name=cpus,proto3" json:"cpus,omitempty"`
+	MemoryBytes uint64 `protobuf:"varint,3,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
+	// The most tasks (processes and threads) the guest kernel runs at once.
+	PidMax uint64 `protobuf:"varint,4,opt,name=pid_max,json=pidMax,proto3" json:"pid_max,omitempty"`
+	// The most containers running at once the headroom is counted against.
+	MaxContainers uint32 `protobuf:"varint,5,opt,name=max_containers,json=maxContainers,proto3" json:"max_containers,omitempty"`
+	// The most containers one delegated Docker socket may hold at once.
+	FamilyContainersMax uint32 `protobuf:"varint,6,opt,name=family_containers_max,json=familyContainersMax,proto3" json:"family_containers_max,omitempty"`
+	// The most gateway relay connections (published ports reached from
+	// containers) the engine holds at once.
+	RelayConnectionsMax uint32             `protobuf:"varint,7,opt,name=relay_connections_max,json=relayConnectionsMax,proto3" json:"relay_connections_max,omitempty"`
+	Usage               *MachineUsage      `protobuf:"bytes,8,opt,name=usage,proto3" json:"usage,omitempty"`
+	Containers          *MachineContainers `protobuf:"bytes,9,opt,name=containers,proto3" json:"containers,omitempty"`
+	Engine              *MachineEngineLoad `protobuf:"bytes,10,opt,name=engine,proto3" json:"engine,omitempty"`
+	Pressure            *MachinePressure   `protobuf:"bytes,11,opt,name=pressure,proto3" json:"pressure,omitempty"`
+	OsDisk              *MachineDisk       `protobuf:"bytes,12,opt,name=os_disk,json=osDisk,proto3" json:"os_disk,omitempty"`
+	// Unset when the machine has no cache disk.
+	CacheDisk     *MachineDisk     `protobuf:"bytes,13,opt,name=cache_disk,json=cacheDisk,proto3,oneof" json:"cache_disk,omitempty"`
+	Headroom      *MachineHeadroom `protobuf:"bytes,14,opt,name=headroom,proto3" json:"headroom,omitempty"`
+	Host          *MachineHost     `protobuf:"bytes,15,opt,name=host,proto3" json:"host,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MachineCapacity) Reset() {
+	*x = MachineCapacity{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineCapacity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineCapacity) ProtoMessage() {}
+
+func (x *MachineCapacity) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineCapacity.ProtoReflect.Descriptor instead.
+func (*MachineCapacity) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *MachineCapacity) GetSampledUnixMs() int64 {
+	if x != nil {
+		return x.SampledUnixMs
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetCpus() uint32 {
+	if x != nil {
+		return x.Cpus
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetMemoryBytes() uint64 {
+	if x != nil {
+		return x.MemoryBytes
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetPidMax() uint64 {
+	if x != nil {
+		return x.PidMax
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetMaxContainers() uint32 {
+	if x != nil {
+		return x.MaxContainers
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetFamilyContainersMax() uint32 {
+	if x != nil {
+		return x.FamilyContainersMax
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetRelayConnectionsMax() uint32 {
+	if x != nil {
+		return x.RelayConnectionsMax
+	}
+	return 0
+}
+
+func (x *MachineCapacity) GetUsage() *MachineUsage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetContainers() *MachineContainers {
+	if x != nil {
+		return x.Containers
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetEngine() *MachineEngineLoad {
+	if x != nil {
+		return x.Engine
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetPressure() *MachinePressure {
+	if x != nil {
+		return x.Pressure
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetOsDisk() *MachineDisk {
+	if x != nil {
+		return x.OsDisk
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetCacheDisk() *MachineDisk {
+	if x != nil {
+		return x.CacheDisk
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetHeadroom() *MachineHeadroom {
+	if x != nil {
+		return x.Headroom
+	}
+	return nil
+}
+
+func (x *MachineCapacity) GetHost() *MachineHost {
+	if x != nil {
+		return x.Host
+	}
+	return nil
+}
+
+type MachineUsage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The share of all CPUs busy over the second before the sample (0..1),
+	// and the same as a number of CPUs.
+	CpuBusyFraction float64 `protobuf:"fixed64,1,opt,name=cpu_busy_fraction,json=cpuBusyFraction,proto3" json:"cpu_busy_fraction,omitempty"`
+	CpuBusyCpus     float64 `protobuf:"fixed64,2,opt,name=cpu_busy_cpus,json=cpuBusyCpus,proto3" json:"cpu_busy_cpus,omitempty"`
+	Load1           float64 `protobuf:"fixed64,3,opt,name=load1,proto3" json:"load1,omitempty"`
+	Load5           float64 `protobuf:"fixed64,4,opt,name=load5,proto3" json:"load5,omitempty"`
+	Load15          float64 `protobuf:"fixed64,5,opt,name=load15,proto3" json:"load15,omitempty"`
+	// Tasks runnable now, and all tasks.
+	Runnable             uint32 `protobuf:"varint,6,opt,name=runnable,proto3" json:"runnable,omitempty"`
+	Tasks                uint32 `protobuf:"varint,7,opt,name=tasks,proto3" json:"tasks,omitempty"`
+	MemoryAvailableBytes uint64 `protobuf:"varint,8,opt,name=memory_available_bytes,json=memoryAvailableBytes,proto3" json:"memory_available_bytes,omitempty"`
+	MemoryUsedBytes      uint64 `protobuf:"varint,9,opt,name=memory_used_bytes,json=memoryUsedBytes,proto3" json:"memory_used_bytes,omitempty"`
+	SwapUsedBytes        uint64 `protobuf:"varint,10,opt,name=swap_used_bytes,json=swapUsedBytes,proto3" json:"swap_used_bytes,omitempty"`
+	OpenFiles            uint64 `protobuf:"varint,11,opt,name=open_files,json=openFiles,proto3" json:"open_files,omitempty"`
+	ConntrackEntries     uint64 `protobuf:"varint,12,opt,name=conntrack_entries,json=conntrackEntries,proto3" json:"conntrack_entries,omitempty"`
+	RelayConnections     uint32 `protobuf:"varint,13,opt,name=relay_connections,json=relayConnections,proto3" json:"relay_connections,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *MachineUsage) Reset() {
+	*x = MachineUsage{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineUsage) ProtoMessage() {}
+
+func (x *MachineUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineUsage.ProtoReflect.Descriptor instead.
+func (*MachineUsage) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *MachineUsage) GetCpuBusyFraction() float64 {
+	if x != nil {
+		return x.CpuBusyFraction
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetCpuBusyCpus() float64 {
+	if x != nil {
+		return x.CpuBusyCpus
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetLoad1() float64 {
+	if x != nil {
+		return x.Load1
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetLoad5() float64 {
+	if x != nil {
+		return x.Load5
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetLoad15() float64 {
+	if x != nil {
+		return x.Load15
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetRunnable() uint32 {
+	if x != nil {
+		return x.Runnable
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetTasks() uint32 {
+	if x != nil {
+		return x.Tasks
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetMemoryAvailableBytes() uint64 {
+	if x != nil {
+		return x.MemoryAvailableBytes
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetMemoryUsedBytes() uint64 {
+	if x != nil {
+		return x.MemoryUsedBytes
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetSwapUsedBytes() uint64 {
+	if x != nil {
+		return x.SwapUsedBytes
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetOpenFiles() uint64 {
+	if x != nil {
+		return x.OpenFiles
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetConntrackEntries() uint64 {
+	if x != nil {
+		return x.ConntrackEntries
+	}
+	return 0
+}
+
+func (x *MachineUsage) GetRelayConnections() uint32 {
+	if x != nil {
+		return x.RelayConnections
+	}
+	return 0
+}
+
+type MachineContainers struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Total    uint32                 `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Running  uint32                 `protobuf:"varint,2,opt,name=running,proto3" json:"running,omitempty"`
+	Starting uint32                 `protobuf:"varint,3,opt,name=starting,proto3" json:"starting,omitempty"`
+	Created  uint32                 `protobuf:"varint,4,opt,name=created,proto3" json:"created,omitempty"`
+	Exited   uint32                 `protobuf:"varint,5,opt,name=exited,proto3" json:"exited,omitempty"`
+	// The CPU limits (thousandths of a CPU) and memory limits of the running
+	// and starting containers, summed; without_cpu_limit counts those with no
+	// CPU limit, which the sum leaves out, as it does a memory limit of the
+	// whole machine.
+	RequestedMilliCpu    int64  `protobuf:"varint,6,opt,name=requested_milli_cpu,json=requestedMilliCpu,proto3" json:"requested_milli_cpu,omitempty"`
+	RequestedMemoryBytes int64  `protobuf:"varint,7,opt,name=requested_memory_bytes,json=requestedMemoryBytes,proto3" json:"requested_memory_bytes,omitempty"`
+	WithoutCpuLimit      uint32 `protobuf:"varint,8,opt,name=without_cpu_limit,json=withoutCpuLimit,proto3" json:"without_cpu_limit,omitempty"`
+	// By family, the largest first, at most 64 rows (the rest summed as
+	// "(other)"). A family is a delegated Docker socket's owner and what it
+	// created, named by the owner's io.micropod.family label or its name; or
+	// every container the host created with the same io.micropod.family
+	// label; "" is what the host created without one.
+	Families      []*MachineFamily `protobuf:"bytes,9,rep,name=families,proto3" json:"families,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MachineContainers) Reset() {
+	*x = MachineContainers{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineContainers) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineContainers) ProtoMessage() {}
+
+func (x *MachineContainers) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineContainers.ProtoReflect.Descriptor instead.
+func (*MachineContainers) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *MachineContainers) GetTotal() uint32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetRunning() uint32 {
+	if x != nil {
+		return x.Running
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetStarting() uint32 {
+	if x != nil {
+		return x.Starting
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetCreated() uint32 {
+	if x != nil {
+		return x.Created
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetExited() uint32 {
+	if x != nil {
+		return x.Exited
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetRequestedMilliCpu() int64 {
+	if x != nil {
+		return x.RequestedMilliCpu
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetRequestedMemoryBytes() int64 {
+	if x != nil {
+		return x.RequestedMemoryBytes
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetWithoutCpuLimit() uint32 {
+	if x != nil {
+		return x.WithoutCpuLimit
+	}
+	return 0
+}
+
+func (x *MachineContainers) GetFamilies() []*MachineFamily {
+	if x != nil {
+		return x.Families
+	}
+	return nil
+}
+
+type MachineFamily struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Name                 string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Running              uint32                 `protobuf:"varint,2,opt,name=running,proto3" json:"running,omitempty"`
+	Total                uint32                 `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	RequestedMilliCpu    int64                  `protobuf:"varint,4,opt,name=requested_milli_cpu,json=requestedMilliCpu,proto3" json:"requested_milli_cpu,omitempty"`
+	RequestedMemoryBytes int64                  `protobuf:"varint,5,opt,name=requested_memory_bytes,json=requestedMemoryBytes,proto3" json:"requested_memory_bytes,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *MachineFamily) Reset() {
+	*x = MachineFamily{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineFamily) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineFamily) ProtoMessage() {}
+
+func (x *MachineFamily) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineFamily.ProtoReflect.Descriptor instead.
+func (*MachineFamily) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *MachineFamily) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *MachineFamily) GetRunning() uint32 {
+	if x != nil {
+		return x.Running
+	}
+	return 0
+}
+
+func (x *MachineFamily) GetTotal() uint32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *MachineFamily) GetRequestedMilliCpu() int64 {
+	if x != nil {
+		return x.RequestedMilliCpu
+	}
+	return 0
+}
+
+func (x *MachineFamily) GetRequestedMemoryBytes() int64 {
+	if x != nil {
+		return x.RequestedMemoryBytes
+	}
+	return 0
+}
+
+type MachineEngineLoad struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CreatesInFlight uint32                 `protobuf:"varint,1,opt,name=creates_in_flight,json=createsInFlight,proto3" json:"creates_in_flight,omitempty"`
+	StartsInFlight  uint32                 `protobuf:"varint,2,opt,name=starts_in_flight,json=startsInFlight,proto3" json:"starts_in_flight,omitempty"`
+	// Over the latest starts_sampled starts (256 at most): from the start
+	// request to the container's process running, in milliseconds.
+	StartP50Ms    uint32 `protobuf:"varint,3,opt,name=start_p50_ms,json=startP50Ms,proto3" json:"start_p50_ms,omitempty"`
+	StartP95Ms    uint32 `protobuf:"varint,4,opt,name=start_p95_ms,json=startP95Ms,proto3" json:"start_p95_ms,omitempty"`
+	StartsSampled uint32 `protobuf:"varint,5,opt,name=starts_sampled,json=startsSampled,proto3" json:"starts_sampled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MachineEngineLoad) Reset() {
+	*x = MachineEngineLoad{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineEngineLoad) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineEngineLoad) ProtoMessage() {}
+
+func (x *MachineEngineLoad) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineEngineLoad.ProtoReflect.Descriptor instead.
+func (*MachineEngineLoad) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *MachineEngineLoad) GetCreatesInFlight() uint32 {
+	if x != nil {
+		return x.CreatesInFlight
+	}
+	return 0
+}
+
+func (x *MachineEngineLoad) GetStartsInFlight() uint32 {
+	if x != nil {
+		return x.StartsInFlight
+	}
+	return 0
+}
+
+func (x *MachineEngineLoad) GetStartP50Ms() uint32 {
+	if x != nil {
+		return x.StartP50Ms
+	}
+	return 0
+}
+
+func (x *MachineEngineLoad) GetStartP95Ms() uint32 {
+	if x != nil {
+		return x.StartP95Ms
+	}
+	return 0
+}
+
+func (x *MachineEngineLoad) GetStartsSampled() uint32 {
+	if x != nil {
+		return x.StartsSampled
+	}
+	return 0
+}
+
+// The guest kernel's pressure stall information: the percentage of the last
+// 10, 60 and 300 seconds in which some, or all, tasks were stalled on a
+// resource. available is false on a kernel without it.
+type MachinePressure struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Available     bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	Cpu           *PressureResource      `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`
+	Memory        *PressureResource      `protobuf:"bytes,3,opt,name=memory,proto3" json:"memory,omitempty"`
+	Io            *PressureResource      `protobuf:"bytes,4,opt,name=io,proto3" json:"io,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MachinePressure) Reset() {
+	*x = MachinePressure{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachinePressure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachinePressure) ProtoMessage() {}
+
+func (x *MachinePressure) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachinePressure.ProtoReflect.Descriptor instead.
+func (*MachinePressure) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *MachinePressure) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *MachinePressure) GetCpu() *PressureResource {
+	if x != nil {
+		return x.Cpu
+	}
+	return nil
+}
+
+func (x *MachinePressure) GetMemory() *PressureResource {
+	if x != nil {
+		return x.Memory
+	}
+	return nil
+}
+
+func (x *MachinePressure) GetIo() *PressureResource {
+	if x != nil {
+		return x.Io
+	}
+	return nil
+}
+
+type PressureResource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Some          *PressureAverages      `protobuf:"bytes,1,opt,name=some,proto3" json:"some,omitempty"`
+	Full          *PressureAverages      `protobuf:"bytes,2,opt,name=full,proto3" json:"full,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PressureResource) Reset() {
+	*x = PressureResource{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PressureResource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PressureResource) ProtoMessage() {}
+
+func (x *PressureResource) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PressureResource.ProtoReflect.Descriptor instead.
+func (*PressureResource) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *PressureResource) GetSome() *PressureAverages {
+	if x != nil {
+		return x.Some
+	}
+	return nil
+}
+
+func (x *PressureResource) GetFull() *PressureAverages {
+	if x != nil {
+		return x.Full
+	}
+	return nil
+}
+
+type PressureAverages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Avg10         float64                `protobuf:"fixed64,1,opt,name=avg10,proto3" json:"avg10,omitempty"`
+	Avg60         float64                `protobuf:"fixed64,2,opt,name=avg60,proto3" json:"avg60,omitempty"`
+	Avg300        float64                `protobuf:"fixed64,3,opt,name=avg300,proto3" json:"avg300,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PressureAverages) Reset() {
+	*x = PressureAverages{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PressureAverages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PressureAverages) ProtoMessage() {}
+
+func (x *PressureAverages) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PressureAverages.ProtoReflect.Descriptor instead.
+func (*PressureAverages) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *PressureAverages) GetAvg10() float64 {
+	if x != nil {
+		return x.Avg10
+	}
+	return 0
+}
+
+func (x *PressureAverages) GetAvg60() float64 {
+	if x != nil {
+		return x.Avg60
+	}
+	return 0
+}
+
+func (x *PressureAverages) GetAvg300() float64 {
+	if x != nil {
+		return x.Avg300
+	}
+	return 0
+}
+
+type MachineDisk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TotalBytes    uint64                 `protobuf:"varint,1,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	FreeBytes     uint64                 `protobuf:"varint,2,opt,name=free_bytes,json=freeBytes,proto3" json:"free_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MachineDisk) Reset() {
+	*x = MachineDisk{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineDisk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineDisk) ProtoMessage() {}
+
+func (x *MachineDisk) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineDisk.ProtoReflect.Descriptor instead.
+func (*MachineDisk) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *MachineDisk) GetTotalBytes() uint64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+func (x *MachineDisk) GetFreeBytes() uint64 {
+	if x != nil {
+		return x.FreeBytes
+	}
+	return 0
+}
+
+// How many more typical containers the machine can take now.
+//
+// The unit is one typical container: what the running ones use on average
+// (busy CPUs / running, used memory / running), held to 0.25..2 CPUs and
+// 256 MiB..4 GiB; 0.5 CPU and 512 MiB when nothing runs.
+//
+//	by_cpu        = (cpus * 0.90 - busy CPUs) / unit_cpu
+//	by_memory     = (memory available - max(5% of memory, 1 GiB)) / unit_memory_bytes
+//	by_tasks      = (pid_max * 0.80 - tasks) / 64
+//	by_containers = max_containers - containers running or starting
+//	containers    = max(0, the smallest of the four)
+//
+// and 0 under pressure: memory PSI some avg10 >= 10 or full avg10 >= 2, CPU
+// PSI some avg10 >= 80, IO PSI full avg10 >= 25, less memory available than
+// the reserve, a disk with less than max(5%, 2 GiB) free, a start-latency
+// p95 of 10 s or more, or the Mac itself under memory pressure (warning or
+// critical). CPU and memory are counted on what is used, not on the limits
+// containers were given: a limit is a ceiling, and the pressure terms catch
+// a machine whose promised memory is being used after all.
+type MachineHeadroom struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Containers    uint32                 `protobuf:"varint,1,opt,name=containers,proto3" json:"containers,omitempty"`
+	UnderPressure bool                   `protobuf:"varint,2,opt,name=under_pressure,json=underPressure,proto3" json:"under_pressure,omitempty"`
+	// Why it is under pressure; empty when it is not.
+	Reasons []string `protobuf:"bytes,3,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	// The resource containers is the smallest for: cpu, memory, tasks,
+	// containers, os-disk, cache-disk, pressure or host-memory.
+	LimitedBy       string  `protobuf:"bytes,4,opt,name=limited_by,json=limitedBy,proto3" json:"limited_by,omitempty"`
+	UnitCpu         float64 `protobuf:"fixed64,5,opt,name=unit_cpu,json=unitCpu,proto3" json:"unit_cpu,omitempty"`
+	UnitMemoryBytes uint64  `protobuf:"varint,6,opt,name=unit_memory_bytes,json=unitMemoryBytes,proto3" json:"unit_memory_bytes,omitempty"`
+	ByCpu           uint32  `protobuf:"varint,7,opt,name=by_cpu,json=byCpu,proto3" json:"by_cpu,omitempty"`
+	ByMemory        uint32  `protobuf:"varint,8,opt,name=by_memory,json=byMemory,proto3" json:"by_memory,omitempty"`
+	ByTasks         uint32  `protobuf:"varint,9,opt,name=by_tasks,json=byTasks,proto3" json:"by_tasks,omitempty"`
+	ByContainers    uint32  `protobuf:"varint,10,opt,name=by_containers,json=byContainers,proto3" json:"by_containers,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *MachineHeadroom) Reset() {
+	*x = MachineHeadroom{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineHeadroom) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineHeadroom) ProtoMessage() {}
+
+func (x *MachineHeadroom) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineHeadroom.ProtoReflect.Descriptor instead.
+func (*MachineHeadroom) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *MachineHeadroom) GetContainers() uint32 {
+	if x != nil {
+		return x.Containers
+	}
+	return 0
+}
+
+func (x *MachineHeadroom) GetUnderPressure() bool {
+	if x != nil {
+		return x.UnderPressure
+	}
+	return false
+}
+
+func (x *MachineHeadroom) GetReasons() []string {
+	if x != nil {
+		return x.Reasons
+	}
+	return nil
+}
+
+func (x *MachineHeadroom) GetLimitedBy() string {
+	if x != nil {
+		return x.LimitedBy
+	}
+	return ""
+}
+
+func (x *MachineHeadroom) GetUnitCpu() float64 {
+	if x != nil {
+		return x.UnitCpu
+	}
+	return 0
+}
+
+func (x *MachineHeadroom) GetUnitMemoryBytes() uint64 {
+	if x != nil {
+		return x.UnitMemoryBytes
+	}
+	return 0
+}
+
+func (x *MachineHeadroom) GetByCpu() uint32 {
+	if x != nil {
+		return x.ByCpu
+	}
+	return 0
+}
+
+func (x *MachineHeadroom) GetByMemory() uint32 {
+	if x != nil {
+		return x.ByMemory
+	}
+	return 0
+}
+
+func (x *MachineHeadroom) GetByTasks() uint32 {
+	if x != nil {
+		return x.ByTasks
+	}
+	return 0
+}
+
+func (x *MachineHeadroom) GetByContainers() uint32 {
+	if x != nil {
+		return x.ByContainers
+	}
+	return 0
+}
+
+// The Mac the machine runs on, read by the API process.
+type MachineHost struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Cpus        uint32                 `protobuf:"varint,1,opt,name=cpus,proto3" json:"cpus,omitempty"`
+	MemoryBytes uint64                 `protobuf:"varint,2,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
+	// Free, inactive, speculative and purgeable memory.
+	MemoryAvailableBytes uint64 `protobuf:"varint,3,opt,name=memory_available_bytes,json=memoryAvailableBytes,proto3" json:"memory_available_bytes,omitempty"`
+	// normal, warning or critical (the kernel's memory pressure level); empty
+	// when it could not be read.
+	MemoryPressure string  `protobuf:"bytes,4,opt,name=memory_pressure,json=memoryPressure,proto3" json:"memory_pressure,omitempty"`
+	Load1          float64 `protobuf:"fixed64,5,opt,name=load1,proto3" json:"load1,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MachineHost) Reset() {
+	*x = MachineHost{}
+	mi := &file_micropod_v1_rig_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineHost) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineHost) ProtoMessage() {}
+
+func (x *MachineHost) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_rig_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineHost.ProtoReflect.Descriptor instead.
+func (*MachineHost) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_rig_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *MachineHost) GetCpus() uint32 {
+	if x != nil {
+		return x.Cpus
+	}
+	return 0
+}
+
+func (x *MachineHost) GetMemoryBytes() uint64 {
+	if x != nil {
+		return x.MemoryBytes
+	}
+	return 0
+}
+
+func (x *MachineHost) GetMemoryAvailableBytes() uint64 {
+	if x != nil {
+		return x.MemoryAvailableBytes
+	}
+	return 0
+}
+
+func (x *MachineHost) GetMemoryPressure() string {
+	if x != nil {
+		return x.MemoryPressure
+	}
+	return ""
+}
+
+func (x *MachineHost) GetLoad1() float64 {
+	if x != nil {
+		return x.Load1
+	}
+	return 0
+}
+
 var File_micropod_v1_rig_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_rig_proto_rawDesc = "" +
@@ -1905,14 +2958,16 @@ const file_micropod_v1_rig_proto_rawDesc = "" +
 	"\rshared_caches\x18\b \x01(\tR\fsharedCaches\x12%\n" +
 	"\x0eupdate_pending\x18\t \x01(\bR\rupdatePending\x12'\n" +
 	"\x0fpayload_version\x18\n" +
-	" \x01(\tR\x0epayloadVersion\"\xa7\x01\n" +
+	" \x01(\tR\x0epayloadVersion\"\xf3\x01\n" +
 	"\x15RigCachePolicySummary\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1b\n" +
 	"\tshared_l0\x18\x02 \x01(\bR\bsharedL0\x12#\n" +
 	"\rdefault_trust\x18\x03 \x01(\tR\fdefaultTrust\x12\x19\n" +
 	"\bgo_proxy\x18\x04 \x01(\tR\agoProxy\x12\x1d\n" +
 	"\n" +
-	"tool_count\x18\x05 \x01(\x05R\ttoolCount\"9\n" +
+	"tool_count\x18\x05 \x01(\x05R\ttoolCount\x12#\n" +
+	"\rdocker_socket\x18\x06 \x01(\tR\fdockerSocket\x12%\n" +
+	"\x0edefault_limits\x18\a \x01(\tR\rdefaultLimits\"9\n" +
 	"\vRigDepproxy\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x18\n" +
 	"\ahealthy\x18\x02 \x01(\bR\ahealthy\"\xab\x02\n" +
@@ -2074,7 +3129,106 @@ const file_micropod_v1_rig_proto_rawDesc = "" +
 	"\amachine\x18\x03 \x01(\v2\x1d.micropod.v1.HVFMachineStatusR\amachine\"b\n" +
 	"\x15ControlMachineRequest\x123\n" +
 	"\x06action\x18\x01 \x01(\tB\x1b\xbaH\x18r\x16R\x05startR\x04stopR\arestartR\x06action\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force2\xfb\x05\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\"\xe3\x05\n" +
+	"\x0fMachineCapacity\x12&\n" +
+	"\x0fsampled_unix_ms\x18\x01 \x01(\x03R\rsampledUnixMs\x12\x12\n" +
+	"\x04cpus\x18\x02 \x01(\rR\x04cpus\x12!\n" +
+	"\fmemory_bytes\x18\x03 \x01(\x04R\vmemoryBytes\x12\x17\n" +
+	"\apid_max\x18\x04 \x01(\x04R\x06pidMax\x12%\n" +
+	"\x0emax_containers\x18\x05 \x01(\rR\rmaxContainers\x122\n" +
+	"\x15family_containers_max\x18\x06 \x01(\rR\x13familyContainersMax\x122\n" +
+	"\x15relay_connections_max\x18\a \x01(\rR\x13relayConnectionsMax\x12/\n" +
+	"\x05usage\x18\b \x01(\v2\x19.micropod.v1.MachineUsageR\x05usage\x12>\n" +
+	"\n" +
+	"containers\x18\t \x01(\v2\x1e.micropod.v1.MachineContainersR\n" +
+	"containers\x126\n" +
+	"\x06engine\x18\n" +
+	" \x01(\v2\x1e.micropod.v1.MachineEngineLoadR\x06engine\x128\n" +
+	"\bpressure\x18\v \x01(\v2\x1c.micropod.v1.MachinePressureR\bpressure\x121\n" +
+	"\aos_disk\x18\f \x01(\v2\x18.micropod.v1.MachineDiskR\x06osDisk\x12<\n" +
+	"\n" +
+	"cache_disk\x18\r \x01(\v2\x18.micropod.v1.MachineDiskH\x00R\tcacheDisk\x88\x01\x01\x128\n" +
+	"\bheadroom\x18\x0e \x01(\v2\x1c.micropod.v1.MachineHeadroomR\bheadroom\x12,\n" +
+	"\x04host\x18\x0f \x01(\v2\x18.micropod.v1.MachineHostR\x04hostB\r\n" +
+	"\v_cache_disk\"\xd7\x03\n" +
+	"\fMachineUsage\x12*\n" +
+	"\x11cpu_busy_fraction\x18\x01 \x01(\x01R\x0fcpuBusyFraction\x12\"\n" +
+	"\rcpu_busy_cpus\x18\x02 \x01(\x01R\vcpuBusyCpus\x12\x14\n" +
+	"\x05load1\x18\x03 \x01(\x01R\x05load1\x12\x14\n" +
+	"\x05load5\x18\x04 \x01(\x01R\x05load5\x12\x16\n" +
+	"\x06load15\x18\x05 \x01(\x01R\x06load15\x12\x1a\n" +
+	"\brunnable\x18\x06 \x01(\rR\brunnable\x12\x14\n" +
+	"\x05tasks\x18\a \x01(\rR\x05tasks\x124\n" +
+	"\x16memory_available_bytes\x18\b \x01(\x04R\x14memoryAvailableBytes\x12*\n" +
+	"\x11memory_used_bytes\x18\t \x01(\x04R\x0fmemoryUsedBytes\x12&\n" +
+	"\x0fswap_used_bytes\x18\n" +
+	" \x01(\x04R\rswapUsedBytes\x12\x1d\n" +
+	"\n" +
+	"open_files\x18\v \x01(\x04R\topenFiles\x12+\n" +
+	"\x11conntrack_entries\x18\f \x01(\x04R\x10conntrackEntries\x12+\n" +
+	"\x11relay_connections\x18\r \x01(\rR\x10relayConnections\"\xdb\x02\n" +
+	"\x11MachineContainers\x12\x14\n" +
+	"\x05total\x18\x01 \x01(\rR\x05total\x12\x18\n" +
+	"\arunning\x18\x02 \x01(\rR\arunning\x12\x1a\n" +
+	"\bstarting\x18\x03 \x01(\rR\bstarting\x12\x18\n" +
+	"\acreated\x18\x04 \x01(\rR\acreated\x12\x16\n" +
+	"\x06exited\x18\x05 \x01(\rR\x06exited\x12.\n" +
+	"\x13requested_milli_cpu\x18\x06 \x01(\x03R\x11requestedMilliCpu\x124\n" +
+	"\x16requested_memory_bytes\x18\a \x01(\x03R\x14requestedMemoryBytes\x12*\n" +
+	"\x11without_cpu_limit\x18\b \x01(\rR\x0fwithoutCpuLimit\x126\n" +
+	"\bfamilies\x18\t \x03(\v2\x1a.micropod.v1.MachineFamilyR\bfamilies\"\xb9\x01\n" +
+	"\rMachineFamily\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\arunning\x18\x02 \x01(\rR\arunning\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\rR\x05total\x12.\n" +
+	"\x13requested_milli_cpu\x18\x04 \x01(\x03R\x11requestedMilliCpu\x124\n" +
+	"\x16requested_memory_bytes\x18\x05 \x01(\x03R\x14requestedMemoryBytes\"\xd4\x01\n" +
+	"\x11MachineEngineLoad\x12*\n" +
+	"\x11creates_in_flight\x18\x01 \x01(\rR\x0fcreatesInFlight\x12(\n" +
+	"\x10starts_in_flight\x18\x02 \x01(\rR\x0estartsInFlight\x12 \n" +
+	"\fstart_p50_ms\x18\x03 \x01(\rR\n" +
+	"startP50Ms\x12 \n" +
+	"\fstart_p95_ms\x18\x04 \x01(\rR\n" +
+	"startP95Ms\x12%\n" +
+	"\x0estarts_sampled\x18\x05 \x01(\rR\rstartsSampled\"\xc6\x01\n" +
+	"\x0fMachinePressure\x12\x1c\n" +
+	"\tavailable\x18\x01 \x01(\bR\tavailable\x12/\n" +
+	"\x03cpu\x18\x02 \x01(\v2\x1d.micropod.v1.PressureResourceR\x03cpu\x125\n" +
+	"\x06memory\x18\x03 \x01(\v2\x1d.micropod.v1.PressureResourceR\x06memory\x12-\n" +
+	"\x02io\x18\x04 \x01(\v2\x1d.micropod.v1.PressureResourceR\x02io\"x\n" +
+	"\x10PressureResource\x121\n" +
+	"\x04some\x18\x01 \x01(\v2\x1d.micropod.v1.PressureAveragesR\x04some\x121\n" +
+	"\x04full\x18\x02 \x01(\v2\x1d.micropod.v1.PressureAveragesR\x04full\"V\n" +
+	"\x10PressureAverages\x12\x14\n" +
+	"\x05avg10\x18\x01 \x01(\x01R\x05avg10\x12\x14\n" +
+	"\x05avg60\x18\x02 \x01(\x01R\x05avg60\x12\x16\n" +
+	"\x06avg300\x18\x03 \x01(\x01R\x06avg300\"M\n" +
+	"\vMachineDisk\x12\x1f\n" +
+	"\vtotal_bytes\x18\x01 \x01(\x04R\n" +
+	"totalBytes\x12\x1d\n" +
+	"\n" +
+	"free_bytes\x18\x02 \x01(\x04R\tfreeBytes\"\xcc\x02\n" +
+	"\x0fMachineHeadroom\x12\x1e\n" +
+	"\n" +
+	"containers\x18\x01 \x01(\rR\n" +
+	"containers\x12%\n" +
+	"\x0eunder_pressure\x18\x02 \x01(\bR\runderPressure\x12\x18\n" +
+	"\areasons\x18\x03 \x03(\tR\areasons\x12\x1d\n" +
+	"\n" +
+	"limited_by\x18\x04 \x01(\tR\tlimitedBy\x12\x19\n" +
+	"\bunit_cpu\x18\x05 \x01(\x01R\aunitCpu\x12*\n" +
+	"\x11unit_memory_bytes\x18\x06 \x01(\x04R\x0funitMemoryBytes\x12\x15\n" +
+	"\x06by_cpu\x18\a \x01(\rR\x05byCpu\x12\x1b\n" +
+	"\tby_memory\x18\b \x01(\rR\bbyMemory\x12\x19\n" +
+	"\bby_tasks\x18\t \x01(\rR\abyTasks\x12#\n" +
+	"\rby_containers\x18\n" +
+	" \x01(\rR\fbyContainers\"\xb9\x01\n" +
+	"\vMachineHost\x12\x12\n" +
+	"\x04cpus\x18\x01 \x01(\rR\x04cpus\x12!\n" +
+	"\fmemory_bytes\x18\x02 \x01(\x04R\vmemoryBytes\x124\n" +
+	"\x16memory_available_bytes\x18\x03 \x01(\x04R\x14memoryAvailableBytes\x12'\n" +
+	"\x0fmemory_pressure\x18\x04 \x01(\tR\x0ememoryPressure\x12\x14\n" +
+	"\x05load1\x18\x05 \x01(\x01R\x05load12\xc3\x06\n" +
 	"\n" +
 	"RigService\x12:\n" +
 	"\fGetRigHealth\x12\x12.micropod.v1.Empty\x1a\x16.micropod.v1.RigHealth\x126\n" +
@@ -2085,7 +3239,8 @@ const file_micropod_v1_rig_proto_rawDesc = "" +
 	"\x12GetHVFUpdateStatus\x12\x12.micropod.v1.Empty\x1a\x1c.micropod.v1.HVFUpdateStatus\x12M\n" +
 	"\x0eApplyHVFUpdate\x12\x1d.micropod.v1.HVFUpdateRequest\x1a\x1c.micropod.v1.HVFUpdateResult\x12P\n" +
 	"\x11RollbackHVFUpdate\x12\x1d.micropod.v1.HVFUpdateRequest\x1a\x1c.micropod.v1.HVFUpdateResult\x12E\n" +
-	"\x10GetMachineStatus\x12\x12.micropod.v1.Empty\x1a\x1d.micropod.v1.HVFMachineStatus\x12S\n" +
+	"\x10GetMachineStatus\x12\x12.micropod.v1.Empty\x1a\x1d.micropod.v1.HVFMachineStatus\x12F\n" +
+	"\x12GetMachineCapacity\x12\x12.micropod.v1.Empty\x1a\x1c.micropod.v1.MachineCapacity\x12S\n" +
 	"\x0eControlMachine\x12\".micropod.v1.ControlMachineRequest\x1a\x1d.micropod.v1.HVFMachineStatus\x12]\n" +
 	"\x13SetMachineAutostart\x12'.micropod.v1.SetMachineAutostartRequest\x1a\x1d.micropod.v1.HVFMachineStatus\x12Q\n" +
 	"\fSetupMachine\x12 .micropod.v1.SetupMachineRequest\x1a\x1f.micropod.v1.SetupMachineResultBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
@@ -2102,7 +3257,7 @@ func file_micropod_v1_rig_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_rig_proto_rawDescData
 }
 
-var file_micropod_v1_rig_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_micropod_v1_rig_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_micropod_v1_rig_proto_goTypes = []any{
 	(*RigModeOption)(nil),              // 0: micropod.v1.RigModeOption
 	(*RigMode)(nil),                    // 1: micropod.v1.RigMode
@@ -2124,8 +3279,19 @@ var file_micropod_v1_rig_proto_goTypes = []any{
 	(*SetupMachineStep)(nil),           // 17: micropod.v1.SetupMachineStep
 	(*SetupMachineResult)(nil),         // 18: micropod.v1.SetupMachineResult
 	(*ControlMachineRequest)(nil),      // 19: micropod.v1.ControlMachineRequest
-	nil,                                // 20: micropod.v1.HVFPayloadManifest.DigestsEntry
-	(*Empty)(nil),                      // 21: micropod.v1.Empty
+	(*MachineCapacity)(nil),            // 20: micropod.v1.MachineCapacity
+	(*MachineUsage)(nil),               // 21: micropod.v1.MachineUsage
+	(*MachineContainers)(nil),          // 22: micropod.v1.MachineContainers
+	(*MachineFamily)(nil),              // 23: micropod.v1.MachineFamily
+	(*MachineEngineLoad)(nil),          // 24: micropod.v1.MachineEngineLoad
+	(*MachinePressure)(nil),            // 25: micropod.v1.MachinePressure
+	(*PressureResource)(nil),           // 26: micropod.v1.PressureResource
+	(*PressureAverages)(nil),           // 27: micropod.v1.PressureAverages
+	(*MachineDisk)(nil),                // 28: micropod.v1.MachineDisk
+	(*MachineHeadroom)(nil),            // 29: micropod.v1.MachineHeadroom
+	(*MachineHost)(nil),                // 30: micropod.v1.MachineHost
+	nil,                                // 31: micropod.v1.HVFPayloadManifest.DigestsEntry
+	(*Empty)(nil),                      // 32: micropod.v1.Empty
 }
 var file_micropod_v1_rig_proto_depIdxs = []int32{
 	0,  // 0: micropod.v1.RigMode.modes:type_name -> micropod.v1.RigModeOption
@@ -2133,7 +3299,7 @@ var file_micropod_v1_rig_proto_depIdxs = []int32{
 	4,  // 2: micropod.v1.RigHealth.hvf:type_name -> micropod.v1.RigHVFHealth
 	5,  // 3: micropod.v1.RigHealth.cache_policy:type_name -> micropod.v1.RigCachePolicySummary
 	6,  // 4: micropod.v1.RigHealth.depproxy:type_name -> micropod.v1.RigDepproxy
-	20, // 5: micropod.v1.HVFPayloadManifest.digests:type_name -> micropod.v1.HVFPayloadManifest.DigestsEntry
+	31, // 5: micropod.v1.HVFPayloadManifest.digests:type_name -> micropod.v1.HVFPayloadManifest.DigestsEntry
 	8,  // 6: micropod.v1.HVFUpdateStatus.current:type_name -> micropod.v1.HVFPayloadManifest
 	8,  // 7: micropod.v1.HVFUpdateStatus.previous:type_name -> micropod.v1.HVFPayloadManifest
 	8,  // 8: micropod.v1.HVFUpdateStatus.staged:type_name -> micropod.v1.HVFPayloadManifest
@@ -2143,31 +3309,47 @@ var file_micropod_v1_rig_proto_depIdxs = []int32{
 	14, // 12: micropod.v1.HVFMachineStatus.autostart:type_name -> micropod.v1.HVFMachineAutostart
 	17, // 13: micropod.v1.SetupMachineResult.steps:type_name -> micropod.v1.SetupMachineStep
 	13, // 14: micropod.v1.SetupMachineResult.machine:type_name -> micropod.v1.HVFMachineStatus
-	21, // 15: micropod.v1.RigService.GetRigHealth:input_type -> micropod.v1.Empty
-	21, // 16: micropod.v1.RigService.GetRigMode:input_type -> micropod.v1.Empty
-	2,  // 17: micropod.v1.RigService.SetRigMode:input_type -> micropod.v1.SetRigModeRequest
-	21, // 18: micropod.v1.RigService.GetHVFUpdateStatus:input_type -> micropod.v1.Empty
-	10, // 19: micropod.v1.RigService.ApplyHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
-	10, // 20: micropod.v1.RigService.RollbackHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
-	21, // 21: micropod.v1.RigService.GetMachineStatus:input_type -> micropod.v1.Empty
-	19, // 22: micropod.v1.RigService.ControlMachine:input_type -> micropod.v1.ControlMachineRequest
-	15, // 23: micropod.v1.RigService.SetMachineAutostart:input_type -> micropod.v1.SetMachineAutostartRequest
-	16, // 24: micropod.v1.RigService.SetupMachine:input_type -> micropod.v1.SetupMachineRequest
-	7,  // 25: micropod.v1.RigService.GetRigHealth:output_type -> micropod.v1.RigHealth
-	1,  // 26: micropod.v1.RigService.GetRigMode:output_type -> micropod.v1.RigMode
-	1,  // 27: micropod.v1.RigService.SetRigMode:output_type -> micropod.v1.RigMode
-	9,  // 28: micropod.v1.RigService.GetHVFUpdateStatus:output_type -> micropod.v1.HVFUpdateStatus
-	11, // 29: micropod.v1.RigService.ApplyHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
-	11, // 30: micropod.v1.RigService.RollbackHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
-	13, // 31: micropod.v1.RigService.GetMachineStatus:output_type -> micropod.v1.HVFMachineStatus
-	13, // 32: micropod.v1.RigService.ControlMachine:output_type -> micropod.v1.HVFMachineStatus
-	13, // 33: micropod.v1.RigService.SetMachineAutostart:output_type -> micropod.v1.HVFMachineStatus
-	18, // 34: micropod.v1.RigService.SetupMachine:output_type -> micropod.v1.SetupMachineResult
-	25, // [25:35] is the sub-list for method output_type
-	15, // [15:25] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	21, // 15: micropod.v1.MachineCapacity.usage:type_name -> micropod.v1.MachineUsage
+	22, // 16: micropod.v1.MachineCapacity.containers:type_name -> micropod.v1.MachineContainers
+	24, // 17: micropod.v1.MachineCapacity.engine:type_name -> micropod.v1.MachineEngineLoad
+	25, // 18: micropod.v1.MachineCapacity.pressure:type_name -> micropod.v1.MachinePressure
+	28, // 19: micropod.v1.MachineCapacity.os_disk:type_name -> micropod.v1.MachineDisk
+	28, // 20: micropod.v1.MachineCapacity.cache_disk:type_name -> micropod.v1.MachineDisk
+	29, // 21: micropod.v1.MachineCapacity.headroom:type_name -> micropod.v1.MachineHeadroom
+	30, // 22: micropod.v1.MachineCapacity.host:type_name -> micropod.v1.MachineHost
+	23, // 23: micropod.v1.MachineContainers.families:type_name -> micropod.v1.MachineFamily
+	26, // 24: micropod.v1.MachinePressure.cpu:type_name -> micropod.v1.PressureResource
+	26, // 25: micropod.v1.MachinePressure.memory:type_name -> micropod.v1.PressureResource
+	26, // 26: micropod.v1.MachinePressure.io:type_name -> micropod.v1.PressureResource
+	27, // 27: micropod.v1.PressureResource.some:type_name -> micropod.v1.PressureAverages
+	27, // 28: micropod.v1.PressureResource.full:type_name -> micropod.v1.PressureAverages
+	32, // 29: micropod.v1.RigService.GetRigHealth:input_type -> micropod.v1.Empty
+	32, // 30: micropod.v1.RigService.GetRigMode:input_type -> micropod.v1.Empty
+	2,  // 31: micropod.v1.RigService.SetRigMode:input_type -> micropod.v1.SetRigModeRequest
+	32, // 32: micropod.v1.RigService.GetHVFUpdateStatus:input_type -> micropod.v1.Empty
+	10, // 33: micropod.v1.RigService.ApplyHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
+	10, // 34: micropod.v1.RigService.RollbackHVFUpdate:input_type -> micropod.v1.HVFUpdateRequest
+	32, // 35: micropod.v1.RigService.GetMachineStatus:input_type -> micropod.v1.Empty
+	32, // 36: micropod.v1.RigService.GetMachineCapacity:input_type -> micropod.v1.Empty
+	19, // 37: micropod.v1.RigService.ControlMachine:input_type -> micropod.v1.ControlMachineRequest
+	15, // 38: micropod.v1.RigService.SetMachineAutostart:input_type -> micropod.v1.SetMachineAutostartRequest
+	16, // 39: micropod.v1.RigService.SetupMachine:input_type -> micropod.v1.SetupMachineRequest
+	7,  // 40: micropod.v1.RigService.GetRigHealth:output_type -> micropod.v1.RigHealth
+	1,  // 41: micropod.v1.RigService.GetRigMode:output_type -> micropod.v1.RigMode
+	1,  // 42: micropod.v1.RigService.SetRigMode:output_type -> micropod.v1.RigMode
+	9,  // 43: micropod.v1.RigService.GetHVFUpdateStatus:output_type -> micropod.v1.HVFUpdateStatus
+	11, // 44: micropod.v1.RigService.ApplyHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
+	11, // 45: micropod.v1.RigService.RollbackHVFUpdate:output_type -> micropod.v1.HVFUpdateResult
+	13, // 46: micropod.v1.RigService.GetMachineStatus:output_type -> micropod.v1.HVFMachineStatus
+	20, // 47: micropod.v1.RigService.GetMachineCapacity:output_type -> micropod.v1.MachineCapacity
+	13, // 48: micropod.v1.RigService.ControlMachine:output_type -> micropod.v1.HVFMachineStatus
+	13, // 49: micropod.v1.RigService.SetMachineAutostart:output_type -> micropod.v1.HVFMachineStatus
+	18, // 50: micropod.v1.RigService.SetupMachine:output_type -> micropod.v1.SetupMachineResult
+	40, // [40:51] is the sub-list for method output_type
+	29, // [29:40] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_rig_proto_init() }
@@ -2184,13 +3366,14 @@ func file_micropod_v1_rig_proto_init() {
 	file_micropod_v1_rig_proto_msgTypes[12].OneofWrappers = []any{}
 	file_micropod_v1_rig_proto_msgTypes[13].OneofWrappers = []any{}
 	file_micropod_v1_rig_proto_msgTypes[14].OneofWrappers = []any{}
+	file_micropod_v1_rig_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_rig_proto_rawDesc), len(file_micropod_v1_rig_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

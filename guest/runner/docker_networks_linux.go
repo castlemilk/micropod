@@ -257,7 +257,7 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 	if req.IPAM.Driver != "" && req.IPAM.Driver != "default" || len(req.IPAM.Options) != 0 || len(req.IPAM.Config) > 1 {
 		return fail(400, "unsupported IPAM configuration")
 	}
-	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: req.Labels, Created: time.Now().UTC(), MTU: mtu, TCPCongestion: congestion, CreatedBy: viewerOf(r.Context())}
+	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: stampFamily(r.Context(), req.Labels), Created: time.Now().UTC(), MTU: mtu, TCPCongestion: congestion, CreatedBy: viewerOf(r.Context())}
 	s.networkMu.Lock()
 	defer s.networkMu.Unlock()
 	s.mu.Lock()
@@ -434,6 +434,9 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 			return s.mutateDockerNetwork(w, r, network, op == "connect")
 		}
 	}
+	if r.Method == http.MethodPost && key == "prune" {
+		return s.pruneNetworks(w, r)
+	}
 	viewer := viewerOf(r.Context())
 	if r.Method == "DELETE" && key != "" {
 		var canRemove func(*workerNetwork) bool
@@ -522,5 +525,49 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 	}
 	slices.SortFunc(list, func(a, b map[string]any) int { return strings.Compare(a["Name"].(string), b["Name"].(string)) })
 	writeJSON(w, 200, list)
+	return nil
+}
+
+// pruneNetworks serves POST /networks/prune: it removes the networks no
+// container has an endpoint on, among those the caller made (the host's own
+// on the machine's socket, a family's on its delegated socket: a host prune
+// never takes a running job's network between two of its steps), that match
+// every label filter. A GitHub Actions runner prunes its own leftovers this
+// way before each job.
+func (s *dockerEngine) pruneNetworks(w http.ResponseWriter, r *http.Request) error {
+	filters, err := dockerFilters(r.URL.Query().Get("filters"), "label", "until")
+	if err != nil {
+		return err
+	}
+	if len(filters["until"]) != 0 {
+		return fail(501, "network prune: the until filter is not supported")
+	}
+	viewer := viewerOf(r.Context())
+	mine := func(n *workerNetwork) bool {
+		return n.CreatedBy == viewer && matchesLabels(n.Labels, filters["label"])
+	}
+	s.mu.Lock()
+	candidates := map[string]string{}
+	for id, n := range s.namedNetworks {
+		if !n.deleting && mine(n) {
+			candidates[id] = n.Name
+		}
+	}
+	s.mu.Unlock()
+	deleted := []string{}
+	for id, name := range candidates {
+		err := s.removeNetwork(id, func(n *workerNetwork) bool { return n.ID == id && mine(n) })
+		var api apiError
+		switch {
+		case err == nil:
+			deleted = append(deleted, name)
+		case errors.As(err, &api) && (api.code == 404 || api.code == 409):
+			// Gone meanwhile, or in use.
+		default:
+			return err
+		}
+	}
+	slices.Sort(deleted)
+	writeJSON(w, 200, map[string]any{"NetworksDeleted": deleted})
 	return nil
 }

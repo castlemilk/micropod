@@ -121,6 +121,95 @@ final class MachineCommandsTests: XCTestCase {
         }
     }
 
+    func testDefaultLimitsFlag() throws {
+        let rig = try policy(["--default-limits", "none"])
+        XCTAssertEqual(rig.defaultLimits, HVFMachineCachePolicy.DefaultLimits.none)
+        XCTAssertNil(rig.dockerSocket, "the limits leave the socket policy alone")
+        XCTAssertEqual(try policy(["--default-limits", "JOB"], from: rig).defaultLimits, .job)
+        XCTAssertEqual(
+            try policy(["--share-l0", "on"], from: rig).defaultLimits, HVFMachineCachePolicy.DefaultLimits.none,
+            "other flags keep it")
+        XCTAssertNil(try policy(["--share-l0", "on"]).defaultLimits, "other flags leave it unset")
+        for bad in ["unlimited", "off", "0"] {
+            XCTAssertThrowsError(try policy(["--default-limits", bad]), bad) { error in
+                XCTAssertTrue(error is UsageError, "\(bad): \(error)")
+            }
+        }
+    }
+
+    func testCapacityLines() {
+        var report = Micropod_V1_MachineCapacity.with {
+            $0.cpus = 16
+            $0.memoryBytes = 48 << 30
+            $0.pidMax = 4_194_304
+            $0.usage.cpuBusyCpus = 3.5
+            $0.usage.tasks = 900
+            $0.usage.memoryAvailableBytes = 40 << 30
+            $0.usage.memoryUsedBytes = 8 << 30
+            $0.containers.running = 12
+            $0.containers.families = [
+                .with {
+                    $0.name = "gha-runner-1"
+                    $0.running = 5
+                    $0.total = 6
+                },
+                .with {
+                    $0.running = 7
+                    $0.total = 9
+                },
+                .with {
+                    $0.name = "idle"
+                    $0.total = 2
+                },
+            ]
+            $0.pressure.available = true
+            $0.pressure.memory.some.avg10 = 1.25
+            $0.osDisk.totalBytes = 64 << 30
+            $0.osDisk.freeBytes = 30 << 30
+            $0.host.memoryPressure = "normal"
+            $0.headroom.containers = 21
+            $0.headroom.limitedBy = "cpu"
+            $0.headroom.unitCpu = 0.5
+            $0.headroom.unitMemoryBytes = 512 << 20
+        }
+        var text = MachineCommands.capacityLines(report).joined(separator: "\n")
+        XCTAssertTrue(text.contains("machine:    16 CPUs, 48.0 GiB"), text)
+        XCTAssertTrue(text.contains("3.5 of 16 busy"), text)
+        XCTAssertTrue(text.contains("  gha-runner-1: 5 running of 6"), text)
+        XCTAssertTrue(text.contains("  (host): 7 running of 9"), text)
+        XCTAssertFalse(text.contains("idle:"), "a family with nothing running is not listed: \(text)")
+        XCTAssertTrue(text.contains("memory 1.2/0.0") || text.contains("memory 1.3/0.0"), text)
+        XCTAssertFalse(text.contains("cache "), "no cache disk, no cache figures: \(text)")
+        XCTAssertTrue(text.contains("headroom:   21 more containers of 0.5 CPU, 0.5 GiB each (limited by cpu"), text)
+
+        report.pressure.available = false
+        report.cacheDisk = .with {
+            $0.totalBytes = 32 << 30
+            $0.freeBytes = 1 << 30
+        }
+        report.headroom.underPressure = true
+        report.headroom.containers = 0
+        report.headroom.reasons = ["the cache disk is nearly full"]
+        text = MachineCommands.capacityLines(report).joined(separator: "\n")
+        XCTAssertTrue(text.contains("the guest kernel reports none"), text)
+        XCTAssertTrue(text.contains("cache 1.0 GiB free of 32.0 GiB"), text)
+        XCTAssertTrue(text.contains("headroom:   0 — under pressure: the cache disk is nearly full"), text)
+    }
+
+    func testDockerSocketFlag() throws {
+        let rig = try policy(["--docker-socket", "any", "--default-trust", "untrusted"])
+        XCTAssertEqual(rig.dockerSocket, .any)
+        XCTAssertEqual(rig.defaultTrust, .untrusted, "the socket policy leaves cache trust alone")
+        XCTAssertEqual(try policy(["--docker-socket", "TRUSTED"], from: rig).dockerSocket, .trusted)
+        XCTAssertEqual(try policy(["--share-l0", "on"], from: rig).dockerSocket, .any, "other flags keep it")
+        XCTAssertNil(try policy(["--share-l0", "on"]).dockerSocket, "other flags leave it unset")
+        for bad in ["untrusted", "everyone", "on"] {
+            XCTAssertThrowsError(try policy(["--docker-socket", bad]), bad) { error in
+                XCTAssertTrue(error is UsageError, "\(bad): \(error)")
+            }
+        }
+    }
+
     func testDefaultTrustAndProxyUntrustedFlags() throws {
         let rig = try policy(["--default-trust", "untrusted", "--proxy-untrusted", "on"])
         XCTAssertEqual(rig.defaultTrust, .untrusted)

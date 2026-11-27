@@ -57,6 +57,12 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		path = rest
 	}
 	method := r.Method
+	if name := r.Header.Get(familyHeader); name != "" && viewerOf(r.Context()) == "" {
+		if !validFamilyName(name) {
+			return fail(400, "invalid "+familyHeader+": expected 1 to 128 of [A-Za-z0-9_.-], starting with a letter or digit")
+		}
+		r = r.WithContext(withRequestFamily(r.Context(), name))
+	}
 	switch {
 	case path == "auth" && method == http.MethodPost:
 		return registryLogin(w, r)
@@ -101,6 +107,11 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		metrics["start_parallelism_limit"] = cap(s.startSlots)
 		metrics["setup_slots_in_use"] = len(s.startSlots)
 		metrics["setup_wait_usec_total"] = s.metrics.setupWaitUS.Load()
+		if r.URL.Query().Get("host") == "1" {
+			// Walks every process: asked for by a scale run, not by the
+			// host's health polls.
+			metrics["host"] = hostMetrics("/proc")
+		}
 		writeJSON(w, 200, metrics)
 		return nil
 	case path == "micropod/traces" && (method == "GET" || method == "POST"):
@@ -119,6 +130,11 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		block := uint64(st.Bsize)
 		writeJSON(w, 200, map[string]uint64{"total_bytes": st.Blocks * block, "used_bytes": (st.Blocks - st.Bfree) * block, "available_bytes": st.Bavail * block})
 		return nil
+	case path == "micropod/capacity" && method == "GET":
+		writeJSON(w, 200, s.capacityReport())
+		return nil
+	case path == "micropod/families/prune" && method == "POST":
+		return s.pruneFamilyRoute(w, r)
 	case path == "micropod/containers/summary" && method == "GET":
 		return s.containersSummary(w, r)
 	case path == "info" && method == "GET":

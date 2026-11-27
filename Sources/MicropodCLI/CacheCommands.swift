@@ -38,11 +38,16 @@ enum CacheCommands {
                                 [--npm-registry URL|off] [--max-bytes SIZE|off]
                                 [--max-age-days N|off] [--min-free-bytes SIZE|off]
                                 [--default-trust trusted|untrusted] [--proxy-untrusted on|off]
+                                [--docker-socket trusted|any] [--default-limits job|none]
                                 [--go-trimpath on|off] [--pnpm-legacy-env on|off]
                                 [--register-buildx on|off]
                                     View or hot-update machine cache policy (L0 sharing, rig
                                     depproxy wiring, janitor budgets, tool selection, and the
-                                    trust tier of containers that name none)
+                                    trust tier of containers that name none); --docker-socket any
+                                    lets a container of any tier that binds docker.sock have
+                                    its own family-scoped Docker socket (a shared-engine rig);
+                                    --default-limits none gives a container that names no limit
+                                    no CPU quota and the machine's memory, not 1 CPU and 1 GiB
 
         Target resolution: uses MICROPOD_HVF_ROOT (~/.micropod/hvf) by default, or falls back
         to a running CI worker socket (MICROPOD_CI_HOME) when no HVF machine is serving.

@@ -753,7 +753,9 @@ final class HTTPServer: @unchecked Sendable {
             admission: admission,
             guardRejection: { [self] request, admission in guardRejection(request, admission: admission) },
             admissionClaim: { [self] request in try admissionClaim(request) },
-            handler: { [self] request in await handler(request) },
+            handler: { [self] request in
+                await RequestOrigin.$ownerSocket.withValue(admission == .ownerOnly) { await handler(request) }
+            },
             relay: { request in await IsolatedRuntimeProxy.forwardParsed(request) })
     }
 
@@ -788,7 +790,9 @@ final class HTTPServer: @unchecked Sendable {
                     completion: .contentProcessed { _ in connection.cancel() })
                 return
             }
-            let response = await handler(request)
+            let response = await RequestOrigin.$ownerSocket.withValue(peer.admission == .ownerOnly) {
+                await handler(request)
+            }
             switch response {
             case .relay(let forward):
                 await forward(connection)

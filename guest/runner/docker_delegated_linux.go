@@ -33,7 +33,7 @@ import (
 
 // delegatedFamilyContainers is how many containers, in any state, a
 // delegated socket's owner may have created and not removed.
-const delegatedFamilyContainers = 64
+const delegatedFamilyContainers = 256
 
 type apiViewerKey struct{}
 
@@ -167,8 +167,9 @@ func engineOwnRoute(raw string) bool {
 }
 
 // delegatedRoute reports whether a delegated socket serves the route. The
-// container, exec, network and volume handlers scope themselves to the viewer
-// (lookupFor, seesNetworkLocked, seesVolumeLocked); images and BuildKit are
+// container, exec, network and volume handlers and the disk usage report
+// scope themselves to the viewer (lookupFor, seesNetworkLocked,
+// seesVolumeLocked, systemDiskUsage); images and BuildKit are
 // the machine's (a build's own calls scoped by serveDockerBuildControl).
 // None of the engine's own routes is served, its BuildKit probe
 // (/micropod/buildkit) included: GET /version names the same capability.
@@ -182,6 +183,10 @@ func delegatedRoute(method, raw string) bool {
 	switch path {
 	case "_ping", "version", "info", "events":
 		return read
+	case "system/df":
+		// The report scopes itself: the viewer's containers and volumes, and
+		// only their counts on the machine's images (systemDiskUsage).
+		return method == http.MethodGet
 	case "auth", "grpc", "session":
 		return method == http.MethodPost
 	case "networks", "volumes":

@@ -113,6 +113,7 @@ SRC_SUBPROC = "plan §3.1 (no subprocess shelling on the request path); backlog 
 SRC_MCP_GATE = "plan §6 Phase C gate (full MCP tool E2E suite with zero CLI subprocess calls)"
 SRC_CONN = "backlog B39 (Phase C transport: <= 2 connections opened per 2000 calls)"
 SRC_H2 = "plan §6 Phase C deliverable 1 (HTTP/2 gRPC on api.sock)"
+SRC_CAPACITY = "RigService.GetMachineCapacity (the admission signal: one guest request, target < 1 ms p95; a metric)"
 SRC_CACHE_RPC = "plan §6 Phase C deliverable 2 (CacheService protos) and gate (GetCacheStatus < 1 ms p95)"
 SRC_MCP_TOOLS = "plan §6 Phase C deliverable 3 / §3.3 (MCP tool list)"
 SRC_MCP_WIRE = "plan §3.3 (MCP over api.sock with binary Connect, persistent pooled client, sub-millisecond tools)"
@@ -784,6 +785,15 @@ def section_L_at8(prefix):
         res[f"explain-{transport}-rest"] = unary(f"explain-{transport}-rest", "CacheExplain", transport, "rest",
                                                  containers=8, id_=one)
     res["health-unix-rest"] = unary("health-unix-rest", "Health", "unix", "rest", containers=8)
+    # GetMachineCapacity: what a scheduler polls before every admission. A
+    # metric in the latency table against the same 1 ms target (one guest
+    # request, no subprocess: the census below covers it), not a verdict.
+    for transport in ("unix", "tcp"):
+        for codec in ("proto", "json", "rest"):
+            gate = (transport, codec) == ("unix", "proto")
+            res[f"capacity-{transport}-{codec}"] = unary(
+                f"capacity-{transport}-{codec}", "GetMachineCapacity", transport, codec, containers=8,
+                target_us=TARGET_US if gate else None, source=SRC_CAPACITY if gate else None)
 
     latency_check("L-GATE-PING", "Ping, binary Connect over api.sock: p95 < 1 ms", res["ping-unix-proto"], SRC_GATE)
     # GetCacheStatus over binary Connect: the RPC the gate names, measured by

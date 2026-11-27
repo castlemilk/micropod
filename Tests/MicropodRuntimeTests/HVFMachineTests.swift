@@ -207,6 +207,7 @@ final class HVFMachineTests: XCTestCase {
                 "--vsock-expose", "\(root.path)/run/buildkit.sock:2377", "--published-net",
                 "--cpus", "4", "--memory-mib", "4096", "--cmdline-append", "mp.config=1",
                 "--cmdline-append", "loglevel=6",
+                "--cmdline-append", "psi=1",
                 "--shutdown-timeout", "10", "--json-summary", "--parent-pid", "4242",
             ])
         XCTAssertFalse(args.contains("--cmdline"), "the VMM's own kernel command line is never replaced")
@@ -255,7 +256,7 @@ final class HVFMachineTests: XCTestCase {
         let joined = args.joined(separator: "|")
         XCTAssertTrue(joined.contains("--disk|\(root.path)/disk.ext4|--cache-disk|\(root.path)/caches.ext4|"))
         let appended =
-            "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=6|"
+            "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=6|--cmdline-append|psi=1|"
             + "--cmdline-append|loglevel=4"
         XCTAssertTrue(
             joined.contains(appended),
@@ -271,9 +272,9 @@ final class HVFMachineTests: XCTestCase {
             let args = try HVFVMMCommand.arguments(layout: self.layout, config: config, parentPID: 1)
             return args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
         }
-        XCTAssertEqual(try appended(HVFMachineConfig(workspace: nil)), ["mp.config=1", "loglevel=6"])
+        XCTAssertEqual(try appended(HVFMachineConfig(workspace: nil)), ["mp.config=1", "loglevel=6", "psi=1"])
         let verbose = try appended(HVFMachineConfig(workspace: nil, kernelArguments: ["loglevel=8"]))
-        XCTAssertEqual(verbose.suffix(2), ["loglevel=6", "loglevel=8"], "the kernel takes the last loglevel")
+        XCTAssertEqual(verbose.suffix(3), ["loglevel=6", "psi=1", "loglevel=8"], "the kernel takes the last loglevel")
     }
 
     func testWorkspaceKernelArgumentsAndExtras() throws {
@@ -286,7 +287,7 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertFalse(joined.contains("workspace:"), "no hand-built workspace share")
         XCTAssertTrue(
             joined.contains(
-                "--cmdline-append|mp.config=1|--cmdline-append|loglevel=6|--cmdline-append|mp.mtu=1500|"
+                "--cmdline-append|mp.config=1|--cmdline-append|loglevel=6|--cmdline-append|psi=1|--cmdline-append|mp.mtu=1500|"
                     + "--cmdline-append|loglevel=4"),
             "the config share's boot argument comes first, so a configured one can override it")
         XCTAssertTrue(joined.contains("--shutdown-timeout|30|"))
@@ -1690,7 +1691,7 @@ extension HVFMachineTests {
             shares[1].hasSuffix(":ro"),
             "micropod-vmm caches a :ro share as immutable: the guest would never see a rewritten policy")
         let appended = args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
-        XCTAssertEqual(appended, ["mp.config=1", "loglevel=6"])
+        XCTAssertEqual(appended, ["mp.config=1", "loglevel=6", "psi=1"])
     }
 
     func testTheSupervisorRendersThePolicyBeforeEveryLaunch() async throws {

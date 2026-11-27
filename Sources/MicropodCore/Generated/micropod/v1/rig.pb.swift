@@ -259,6 +259,14 @@ public nonisolated struct Micropod_V1_RigCachePolicySummary: Sendable {
 
   public var toolCount: Int32 = 0
 
+  /// trusted or any: which containers may be given a Docker socket
+  /// (CachePolicy.docker_socket as the guest applies it).
+  public var dockerSocket: String = String()
+
+  /// job or none: what a container naming no limit gets
+  /// (CachePolicy.default_limits as the guest applies it).
+  public var defaultLimits: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1036,6 +1044,437 @@ public nonisolated struct Micropod_V1_ControlMachineRequest: Sendable {
   public init() {}
 }
 
+/// The hvf machine's capacity, load and headroom (GetMachineCapacity).
+public nonisolated struct Micropod_V1_MachineCapacity: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// When the guest sampled its kernel figures (Unix milliseconds). The
+  /// container counts and the engine's own counters are of the request.
+  public var sampledUnixMs: Int64 {
+    get {_storage._sampledUnixMs}
+    set {_uniqueStorage()._sampledUnixMs = newValue}
+  }
+
+  /// What the machine has.
+  public var cpus: UInt32 {
+    get {_storage._cpus}
+    set {_uniqueStorage()._cpus = newValue}
+  }
+
+  public var memoryBytes: UInt64 {
+    get {_storage._memoryBytes}
+    set {_uniqueStorage()._memoryBytes = newValue}
+  }
+
+  /// The most tasks (processes and threads) the guest kernel runs at once.
+  public var pidMax: UInt64 {
+    get {_storage._pidMax}
+    set {_uniqueStorage()._pidMax = newValue}
+  }
+
+  /// The most containers running at once the headroom is counted against.
+  public var maxContainers: UInt32 {
+    get {_storage._maxContainers}
+    set {_uniqueStorage()._maxContainers = newValue}
+  }
+
+  /// The most containers one delegated Docker socket may hold at once.
+  public var familyContainersMax: UInt32 {
+    get {_storage._familyContainersMax}
+    set {_uniqueStorage()._familyContainersMax = newValue}
+  }
+
+  /// The most gateway relay connections (published ports reached from
+  /// containers) the engine holds at once.
+  public var relayConnectionsMax: UInt32 {
+    get {_storage._relayConnectionsMax}
+    set {_uniqueStorage()._relayConnectionsMax = newValue}
+  }
+
+  public var usage: Micropod_V1_MachineUsage {
+    get {_storage._usage ?? Micropod_V1_MachineUsage()}
+    set {_uniqueStorage()._usage = newValue}
+  }
+  /// Returns true if `usage` has been explicitly set.
+  public var hasUsage: Bool {_storage._usage != nil}
+  /// Clears the value of `usage`. Subsequent reads from it will return its default value.
+  public mutating func clearUsage() {_uniqueStorage()._usage = nil}
+
+  public var containers: Micropod_V1_MachineContainers {
+    get {_storage._containers ?? Micropod_V1_MachineContainers()}
+    set {_uniqueStorage()._containers = newValue}
+  }
+  /// Returns true if `containers` has been explicitly set.
+  public var hasContainers: Bool {_storage._containers != nil}
+  /// Clears the value of `containers`. Subsequent reads from it will return its default value.
+  public mutating func clearContainers() {_uniqueStorage()._containers = nil}
+
+  public var engine: Micropod_V1_MachineEngineLoad {
+    get {_storage._engine ?? Micropod_V1_MachineEngineLoad()}
+    set {_uniqueStorage()._engine = newValue}
+  }
+  /// Returns true if `engine` has been explicitly set.
+  public var hasEngine: Bool {_storage._engine != nil}
+  /// Clears the value of `engine`. Subsequent reads from it will return its default value.
+  public mutating func clearEngine() {_uniqueStorage()._engine = nil}
+
+  public var pressure: Micropod_V1_MachinePressure {
+    get {_storage._pressure ?? Micropod_V1_MachinePressure()}
+    set {_uniqueStorage()._pressure = newValue}
+  }
+  /// Returns true if `pressure` has been explicitly set.
+  public var hasPressure: Bool {_storage._pressure != nil}
+  /// Clears the value of `pressure`. Subsequent reads from it will return its default value.
+  public mutating func clearPressure() {_uniqueStorage()._pressure = nil}
+
+  public var osDisk: Micropod_V1_MachineDisk {
+    get {_storage._osDisk ?? Micropod_V1_MachineDisk()}
+    set {_uniqueStorage()._osDisk = newValue}
+  }
+  /// Returns true if `osDisk` has been explicitly set.
+  public var hasOsDisk: Bool {_storage._osDisk != nil}
+  /// Clears the value of `osDisk`. Subsequent reads from it will return its default value.
+  public mutating func clearOsDisk() {_uniqueStorage()._osDisk = nil}
+
+  /// Unset when the machine has no cache disk.
+  public var cacheDisk: Micropod_V1_MachineDisk {
+    get {_storage._cacheDisk ?? Micropod_V1_MachineDisk()}
+    set {_uniqueStorage()._cacheDisk = newValue}
+  }
+  /// Returns true if `cacheDisk` has been explicitly set.
+  public var hasCacheDisk: Bool {_storage._cacheDisk != nil}
+  /// Clears the value of `cacheDisk`. Subsequent reads from it will return its default value.
+  public mutating func clearCacheDisk() {_uniqueStorage()._cacheDisk = nil}
+
+  public var headroom: Micropod_V1_MachineHeadroom {
+    get {_storage._headroom ?? Micropod_V1_MachineHeadroom()}
+    set {_uniqueStorage()._headroom = newValue}
+  }
+  /// Returns true if `headroom` has been explicitly set.
+  public var hasHeadroom: Bool {_storage._headroom != nil}
+  /// Clears the value of `headroom`. Subsequent reads from it will return its default value.
+  public mutating func clearHeadroom() {_uniqueStorage()._headroom = nil}
+
+  public var host: Micropod_V1_MachineHost {
+    get {_storage._host ?? Micropod_V1_MachineHost()}
+    set {_uniqueStorage()._host = newValue}
+  }
+  /// Returns true if `host` has been explicitly set.
+  public var hasHost: Bool {_storage._host != nil}
+  /// Clears the value of `host`. Subsequent reads from it will return its default value.
+  public mutating func clearHost() {_uniqueStorage()._host = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public nonisolated struct Micropod_V1_MachineUsage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The share of all CPUs busy over the second before the sample (0..1),
+  /// and the same as a number of CPUs.
+  public var cpuBusyFraction: Double = 0
+
+  public var cpuBusyCpus: Double = 0
+
+  public var load1: Double = 0
+
+  public var load5: Double = 0
+
+  public var load15: Double = 0
+
+  /// Tasks runnable now, and all tasks.
+  public var runnable: UInt32 = 0
+
+  public var tasks: UInt32 = 0
+
+  public var memoryAvailableBytes: UInt64 = 0
+
+  public var memoryUsedBytes: UInt64 = 0
+
+  public var swapUsedBytes: UInt64 = 0
+
+  public var openFiles: UInt64 = 0
+
+  public var conntrackEntries: UInt64 = 0
+
+  public var relayConnections: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_MachineContainers: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var total: UInt32 = 0
+
+  public var running: UInt32 = 0
+
+  public var starting: UInt32 = 0
+
+  public var created: UInt32 = 0
+
+  public var exited: UInt32 = 0
+
+  /// The CPU limits (thousandths of a CPU) and memory limits of the running
+  /// and starting containers, summed; without_cpu_limit counts those with no
+  /// CPU limit, which the sum leaves out, as it does a memory limit of the
+  /// whole machine.
+  public var requestedMilliCpu: Int64 = 0
+
+  public var requestedMemoryBytes: Int64 = 0
+
+  public var withoutCpuLimit: UInt32 = 0
+
+  /// By family, the largest first, at most 64 rows (the rest summed as
+  /// "(other)"). A family is a delegated Docker socket's owner and what it
+  /// created, named by the owner's io.micropod.family label or its name; or
+  /// every container the host created with the same io.micropod.family
+  /// label; "" is what the host created without one.
+  public var families: [Micropod_V1_MachineFamily] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_MachineFamily: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var name: String = String()
+
+  public var running: UInt32 = 0
+
+  public var total: UInt32 = 0
+
+  public var requestedMilliCpu: Int64 = 0
+
+  public var requestedMemoryBytes: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_MachineEngineLoad: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var createsInFlight: UInt32 = 0
+
+  public var startsInFlight: UInt32 = 0
+
+  /// Over the latest starts_sampled starts (256 at most): from the start
+  /// request to the container's process running, in milliseconds.
+  public var startP50Ms: UInt32 = 0
+
+  public var startP95Ms: UInt32 = 0
+
+  public var startsSampled: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The guest kernel's pressure stall information: the percentage of the last
+/// 10, 60 and 300 seconds in which some, or all, tasks were stalled on a
+/// resource. available is false on a kernel without it.
+public nonisolated struct Micropod_V1_MachinePressure: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var available: Bool {
+    get {_storage._available}
+    set {_uniqueStorage()._available = newValue}
+  }
+
+  public var cpu: Micropod_V1_PressureResource {
+    get {_storage._cpu ?? Micropod_V1_PressureResource()}
+    set {_uniqueStorage()._cpu = newValue}
+  }
+  /// Returns true if `cpu` has been explicitly set.
+  public var hasCpu: Bool {_storage._cpu != nil}
+  /// Clears the value of `cpu`. Subsequent reads from it will return its default value.
+  public mutating func clearCpu() {_uniqueStorage()._cpu = nil}
+
+  public var memory: Micropod_V1_PressureResource {
+    get {_storage._memory ?? Micropod_V1_PressureResource()}
+    set {_uniqueStorage()._memory = newValue}
+  }
+  /// Returns true if `memory` has been explicitly set.
+  public var hasMemory: Bool {_storage._memory != nil}
+  /// Clears the value of `memory`. Subsequent reads from it will return its default value.
+  public mutating func clearMemory() {_uniqueStorage()._memory = nil}
+
+  public var io: Micropod_V1_PressureResource {
+    get {_storage._io ?? Micropod_V1_PressureResource()}
+    set {_uniqueStorage()._io = newValue}
+  }
+  /// Returns true if `io` has been explicitly set.
+  public var hasIo: Bool {_storage._io != nil}
+  /// Clears the value of `io`. Subsequent reads from it will return its default value.
+  public mutating func clearIo() {_uniqueStorage()._io = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public nonisolated struct Micropod_V1_PressureResource: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var some: Micropod_V1_PressureAverages {
+    get {_some ?? Micropod_V1_PressureAverages()}
+    set {_some = newValue}
+  }
+  /// Returns true if `some` has been explicitly set.
+  public var hasSome: Bool {self._some != nil}
+  /// Clears the value of `some`. Subsequent reads from it will return its default value.
+  public mutating func clearSome() {self._some = nil}
+
+  public var full: Micropod_V1_PressureAverages {
+    get {_full ?? Micropod_V1_PressureAverages()}
+    set {_full = newValue}
+  }
+  /// Returns true if `full` has been explicitly set.
+  public var hasFull: Bool {self._full != nil}
+  /// Clears the value of `full`. Subsequent reads from it will return its default value.
+  public mutating func clearFull() {self._full = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _some: Micropod_V1_PressureAverages? = nil
+  fileprivate var _full: Micropod_V1_PressureAverages? = nil
+}
+
+public nonisolated struct Micropod_V1_PressureAverages: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var avg10: Double = 0
+
+  public var avg60: Double = 0
+
+  public var avg300: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_MachineDisk: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var totalBytes: UInt64 = 0
+
+  public var freeBytes: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// How many more typical containers the machine can take now.
+///
+/// The unit is one typical container: what the running ones use on average
+/// (busy CPUs / running, used memory / running), held to 0.25..2 CPUs and
+/// 256 MiB..4 GiB; 0.5 CPU and 512 MiB when nothing runs.
+///
+///   by_cpu        = (cpus * 0.90 - busy CPUs) / unit_cpu
+///   by_memory     = (memory available - max(5% of memory, 1 GiB)) / unit_memory_bytes
+///   by_tasks      = (pid_max * 0.80 - tasks) / 64
+///   by_containers = max_containers - containers running or starting
+///   containers    = max(0, the smallest of the four)
+///
+/// and 0 under pressure: memory PSI some avg10 >= 10 or full avg10 >= 2, CPU
+/// PSI some avg10 >= 80, IO PSI full avg10 >= 25, less memory available than
+/// the reserve, a disk with less than max(5%, 2 GiB) free, a start-latency
+/// p95 of 10 s or more, or the Mac itself under memory pressure (warning or
+/// critical). CPU and memory are counted on what is used, not on the limits
+/// containers were given: a limit is a ceiling, and the pressure terms catch
+/// a machine whose promised memory is being used after all.
+public nonisolated struct Micropod_V1_MachineHeadroom: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var containers: UInt32 = 0
+
+  public var underPressure: Bool = false
+
+  /// Why it is under pressure; empty when it is not.
+  public var reasons: [String] = []
+
+  /// The resource containers is the smallest for: cpu, memory, tasks,
+  /// containers, os-disk, cache-disk, pressure or host-memory.
+  public var limitedBy: String = String()
+
+  public var unitCpu: Double = 0
+
+  public var unitMemoryBytes: UInt64 = 0
+
+  public var byCpu: UInt32 = 0
+
+  public var byMemory: UInt32 = 0
+
+  public var byTasks: UInt32 = 0
+
+  public var byContainers: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The Mac the machine runs on, read by the API process.
+public nonisolated struct Micropod_V1_MachineHost: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var cpus: UInt32 = 0
+
+  public var memoryBytes: UInt64 = 0
+
+  /// Free, inactive, speculative and purgeable memory.
+  public var memoryAvailableBytes: UInt64 = 0
+
+  /// normal, warning or critical (the kernel's memory pressure level); empty
+  /// when it could not be read.
+  public var memoryPressure: String = String()
+
+  public var load1: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
@@ -1379,7 +1818,7 @@ nonisolated extension Micropod_V1_RigHVFHealth: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Micropod_V1_RigCachePolicySummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RigCachePolicySummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mode\0\u{3}shared_l0\0\u{3}default_trust\0\u{3}go_proxy\0\u{3}tool_count\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mode\0\u{3}shared_l0\0\u{3}default_trust\0\u{3}go_proxy\0\u{3}tool_count\0\u{3}docker_socket\0\u{3}default_limits\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1392,6 +1831,8 @@ nonisolated extension Micropod_V1_RigCachePolicySummary: SwiftProtobuf.Message, 
       case 3: try { try decoder.decodeSingularStringField(value: &self.defaultTrust) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.goProxy) }()
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.toolCount) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.dockerSocket) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.defaultLimits) }()
       default: break
       }
     }
@@ -1413,6 +1854,12 @@ nonisolated extension Micropod_V1_RigCachePolicySummary: SwiftProtobuf.Message, 
     if self.toolCount != 0 {
       try visitor.visitSingularInt32Field(value: self.toolCount, fieldNumber: 5)
     }
+    if !self.dockerSocket.isEmpty {
+      try visitor.visitSingularStringField(value: self.dockerSocket, fieldNumber: 6)
+    }
+    if !self.defaultLimits.isEmpty {
+      try visitor.visitSingularStringField(value: self.defaultLimits, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1422,6 +1869,8 @@ nonisolated extension Micropod_V1_RigCachePolicySummary: SwiftProtobuf.Message, 
     if lhs.defaultTrust != rhs.defaultTrust {return false}
     if lhs.goProxy != rhs.goProxy {return false}
     if lhs.toolCount != rhs.toolCount {return false}
+    if lhs.dockerSocket != rhs.dockerSocket {return false}
+    if lhs.defaultLimits != rhs.defaultLimits {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2425,6 +2874,764 @@ nonisolated extension Micropod_V1_ControlMachineRequest: SwiftProtobuf.Message, 
   public static func ==(lhs: Micropod_V1_ControlMachineRequest, rhs: Micropod_V1_ControlMachineRequest) -> Bool {
     if lhs.action != rhs.action {return false}
     if lhs.force != rhs.force {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineCapacity: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineCapacity"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}sampled_unix_ms\0\u{1}cpus\0\u{3}memory_bytes\0\u{3}pid_max\0\u{3}max_containers\0\u{3}family_containers_max\0\u{3}relay_connections_max\0\u{1}usage\0\u{1}containers\0\u{1}engine\0\u{1}pressure\0\u{3}os_disk\0\u{3}cache_disk\0\u{1}headroom\0\u{1}host\0")
+
+  fileprivate class _StorageClass {
+    var _sampledUnixMs: Int64 = 0
+    var _cpus: UInt32 = 0
+    var _memoryBytes: UInt64 = 0
+    var _pidMax: UInt64 = 0
+    var _maxContainers: UInt32 = 0
+    var _familyContainersMax: UInt32 = 0
+    var _relayConnectionsMax: UInt32 = 0
+    var _usage: Micropod_V1_MachineUsage? = nil
+    var _containers: Micropod_V1_MachineContainers? = nil
+    var _engine: Micropod_V1_MachineEngineLoad? = nil
+    var _pressure: Micropod_V1_MachinePressure? = nil
+    var _osDisk: Micropod_V1_MachineDisk? = nil
+    var _cacheDisk: Micropod_V1_MachineDisk? = nil
+    var _headroom: Micropod_V1_MachineHeadroom? = nil
+    var _host: Micropod_V1_MachineHost? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _sampledUnixMs = source._sampledUnixMs
+      _cpus = source._cpus
+      _memoryBytes = source._memoryBytes
+      _pidMax = source._pidMax
+      _maxContainers = source._maxContainers
+      _familyContainersMax = source._familyContainersMax
+      _relayConnectionsMax = source._relayConnectionsMax
+      _usage = source._usage
+      _containers = source._containers
+      _engine = source._engine
+      _pressure = source._pressure
+      _osDisk = source._osDisk
+      _cacheDisk = source._cacheDisk
+      _headroom = source._headroom
+      _host = source._host
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularInt64Field(value: &_storage._sampledUnixMs) }()
+        case 2: try { try decoder.decodeSingularUInt32Field(value: &_storage._cpus) }()
+        case 3: try { try decoder.decodeSingularUInt64Field(value: &_storage._memoryBytes) }()
+        case 4: try { try decoder.decodeSingularUInt64Field(value: &_storage._pidMax) }()
+        case 5: try { try decoder.decodeSingularUInt32Field(value: &_storage._maxContainers) }()
+        case 6: try { try decoder.decodeSingularUInt32Field(value: &_storage._familyContainersMax) }()
+        case 7: try { try decoder.decodeSingularUInt32Field(value: &_storage._relayConnectionsMax) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._usage) }()
+        case 9: try { try decoder.decodeSingularMessageField(value: &_storage._containers) }()
+        case 10: try { try decoder.decodeSingularMessageField(value: &_storage._engine) }()
+        case 11: try { try decoder.decodeSingularMessageField(value: &_storage._pressure) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._osDisk) }()
+        case 13: try { try decoder.decodeSingularMessageField(value: &_storage._cacheDisk) }()
+        case 14: try { try decoder.decodeSingularMessageField(value: &_storage._headroom) }()
+        case 15: try { try decoder.decodeSingularMessageField(value: &_storage._host) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._sampledUnixMs != 0 {
+        try visitor.visitSingularInt64Field(value: _storage._sampledUnixMs, fieldNumber: 1)
+      }
+      if _storage._cpus != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._cpus, fieldNumber: 2)
+      }
+      if _storage._memoryBytes != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._memoryBytes, fieldNumber: 3)
+      }
+      if _storage._pidMax != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._pidMax, fieldNumber: 4)
+      }
+      if _storage._maxContainers != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._maxContainers, fieldNumber: 5)
+      }
+      if _storage._familyContainersMax != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._familyContainersMax, fieldNumber: 6)
+      }
+      if _storage._relayConnectionsMax != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._relayConnectionsMax, fieldNumber: 7)
+      }
+      try { if let v = _storage._usage {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
+      try { if let v = _storage._containers {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      } }()
+      try { if let v = _storage._engine {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      } }()
+      try { if let v = _storage._pressure {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._osDisk {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._cacheDisk {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._headroom {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      } }()
+      try { if let v = _storage._host {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineCapacity, rhs: Micropod_V1_MachineCapacity) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._sampledUnixMs != rhs_storage._sampledUnixMs {return false}
+        if _storage._cpus != rhs_storage._cpus {return false}
+        if _storage._memoryBytes != rhs_storage._memoryBytes {return false}
+        if _storage._pidMax != rhs_storage._pidMax {return false}
+        if _storage._maxContainers != rhs_storage._maxContainers {return false}
+        if _storage._familyContainersMax != rhs_storage._familyContainersMax {return false}
+        if _storage._relayConnectionsMax != rhs_storage._relayConnectionsMax {return false}
+        if _storage._usage != rhs_storage._usage {return false}
+        if _storage._containers != rhs_storage._containers {return false}
+        if _storage._engine != rhs_storage._engine {return false}
+        if _storage._pressure != rhs_storage._pressure {return false}
+        if _storage._osDisk != rhs_storage._osDisk {return false}
+        if _storage._cacheDisk != rhs_storage._cacheDisk {return false}
+        if _storage._headroom != rhs_storage._headroom {return false}
+        if _storage._host != rhs_storage._host {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineUsage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineUsage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}cpu_busy_fraction\0\u{3}cpu_busy_cpus\0\u{1}load1\0\u{1}load5\0\u{1}load15\0\u{1}runnable\0\u{1}tasks\0\u{3}memory_available_bytes\0\u{3}memory_used_bytes\0\u{3}swap_used_bytes\0\u{3}open_files\0\u{3}conntrack_entries\0\u{3}relay_connections\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.cpuBusyFraction) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.cpuBusyCpus) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.load1) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.load5) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.load15) }()
+      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.runnable) }()
+      case 7: try { try decoder.decodeSingularUInt32Field(value: &self.tasks) }()
+      case 8: try { try decoder.decodeSingularUInt64Field(value: &self.memoryAvailableBytes) }()
+      case 9: try { try decoder.decodeSingularUInt64Field(value: &self.memoryUsedBytes) }()
+      case 10: try { try decoder.decodeSingularUInt64Field(value: &self.swapUsedBytes) }()
+      case 11: try { try decoder.decodeSingularUInt64Field(value: &self.openFiles) }()
+      case 12: try { try decoder.decodeSingularUInt64Field(value: &self.conntrackEntries) }()
+      case 13: try { try decoder.decodeSingularUInt32Field(value: &self.relayConnections) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.cpuBusyFraction.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.cpuBusyFraction, fieldNumber: 1)
+    }
+    if self.cpuBusyCpus.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.cpuBusyCpus, fieldNumber: 2)
+    }
+    if self.load1.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.load1, fieldNumber: 3)
+    }
+    if self.load5.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.load5, fieldNumber: 4)
+    }
+    if self.load15.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.load15, fieldNumber: 5)
+    }
+    if self.runnable != 0 {
+      try visitor.visitSingularUInt32Field(value: self.runnable, fieldNumber: 6)
+    }
+    if self.tasks != 0 {
+      try visitor.visitSingularUInt32Field(value: self.tasks, fieldNumber: 7)
+    }
+    if self.memoryAvailableBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.memoryAvailableBytes, fieldNumber: 8)
+    }
+    if self.memoryUsedBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.memoryUsedBytes, fieldNumber: 9)
+    }
+    if self.swapUsedBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.swapUsedBytes, fieldNumber: 10)
+    }
+    if self.openFiles != 0 {
+      try visitor.visitSingularUInt64Field(value: self.openFiles, fieldNumber: 11)
+    }
+    if self.conntrackEntries != 0 {
+      try visitor.visitSingularUInt64Field(value: self.conntrackEntries, fieldNumber: 12)
+    }
+    if self.relayConnections != 0 {
+      try visitor.visitSingularUInt32Field(value: self.relayConnections, fieldNumber: 13)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineUsage, rhs: Micropod_V1_MachineUsage) -> Bool {
+    if lhs.cpuBusyFraction != rhs.cpuBusyFraction {return false}
+    if lhs.cpuBusyCpus != rhs.cpuBusyCpus {return false}
+    if lhs.load1 != rhs.load1 {return false}
+    if lhs.load5 != rhs.load5 {return false}
+    if lhs.load15 != rhs.load15 {return false}
+    if lhs.runnable != rhs.runnable {return false}
+    if lhs.tasks != rhs.tasks {return false}
+    if lhs.memoryAvailableBytes != rhs.memoryAvailableBytes {return false}
+    if lhs.memoryUsedBytes != rhs.memoryUsedBytes {return false}
+    if lhs.swapUsedBytes != rhs.swapUsedBytes {return false}
+    if lhs.openFiles != rhs.openFiles {return false}
+    if lhs.conntrackEntries != rhs.conntrackEntries {return false}
+    if lhs.relayConnections != rhs.relayConnections {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineContainers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineContainers"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}total\0\u{1}running\0\u{1}starting\0\u{1}created\0\u{1}exited\0\u{3}requested_milli_cpu\0\u{3}requested_memory_bytes\0\u{3}without_cpu_limit\0\u{1}families\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.total) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.running) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.starting) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.created) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.exited) }()
+      case 6: try { try decoder.decodeSingularInt64Field(value: &self.requestedMilliCpu) }()
+      case 7: try { try decoder.decodeSingularInt64Field(value: &self.requestedMemoryBytes) }()
+      case 8: try { try decoder.decodeSingularUInt32Field(value: &self.withoutCpuLimit) }()
+      case 9: try { try decoder.decodeRepeatedMessageField(value: &self.families) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.total != 0 {
+      try visitor.visitSingularUInt32Field(value: self.total, fieldNumber: 1)
+    }
+    if self.running != 0 {
+      try visitor.visitSingularUInt32Field(value: self.running, fieldNumber: 2)
+    }
+    if self.starting != 0 {
+      try visitor.visitSingularUInt32Field(value: self.starting, fieldNumber: 3)
+    }
+    if self.created != 0 {
+      try visitor.visitSingularUInt32Field(value: self.created, fieldNumber: 4)
+    }
+    if self.exited != 0 {
+      try visitor.visitSingularUInt32Field(value: self.exited, fieldNumber: 5)
+    }
+    if self.requestedMilliCpu != 0 {
+      try visitor.visitSingularInt64Field(value: self.requestedMilliCpu, fieldNumber: 6)
+    }
+    if self.requestedMemoryBytes != 0 {
+      try visitor.visitSingularInt64Field(value: self.requestedMemoryBytes, fieldNumber: 7)
+    }
+    if self.withoutCpuLimit != 0 {
+      try visitor.visitSingularUInt32Field(value: self.withoutCpuLimit, fieldNumber: 8)
+    }
+    if !self.families.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.families, fieldNumber: 9)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineContainers, rhs: Micropod_V1_MachineContainers) -> Bool {
+    if lhs.total != rhs.total {return false}
+    if lhs.running != rhs.running {return false}
+    if lhs.starting != rhs.starting {return false}
+    if lhs.created != rhs.created {return false}
+    if lhs.exited != rhs.exited {return false}
+    if lhs.requestedMilliCpu != rhs.requestedMilliCpu {return false}
+    if lhs.requestedMemoryBytes != rhs.requestedMemoryBytes {return false}
+    if lhs.withoutCpuLimit != rhs.withoutCpuLimit {return false}
+    if lhs.families != rhs.families {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineFamily: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineFamily"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}running\0\u{1}total\0\u{3}requested_milli_cpu\0\u{3}requested_memory_bytes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.running) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.total) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.requestedMilliCpu) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.requestedMemoryBytes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    if self.running != 0 {
+      try visitor.visitSingularUInt32Field(value: self.running, fieldNumber: 2)
+    }
+    if self.total != 0 {
+      try visitor.visitSingularUInt32Field(value: self.total, fieldNumber: 3)
+    }
+    if self.requestedMilliCpu != 0 {
+      try visitor.visitSingularInt64Field(value: self.requestedMilliCpu, fieldNumber: 4)
+    }
+    if self.requestedMemoryBytes != 0 {
+      try visitor.visitSingularInt64Field(value: self.requestedMemoryBytes, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineFamily, rhs: Micropod_V1_MachineFamily) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs.running != rhs.running {return false}
+    if lhs.total != rhs.total {return false}
+    if lhs.requestedMilliCpu != rhs.requestedMilliCpu {return false}
+    if lhs.requestedMemoryBytes != rhs.requestedMemoryBytes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineEngineLoad: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineEngineLoad"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}creates_in_flight\0\u{3}starts_in_flight\0\u{3}start_p50_ms\0\u{3}start_p95_ms\0\u{3}starts_sampled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.createsInFlight) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.startsInFlight) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.startP50Ms) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.startP95Ms) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.startsSampled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.createsInFlight != 0 {
+      try visitor.visitSingularUInt32Field(value: self.createsInFlight, fieldNumber: 1)
+    }
+    if self.startsInFlight != 0 {
+      try visitor.visitSingularUInt32Field(value: self.startsInFlight, fieldNumber: 2)
+    }
+    if self.startP50Ms != 0 {
+      try visitor.visitSingularUInt32Field(value: self.startP50Ms, fieldNumber: 3)
+    }
+    if self.startP95Ms != 0 {
+      try visitor.visitSingularUInt32Field(value: self.startP95Ms, fieldNumber: 4)
+    }
+    if self.startsSampled != 0 {
+      try visitor.visitSingularUInt32Field(value: self.startsSampled, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineEngineLoad, rhs: Micropod_V1_MachineEngineLoad) -> Bool {
+    if lhs.createsInFlight != rhs.createsInFlight {return false}
+    if lhs.startsInFlight != rhs.startsInFlight {return false}
+    if lhs.startP50Ms != rhs.startP50Ms {return false}
+    if lhs.startP95Ms != rhs.startP95Ms {return false}
+    if lhs.startsSampled != rhs.startsSampled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachinePressure: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachinePressure"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}available\0\u{1}cpu\0\u{1}memory\0\u{1}io\0")
+
+  fileprivate class _StorageClass {
+    var _available: Bool = false
+    var _cpu: Micropod_V1_PressureResource? = nil
+    var _memory: Micropod_V1_PressureResource? = nil
+    var _io: Micropod_V1_PressureResource? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _available = source._available
+      _cpu = source._cpu
+      _memory = source._memory
+      _io = source._io
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularBoolField(value: &_storage._available) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._cpu) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._memory) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._io) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._available != false {
+        try visitor.visitSingularBoolField(value: _storage._available, fieldNumber: 1)
+      }
+      try { if let v = _storage._cpu {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._memory {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      try { if let v = _storage._io {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachinePressure, rhs: Micropod_V1_MachinePressure) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._available != rhs_storage._available {return false}
+        if _storage._cpu != rhs_storage._cpu {return false}
+        if _storage._memory != rhs_storage._memory {return false}
+        if _storage._io != rhs_storage._io {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_PressureResource: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PressureResource"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}some\0\u{1}full\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._some) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._full) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._some {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._full {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_PressureResource, rhs: Micropod_V1_PressureResource) -> Bool {
+    if lhs._some != rhs._some {return false}
+    if lhs._full != rhs._full {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_PressureAverages: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PressureAverages"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}avg10\0\u{1}avg60\0\u{1}avg300\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.avg10) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.avg60) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.avg300) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.avg10.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.avg10, fieldNumber: 1)
+    }
+    if self.avg60.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.avg60, fieldNumber: 2)
+    }
+    if self.avg300.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.avg300, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_PressureAverages, rhs: Micropod_V1_PressureAverages) -> Bool {
+    if lhs.avg10 != rhs.avg10 {return false}
+    if lhs.avg60 != rhs.avg60 {return false}
+    if lhs.avg300 != rhs.avg300 {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineDisk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineDisk"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}total_bytes\0\u{3}free_bytes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.totalBytes) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.freeBytes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.totalBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.totalBytes, fieldNumber: 1)
+    }
+    if self.freeBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.freeBytes, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineDisk, rhs: Micropod_V1_MachineDisk) -> Bool {
+    if lhs.totalBytes != rhs.totalBytes {return false}
+    if lhs.freeBytes != rhs.freeBytes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineHeadroom: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineHeadroom"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}containers\0\u{3}under_pressure\0\u{1}reasons\0\u{3}limited_by\0\u{3}unit_cpu\0\u{3}unit_memory_bytes\0\u{3}by_cpu\0\u{3}by_memory\0\u{3}by_tasks\0\u{3}by_containers\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.containers) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.underPressure) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.reasons) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.limitedBy) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.unitCpu) }()
+      case 6: try { try decoder.decodeSingularUInt64Field(value: &self.unitMemoryBytes) }()
+      case 7: try { try decoder.decodeSingularUInt32Field(value: &self.byCpu) }()
+      case 8: try { try decoder.decodeSingularUInt32Field(value: &self.byMemory) }()
+      case 9: try { try decoder.decodeSingularUInt32Field(value: &self.byTasks) }()
+      case 10: try { try decoder.decodeSingularUInt32Field(value: &self.byContainers) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.containers != 0 {
+      try visitor.visitSingularUInt32Field(value: self.containers, fieldNumber: 1)
+    }
+    if self.underPressure != false {
+      try visitor.visitSingularBoolField(value: self.underPressure, fieldNumber: 2)
+    }
+    if !self.reasons.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.reasons, fieldNumber: 3)
+    }
+    if !self.limitedBy.isEmpty {
+      try visitor.visitSingularStringField(value: self.limitedBy, fieldNumber: 4)
+    }
+    if self.unitCpu.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.unitCpu, fieldNumber: 5)
+    }
+    if self.unitMemoryBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.unitMemoryBytes, fieldNumber: 6)
+    }
+    if self.byCpu != 0 {
+      try visitor.visitSingularUInt32Field(value: self.byCpu, fieldNumber: 7)
+    }
+    if self.byMemory != 0 {
+      try visitor.visitSingularUInt32Field(value: self.byMemory, fieldNumber: 8)
+    }
+    if self.byTasks != 0 {
+      try visitor.visitSingularUInt32Field(value: self.byTasks, fieldNumber: 9)
+    }
+    if self.byContainers != 0 {
+      try visitor.visitSingularUInt32Field(value: self.byContainers, fieldNumber: 10)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineHeadroom, rhs: Micropod_V1_MachineHeadroom) -> Bool {
+    if lhs.containers != rhs.containers {return false}
+    if lhs.underPressure != rhs.underPressure {return false}
+    if lhs.reasons != rhs.reasons {return false}
+    if lhs.limitedBy != rhs.limitedBy {return false}
+    if lhs.unitCpu != rhs.unitCpu {return false}
+    if lhs.unitMemoryBytes != rhs.unitMemoryBytes {return false}
+    if lhs.byCpu != rhs.byCpu {return false}
+    if lhs.byMemory != rhs.byMemory {return false}
+    if lhs.byTasks != rhs.byTasks {return false}
+    if lhs.byContainers != rhs.byContainers {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_MachineHost: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MachineHost"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}cpus\0\u{3}memory_bytes\0\u{3}memory_available_bytes\0\u{3}memory_pressure\0\u{1}load1\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.cpus) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.memoryBytes) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.memoryAvailableBytes) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.memoryPressure) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.load1) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.cpus != 0 {
+      try visitor.visitSingularUInt32Field(value: self.cpus, fieldNumber: 1)
+    }
+    if self.memoryBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.memoryBytes, fieldNumber: 2)
+    }
+    if self.memoryAvailableBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.memoryAvailableBytes, fieldNumber: 3)
+    }
+    if !self.memoryPressure.isEmpty {
+      try visitor.visitSingularStringField(value: self.memoryPressure, fieldNumber: 4)
+    }
+    if self.load1.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.load1, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_MachineHost, rhs: Micropod_V1_MachineHost) -> Bool {
+    if lhs.cpus != rhs.cpus {return false}
+    if lhs.memoryBytes != rhs.memoryBytes {return false}
+    if lhs.memoryAvailableBytes != rhs.memoryAvailableBytes {return false}
+    if lhs.memoryPressure != rhs.memoryPressure {return false}
+    if lhs.load1 != rhs.load1 {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

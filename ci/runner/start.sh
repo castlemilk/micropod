@@ -138,17 +138,33 @@ configure_sysctls
 step="preparing the node"
 # Each containerd shim watches its cgroup's memory.events. The pause pods
 # and job containers share the same real UID on this dedicated Linux node.
-instances=/proc/sys/fs/inotify/max_user_instances
-if [ -r "$instances" ]; then
-    previous=$(cat "$instances")
-    if [ "$previous" -lt 512 ]; then
-        if echo 512 > "$instances"; then
-            echo "Raised guest inotify instances from $previous to 512 for containerd" >&2
-        else
-            echo "Could not raise the guest inotify instance limit for containerd" >&2
-        fi
-    fi
-fi
+#
+# The kernel's defaults are sized for one user's session, and this node runs
+# hundreds of containers at once, all as the same real UID. Each limit below
+# stops containers from starting, or the programs in them from working, well
+# before the machine runs out of CPU or memory:
+#   pid_max            32768 tasks in all: threads count, and a few dozen
+#                      builds (Go, the JVM) reach it
+#   inotify instances  one per shim, plus every file watcher in every
+#                      container (128 by default, 512 before this)
+#   inotify watches    shared by every container's watchers
+#   max_map_count      65530 by default; Elasticsearch and OpenSearch
+#                      refuse to start below 262144
+#   neighbour table    1024 entries by default: one per container on a bridge
+# Only ever raised: a kernel or a profile that set more keeps it.
+raise_limit() {
+    path="/proc/sys/$1"
+    [ -w "$path" ] || return 0
+    current=$(cat "$path" 2>/dev/null) || return 0
+    [ "$current" -lt "$2" ] 2>/dev/null || return 0
+    echo "$2" >"$path" 2>/dev/null || echo "Could not raise the guest's $1 from $current to $2" >&2
+}
+raise_limit kernel/pid_max 4194304
+raise_limit fs/inotify/max_user_instances 8192
+raise_limit fs/inotify/max_user_watches 1048576
+raise_limit vm/max_map_count 262144
+raise_limit net/ipv4/neigh/default/gc_thresh2 4096
+raise_limit net/ipv4/neigh/default/gc_thresh3 8192
 mkdir -p /run/containerd /var/lib/micropod /etc/cni/net.d /etc/cni/micropod-private
 packages=
 command -v iptables >/dev/null || packages=iptables
@@ -217,7 +233,12 @@ iptables -w 5 -t nat -C POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE 2>/dev
 # The snapshotter creates each container root with mode 0755. An inherited
 # 0077 umask makes / unsearchable after the image switches to a non-root UID.
 step="starting containerd and the engine"
-(umask 022; exec containerd --config "$tools/runner/containerd.toml") &
+# containerd, its shims and so every container inherit this open-file limit
+# (init's is 1024, 4096 at most): containerd itself holds descriptors for
+# every live container, and a container gets what a Docker daemon gives
+# (1048576), which databases and language servers in CI images expect.
+(umask 022; ulimit -n 1048576 2>/dev/null || ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
+    exec containerd --config "$tools/runner/containerd.toml") &
 engine=$!
 service=
 api=

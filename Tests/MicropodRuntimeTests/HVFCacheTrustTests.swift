@@ -47,6 +47,76 @@ final class HVFCacheTrustTests: XCTestCase {
         XCTAssertEqual(try rendered(explicit)["defaultTrust"] as? String, "trusted")
     }
 
+    func testDockerSocketIsAbsentUntilSetRenderedForTheGuestAndNamedInTheSummary() throws {
+        let shipped = HVFMachineCachePolicy()
+        XCTAssertNil(shipped.dockerSocket)
+        XCTAssertEqual(shipped.effectiveDockerSocket, .trusted)
+        XCTAssertNil(try rendered(shipped)["dockerSocket"], "the shipped default leaves the guest's default")
+        XCTAssertFalse(shipped.summary.contains("docker socket"), shipped.summary)
+
+        var rig = shipped
+        rig.defaultTrust = .untrusted
+        rig.dockerSocket = .any
+        XCTAssertEqual(try rendered(rig)["dockerSocket"] as? String, "any")
+        XCTAssertEqual(try rendered(rig)["defaultTrust"] as? String, "untrusted", "cache trust is its own setting")
+        XCTAssertTrue(rig.summary.contains("untrusted by default"), rig.summary)
+        XCTAssertTrue(rig.summary.contains("docker socket for any container"), rig.summary)
+        XCTAssertTrue(rig.summary.contains("still only read the dependency caches"), rig.summary)
+        // The socket policy applies whatever the cache mode: it is said then too.
+        rig.mode = .off
+        XCTAssertTrue(rig.summary.hasPrefix("off; docker socket for any container"), rig.summary)
+
+        let decoded = try JSONDecoder().decode(HVFMachineCachePolicy.self, from: JSONEncoder().encode(rig))
+        XCTAssertEqual(decoded, rig)
+        XCTAssertTrue(decoded.extra.isEmpty, "dockerSocket is a known key, not passed through as an unknown one")
+
+        var explicit = shipped
+        explicit.dockerSocket = .trusted
+        XCTAssertEqual(try rendered(explicit)["dockerSocket"] as? String, "trusted")
+        XCTAssertFalse(explicit.summary.contains("docker socket"), explicit.summary)
+    }
+
+    func testDefaultLimitsAreAbsentUntilSetRenderedForTheGuestAndNamedInTheSummary() throws {
+        let shipped = HVFMachineCachePolicy()
+        XCTAssertNil(shipped.defaultLimits)
+        XCTAssertEqual(shipped.effectiveDefaultLimits, .job)
+        XCTAssertNil(try rendered(shipped)["defaultLimits"], "the shipped default leaves the guest's default")
+        XCTAssertFalse(shipped.summary.contains("limits"), shipped.summary)
+
+        var rig = shipped
+        rig.defaultLimits = HVFMachineCachePolicy.DefaultLimits.none
+        XCTAssertEqual(try rendered(rig)["defaultLimits"] as? String, "none")
+        XCTAssertNil(try rendered(rig)["dockerSocket"], "the socket policy is its own setting")
+        XCTAssertTrue(rig.summary.contains("no default container limits"), rig.summary)
+        rig.dockerSocket = .any
+        XCTAssertTrue(rig.summary.contains("docker socket for any container"), rig.summary)
+        XCTAssertTrue(rig.summary.contains("no default container limits"), rig.summary)
+
+        let decoded = try JSONDecoder().decode(HVFMachineCachePolicy.self, from: JSONEncoder().encode(rig))
+        XCTAssertEqual(decoded, rig)
+        XCTAssertTrue(decoded.extra.isEmpty, "defaultLimits is a known key, not passed through as an unknown one")
+
+        for raw in ["unlimited", "NONE", "docker", ""] {
+            XCTAssertThrowsError(
+                try JSONDecoder().decode(
+                    HVFMachineCachePolicy.self, from: Data(#"{"defaultLimits":"\#(raw)"}"#.utf8)), raw
+            ) { error in
+                XCTAssertTrue("\(error)".contains("job or none"), "\(error)")
+            }
+        }
+    }
+
+    func testAnUnknownDockerSocketIsRefused() {
+        for raw in ["everyone", "ANY", "untrusted", ""] {
+            XCTAssertThrowsError(
+                try JSONDecoder().decode(
+                    HVFMachineCachePolicy.self, from: Data(#"{"dockerSocket":"\#(raw)"}"#.utf8)), raw
+            ) { error in
+                XCTAssertTrue("\(error)".contains("trusted or any"), "\(error)")
+            }
+        }
+    }
+
     func testAnUnknownDefaultTrustIsRefused() {
         XCTAssertThrowsError(
             try JSONDecoder().decode(HVFMachineCachePolicy.self, from: Data(#"{"defaultTrust":"semi"}"#.utf8))

@@ -20,6 +20,7 @@ import (
 
 	"github.com/containerd/containerd/filters"
 	control "github.com/moby/buildkit/api/services/control"
+	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -44,6 +45,8 @@ type fakeBuildkit struct {
 	calls  map[string]metadata.MD
 	counts map[string]int
 	solve  *control.SolveRequest
+	// gateway is the last frontend gateway Solve it decoded.
+	gateway *gwpb.SolveRequest
 	// known are the refs of the builds it has (every ref it solved), which
 	// ListenBuildHistory lists. listening and deleted are BuildKit's own
 	// (solver/llbsolver/history, Queue.Listen and Queue.delete, v0.26 and
@@ -206,6 +209,23 @@ func (f *fakeBuildkit) handle(_ any, ss grpc.ServerStream) error {
 			f.deleteHistory(req.Ref)
 		}
 		resp, err := proto.Marshal(&control.UpdateBuildHistoryResponse{})
+		if err != nil {
+			return err
+		}
+		return ss.SendMsg(&resp)
+	case gwpb.LLBBridge_Solve_FullMethodName:
+		var b []byte
+		if err := ss.RecvMsg(&b); err != nil {
+			return err
+		}
+		var req gwpb.SolveRequest
+		if err := proto.Unmarshal(b, &req); err != nil {
+			return ss.SendMsg(&b) // a probe of opaque bytes is echoed
+		}
+		f.mu.Lock()
+		f.gateway = &req
+		f.mu.Unlock()
+		resp, err := proto.Marshal(&gwpb.SolveResponse{})
 		if err != nil {
 			return err
 		}
@@ -792,5 +812,85 @@ func TestGRPCProxyKeepsADelegatedSocketToItsOwnBuilds(t *testing.T) {
 	}
 	if got, err := statusOf(hc, "build-of-a"); err != nil || got != "log of build-of-a" {
 		t.Errorf("the host's view of a job's build: %q %v", got, err)
+	}
+}
+
+// A build through an untrusted container's Docker socket keeps its
+// `RUN --mount=type=cache` directories in a namespace of the untrusted
+// builds' own, whichever call carries the frontend (the control Solve of a
+// plain client, the gateway Solve buildx makes); a trusted owner's builds and
+// the host's share BuildKit's own.
+func TestAnUntrustedSocketsBuildsKeepTheirCacheMountsApart(t *testing.T) {
+	host := newProxyHarness(t)
+	trusted, untrusted, readonly, gone := strings.Repeat("a", 64), strings.Repeat("b", 64), strings.Repeat("c", 64), strings.Repeat("d", 64)
+	host.engine.cachePolicy = policyLoader{path: filepath.Join(t.TempDir(), "absent.json")}
+	host.engine.containers = map[string]*dockerContainer{
+		trusted:   {dockerRecord: dockerRecord{ID: trusted, Cache: &cachePlan{Scope: "default", TrustFrom: trustFromLabel}}},
+		untrusted: {dockerRecord: dockerRecord{ID: untrusted, Cache: &cachePlan{Scope: "default", ReadOnly: true, Trust: trustUntrusted, TrustFrom: trustFromLabel}}},
+		readonly:  {dockerRecord: dockerRecord{ID: readonly, Cache: &cachePlan{Scope: "default", ReadOnly: true, Trust: trustReadOnly, TrustFrom: trustFromLabel}}},
+	}
+	for viewer, want := range map[string]string{"": "", trusted: "", untrusted: untrustedBuildCaches, readonly: untrustedBuildCaches, gone: untrustedBuildCaches} {
+		if got := host.engine.buildCacheNamespace(viewer); got != want {
+			t.Errorf("namespace of %.4q: %q, want %q", viewer, got, want)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	solved := func() (control, gateway map[string]string) {
+		host.up.mu.Lock()
+		defer host.up.mu.Unlock()
+		if host.up.solve != nil {
+			control = host.up.solve.FrontendAttrs
+		}
+		if host.up.gateway != nil {
+			gateway = host.up.gateway.FrontendOpt
+		}
+		host.up.solve, host.up.gateway = nil, nil
+		return control, gateway
+	}
+	build := func(cc *grpc.ClientConn, ref string, attrs map[string]string) (map[string]string, map[string]string) {
+		t.Helper()
+		if _, err := control.NewControlClient(cc).Solve(ctx, &control.SolveRequest{Ref: ref, Frontend: "dockerfile.v0", FrontendAttrs: attrs}); err != nil {
+			t.Fatal(err)
+		}
+		gctx := metadata.AppendToOutgoingContext(ctx, buildkitBuildIDHeader, ref)
+		if _, err := gwpb.NewLLBBridgeClient(cc).Solve(gctx, &gwpb.SolveRequest{Frontend: "dockerfile.v0", FrontendOpt: attrs}); err != nil {
+			t.Fatal(err)
+		}
+		return solved()
+	}
+	for name, cc := range map[string]*grpc.ClientConn{"host": host.client(t), "trusted": host.delegated(t, trusted).client(t)} {
+		c, g := build(cc, "ref-"+name, map[string]string{"filename": "Dockerfile"})
+		if _, set := c[buildCacheMountNS]; set || len(c) != 1 {
+			t.Errorf("%s control solve: %v", name, c)
+		}
+		if _, set := g[buildCacheMountNS]; set || len(g) != 1 {
+			t.Errorf("%s gateway solve: %v", name, g)
+		}
+	}
+	sockets := map[string]*proxyHarness{}
+	for name, viewer := range map[string]string{"untrusted": untrusted, "readonly": readonly, "gone": gone} {
+		sockets[name] = host.delegated(t, viewer)
+		cc := sockets[name].client(t)
+		c, g := build(cc, "ref-"+name, map[string]string{"filename": "Dockerfile"})
+		if c[buildCacheMountNS] != untrustedBuildCaches || c["filename"] != "Dockerfile" {
+			t.Errorf("%s control solve: %v", name, c)
+		}
+		if g[buildCacheMountNS] != untrustedBuildCaches || g["filename"] != "Dockerfile" {
+			t.Errorf("%s gateway solve: %v", name, g)
+		}
+		// A namespace the build names itself stays inside the untrusted one.
+		c, g = build(cc, "ref2-"+name, map[string]string{buildCacheMountNS: "mine"})
+		if want := untrustedBuildCaches + "-mine"; c[buildCacheMountNS] != want || g[buildCacheMountNS] != want {
+			t.Errorf("%s with its own namespace: control %v gateway %v", name, c, g)
+		}
+	}
+	// LLB the client wrote has no frontend to tell: it is passed as it is.
+	cc := sockets["untrusted"].client(t)
+	if _, err := control.NewControlClient(cc).Solve(ctx, &control.SolveRequest{Ref: "raw-llb"}); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ := solved(); len(c) != 0 {
+		t.Errorf("a solve without a frontend got attributes: %v", c)
 	}
 }

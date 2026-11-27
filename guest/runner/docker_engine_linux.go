@@ -70,6 +70,10 @@ type dockerRecord struct {
 	// Docker API at create (engineSocketGrant); every start serves it a
 	// socket of its own at its docker.sock bind (openEngineSocket).
 	EngineSocket bool `json:",omitempty"`
+	// ImageEnv is the image's own environment at create: what inspect shows
+	// under the container's (Docker reports the two merged, and a client
+	// such as a GitHub Actions runner reads the container's PATH there).
+	ImageEnv []string `json:",omitempty"`
 	// CreatedBy is the container whose delegated socket created this one
 	// ("" for the host's): its family on that socket (docker_delegated_linux.go).
 	CreatedBy string `json:",omitempty"`
@@ -137,6 +141,9 @@ type dockerEngine struct {
 	execPipeDir string
 	cachePolicy policyLoader
 	imageFacts  factsLoader
+	// capacity: the kernel's figures and the start latencies GET
+	// /micropod/capacity answers from (docker_capacity_linux.go).
+	capacity capacityState
 }
 
 type dockerCPUGroup struct {
@@ -594,6 +601,9 @@ func serveEngine(ctx context.Context, n node) error {
 		go cacheDirty.run(ctx)
 		go s.runCacheJanitor(ctx)
 	}
+	raiseFileLimit()
+	s.capacity.proc = "/proc"
+	go s.capacity.run(ctx.Done())
 	if st, err := os.Lstat(dockerSocket); err == nil && st.Mode()&os.ModeSocket == 0 {
 		return errors.New("Docker API path is occupied")
 	}
@@ -709,6 +719,10 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	if name != "" && !dockerName.MatchString(name) {
 		return nil, fail(400, "invalid container name")
 	}
+	s.capacity.creating.Add(1)
+	defer s.capacity.creating.Add(-1)
+	spec.Labels = stampFamily(ctx, spec.Labels)
+	spec.HostConfig.applyDefaultLimits(s.cachePolicy.get())
 	s.imageMu.RLock()
 	defer s.imageMu.RUnlock()
 	img, err := s.node.dockerImageStatus(ctx, spec.Image, true)
@@ -797,7 +811,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		return nil, err
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, ImageEnv: imageEnv(img.GetInfo()["info"]), Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
@@ -1135,8 +1149,12 @@ func readNpmrc(f *os.File) []byte {
 // start starts c; viewer is the container whose delegated socket asked for
 // it ("" for the host's socket).
 func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (startErr error) {
+	begun := time.Now()
+	s.capacity.starting.Add(1)
 	defer func() {
+		s.capacity.starting.Add(-1)
 		if startErr == nil {
+			s.capacity.recordStart(time.Since(begun))
 			return
 		}
 		s.mu.Lock()
@@ -1789,7 +1807,7 @@ func (c *dockerContainer) dockerStatus() string {
 func (c *dockerContainer) inspect() map[string]any {
 	network := networkName(c.Config.HostConfig.NetworkMode)
 	config := c.Config
-	config.Env = mergeEnv(c.Config.Env, withoutProxies(c.Cache.env(c.CacheSkipped), c.CacheProxy))
+	config.Env = mergeEnv(mergeEnv(c.ImageEnv, c.Config.Env), withoutProxies(c.Cache.env(c.CacheSkipped), c.CacheProxy))
 	config.HostConfig.LogConfig = config.HostConfig.LogConfig.withDefault()
 	state := map[string]any{"Status": c.dockerStatus(), "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure, "LogError": c.LogError}
 	if c.Health != nil {

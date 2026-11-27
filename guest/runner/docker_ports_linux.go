@@ -192,7 +192,7 @@ const relayDialTimeout = 10 * time.Second
 // limit: it serves only the Mac's port broker (macFacingAdmits), and closes
 // any other peer, a container's included, before it dials anything.
 const (
-	relayFamilySlots = 128
+	relayFamilySlots = 512
 	// relayPendingAdmissions bounds a listener's connections waiting for
 	// admit, which takes the engine's lock (a create or a remove can hold
 	// it for a while): past it the accept loop waits, leaving the rest in
@@ -203,10 +203,10 @@ const (
 // relayPortSlots is how many connections one published port's gateway
 // relays hold between them, at however many gateways it is relayed. A
 // variable for tests.
-var relayPortSlots = 128
+var relayPortSlots = 512
 
 var (
-	gatewayRelaySlots    = make(chan struct{}, 512)
+	gatewayRelaySlots    = make(chan struct{}, 4096)
 	gatewayRelayFamilies = &familySlots{max: relayFamilySlots}
 )
 

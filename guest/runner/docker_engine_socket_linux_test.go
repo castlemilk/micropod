@@ -73,6 +73,32 @@ func TestEngineSocketGrant(t *testing.T) {
 		{"from inside a container", "", nested, sock(trusted, "/var/run/docker.sock:/var/run/docker.sock"), false, "cannot be given a Docker socket"},
 		{"no origin mark is a container's", "", context.Background(), sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "cannot be given"},
 		{"the reaper keeps its cleanup socket", `{"defaultTrust":"untrusted"}`, nested, ryukSpec(), false, ""},
+		// dockerSocket: the host may hand a container of any tier a socket.
+		{"dockerSocket trusted is the default", `{"defaultTrust":"untrusted","dockerSocket":"trusted"}`, host,
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "only a trusted container"},
+		{"any: untrusted default, unlabeled", `{"defaultTrust":"untrusted","dockerSocket":"any"}`, host,
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), true, ""},
+		{"any: labelled untrusted", `{"dockerSocket":"any"}`, host,
+			sock(map[string]string{"io.micropod.cache.trust": "untrusted"}, "/var/run/docker.sock:/var/run/docker.sock"), true, ""},
+		{"any: read-only", `{"dockerSocket":"any"}`, host,
+			sock(map[string]string{"io.micropod.cache.readonly": "1"}, "/run/docker.sock:/var/run/docker.sock"), true, ""},
+		{"any: trusted", `{"defaultTrust":"untrusted","dockerSocket":"any"}`, host,
+			sock(trusted, "/var/run/docker.sock:/var/run/docker.sock"), true, ""},
+		{"any: no bind, no socket", `{"dockerSocket":"any"}`, host, dockerConfig{Image: "golang:1"}, false, ""},
+		{"any: still only the host delegates", `{"dockerSocket":"any"}`, nested,
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "cannot be given a Docker socket"},
+		{"any: no origin mark is a container's", `{"dockerSocket":"any"}`, context.Background(),
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "cannot be given"},
+		{"any: the reaper keeps its cleanup socket", `{"defaultTrust":"untrusted","dockerSocket":"any"}`, nested, ryukSpec(), false, ""},
+		{"any: an unknown trust value still fails", `{"dockerSocket":"any"}`, host,
+			sock(map[string]string{"io.micropod.cache.trust": "bogus"}, "/var/run/docker.sock:/var/run/docker.sock"), false, "!400"},
+		// A policy that cannot be read as written grants nothing more.
+		{"unknown dockerSocket value fails closed", `{"dockerSocket":"everyone"}`, host,
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "only a trusted container"},
+		{"any beside an invalid key fails closed", `{"dockerSocket":"any","mode":"sometimes"}`, host,
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "only a trusted container"},
+		{"malformed policy fails closed", `{"dockerSocket":"any"`, host,
+			sock(nil, "/var/run/docker.sock:/var/run/docker.sock"), false, "only a trusted container"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := engineForPolicy(t, tc.policy)
@@ -83,6 +109,11 @@ func TestEngineSocketGrant(t *testing.T) {
 			switch {
 			case tc.denied == "" && err != nil:
 				t.Fatalf("unexpected error %v", err)
+			case tc.denied == "!400":
+				var api apiError
+				if !errors.As(err, &api) || api.code != 400 {
+					t.Fatalf("err %v, want 400", err)
+				}
 			case tc.denied != "":
 				var api apiError
 				if !errors.As(err, &api) || api.code != 403 || !strings.Contains(api.message, tc.denied) {
@@ -221,5 +252,175 @@ func TestDockerEnvMount(t *testing.T) {
 	own := dockerConfig{Image: "alpine", HostConfig: dockerHost{Binds: []string{"/Users/me/env:/.dockerenv:ro"}}}
 	if m := dockerEnvMount(own); m != nil {
 		t.Fatalf("a container's own /.dockerenv mount is replaced: %+v", m)
+	}
+}
+
+// dockerSocket is host-owned and parsed strictly: an unknown value, or a
+// policy file that cannot be parsed, grants no untrusted container a socket,
+// and the shipped default's digest does not change.
+func TestCachePolicyDockerSocket(t *testing.T) {
+	pol, err := parseCachePolicy([]byte(`{"dockerSocket":"any","defaultTrust":"untrusted"}`))
+	if err != nil || !pol.socketForAnyTier() || !pol.untrustedByDefault() {
+		t.Fatalf("%+v %v", pol, err)
+	}
+	for _, body := range []string{`{}`, `{"dockerSocket":"trusted"}`, `{"dockerSocket":""}`} {
+		if pol, err = parseCachePolicy([]byte(body)); err != nil || pol.socketForAnyTier() || pol.digest() != defaultCachePolicy().digest() {
+			t.Fatalf("%s: %+v %v", body, pol, err)
+		}
+	}
+	for _, body := range []string{`{"dockerSocket":"ANY"}`, `{"dockerSocket":"untrusted"}`, `{"dockerSocket":true}`, `{"dockerSocket":"any","defaultTrust":"semi"}`} {
+		if pol, err = parseCachePolicy([]byte(body)); err == nil {
+			t.Fatalf("%s parsed: %+v", body, pol)
+		}
+	}
+	if failClosedCachePolicy().socketForAnyTier() || defaultCachePolicy().socketForAnyTier() {
+		t.Fatal("a default policy hands untrusted containers a socket")
+	}
+	file := filepath.Join(t.TempDir(), "cache-policy.json")
+	write := func(body string) *policyLoader {
+		t.Helper()
+		if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return &policyLoader{path: file, share: hostConfigMounted}
+	}
+	if !write(`{"dockerSocket":"any"}`).get().socketForAnyTier() {
+		t.Fatal("the policy as written was not read")
+	}
+	for _, body := range []string{`{"dockerSocket":"any","mode":"sometimes"}`, `{"dockerSocket":"any"`, `{"dockerSocket":"some"}`, `{"dockerSocket":"any","maxAgeDays":-1}`} {
+		if pol := write(body).get(); pol.socketForAnyTier() || !pol.untrustedByDefault() {
+			t.Fatalf("%s: %+v, want the fail-closed policy", body, pol)
+		}
+	}
+	// The share the host asked for did not mount, or its file is gone.
+	if pol := (&policyLoader{path: file, share: hostConfigUnavailable}).get(); pol.socketForAnyTier() {
+		t.Fatalf("an unavailable share: %+v", pol)
+	}
+	if pol := (&policyLoader{path: filepath.Join(t.TempDir(), "absent.json"), share: hostConfigMounted}).get(); pol.socketForAnyTier() {
+		t.Fatalf("a missing file on a mounted share: %+v", pol)
+	}
+}
+
+// Under dockerSocket: any, an untrusted container the host gave a socket
+// creates only containers of its own tier: a child it labels trusted is
+// untrusted (it reads the shared stores, never writes them), is in the
+// owner's cache scope, gets at most the family's own socket (never a family
+// of its own), and the socket shows it its own family and nothing of another
+// job's.
+func TestAnUntrustedSocketOwnersFamily(t *testing.T) {
+	s, owner, child, other, otherChild := delegatedFixture(t)
+	policy := filepath.Join(t.TempDir(), "cache-policy.json")
+	if err := os.WriteFile(policy, []byte(`{"defaultTrust":"untrusted","dockerSocket":"any"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.cachePolicy = policyLoader{path: policy}
+	host := withCacheOrigin(context.Background(), cacheOrigin{hostFacing: true})
+	bind := dockerHost{Binds: []string{"/var/run/docker.sock:/var/run/docker.sock"}}
+	ownerSpec := dockerConfig{Image: "golang:1", Labels: map[string]string{"io.micropod.cache": "off", "io.micropod.cache.scope": "proj-a"}, HostConfig: bind}
+	if grant, err := s.engineSocketGrant(host, ownerSpec); err != nil || !grant {
+		t.Fatalf("the untrusted owner's socket: %v %v", grant, err)
+	}
+	plan, _, err := s.cacheDecision(host, ownerSpec, "sha256:x")
+	if err != nil || plan.tier() != trustUntrusted || !plan.ReadOnly {
+		t.Fatalf("the owner's plan: %+v %v", plan, err)
+	}
+	owner.Config, owner.Cache, owner.EngineSocket = ownerSpec, plan, true
+
+	// What the owner's socket marks every request with (serveContainerEngine).
+	own := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}), owner.ID)
+	for name, labels := range map[string]map[string]string{
+		"unlabelled":       {"io.micropod.cache": "off"},
+		"claiming trusted": {"io.micropod.cache": "off", "io.micropod.cache.trust": "trusted"},
+	} {
+		childPlan, _, err := s.cacheDecision(own, dockerConfig{Image: "postgres:16", Labels: labels}, "sha256:x")
+		if err != nil || childPlan.tier() != trustUntrusted || !childPlan.ReadOnly || childPlan.Scope != "proj-a" {
+			t.Errorf("%s child: %+v %v, want an untrusted reader in the owner's scope", name, childPlan, err)
+		}
+		rules := containerVolumeRules(s.cachePolicy.get(), dockerConfig{Labels: labels}, childPlan, owner.ID)
+		if !rules.readOnly || !rules.confined {
+			t.Errorf("%s child's volume rules: %+v, want read-only and confined to the owner's scope", name, rules)
+		}
+	}
+	// A child cannot name another scope.
+	if _, _, err := s.cacheDecision(own, dockerConfig{Image: "postgres:16", Labels: map[string]string{"io.micropod.cache": "off", "io.micropod.cache.scope": "proj-b"}}, "sha256:x"); err == nil {
+		t.Error("a child named another cache scope")
+	}
+	// A child that binds docker.sock (a runner's `container:` job) shares
+	// the family's socket: no family of its own. What it creates there is
+	// still an untrusted reader in the owner's scope, whatever it claims.
+	jobSpec := dockerConfig{Image: "docker:cli", Labels: map[string]string{"io.micropod.cache": "off", "io.micropod.cache.trust": "trusted"}, HostConfig: bind}
+	if grant, err := s.engineSocketGrant(own, jobSpec); err != nil || !grant {
+		t.Fatalf("a child sharing its family's socket: %v %v", grant, err)
+	}
+	jobPlan, _, err := s.cacheDecision(own, jobSpec, "sha256:x")
+	if err != nil || jobPlan.tier() != trustUntrusted {
+		t.Fatalf("the job container's plan: %+v %v", jobPlan, err)
+	}
+	child.Config, child.Cache, child.EngineSocket = jobSpec, jobPlan, true
+	if child.ownsFamily() {
+		t.Fatal("a child with a socket owns a family")
+	}
+	// What the child's socket marks a request with (openEngineSocket).
+	shared := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: child.ID}), owner.ID)
+	grandchild, _, err := s.cacheDecision(shared, dockerConfig{Image: "postgres:16", Labels: map[string]string{"io.micropod.cache": "off", "io.micropod.cache.trust": "trusted"}}, "sha256:x")
+	if err != nil || grandchild.tier() != trustUntrusted || !grandchild.ReadOnly || grandchild.Scope != "proj-a" {
+		t.Errorf("a container made on the child's socket: %+v %v, want an untrusted reader in the owner's scope", grandchild, err)
+	}
+	sharedPath, closeShared, err := serveFamilyEngine(delegatedAPI{s}, t.TempDir(), owner.ID, child.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeShared()
+	sharedClient := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", sharedPath)
+		}}}
+	for c, want := range map[*dockerContainer]int{owner: 200, child: 200, other: 404, otherChild: 404} {
+		if code := getJSON(t, sharedClient, "/containers/"+c.ID+"/json", nil); code != want {
+			t.Errorf("inspect %s on the child's socket: %d, want %d", c.Name, code, want)
+		}
+	}
+	if code := getJSON(t, sharedClient, "/micropod/capacity", nil); code != 403 {
+		t.Errorf("/micropod/capacity on the child's socket: %d, want 403", code)
+	}
+	// Only a family's owner shares: a socket whose container is gone, or is
+	// itself a child, hands nothing on; nor does any socket while the policy
+	// keeps sockets to trusted containers.
+	var api apiError
+	for name, ctx := range map[string]context.Context{
+		"a socket whose owner is gone": withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: "gone"}), "gone"),
+		"a child taken for an owner":   withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: child.ID}), child.ID),
+		"no family at all":             withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}),
+	} {
+		if grant, err := s.engineSocketGrant(ctx, jobSpec); grant || !errors.As(err, &api) || api.code != 403 {
+			t.Errorf("%s: %v %v, want 403", name, grant, err)
+		}
+	}
+	if err := os.WriteFile(policy, []byte(`{"defaultTrust":"trusted"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.cachePolicy = policyLoader{path: policy}
+	if grant, err := s.engineSocketGrant(own, jobSpec); grant || !errors.As(err, &api) || api.code != 403 {
+		t.Errorf("a child's socket under dockerSocket trusted: %v %v, want 403", grant, err)
+	}
+	if err := os.WriteFile(policy, []byte(`{"defaultTrust":"untrusted","dockerSocket":"any"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.cachePolicy = policyLoader{path: policy}
+
+	client := delegatedClient(t, s, owner.ID)
+	var list []dockerContainerListRow
+	if code := getJSON(t, client, "/v1.47/containers/json?all=1", &list); code != 200 || len(list) != 2 {
+		t.Fatalf("the family's list: %d %+v", code, list)
+	}
+	for c, want := range map[*dockerContainer]int{owner: 200, child: 200, other: 404, otherChild: 404} {
+		if code := getJSON(t, client, "/containers/"+c.ID+"/json", nil); code != want {
+			t.Errorf("inspect %s: %d, want %d", c.Name, code, want)
+		}
+	}
+	for _, path := range []string{"/micropod/caches", "/micropod/metrics", "/v1.47/micropod/containers/summary"} {
+		if code := getJSON(t, client, path, nil); code != 403 {
+			t.Errorf("%s on the socket: %d, want 403", path, code)
+		}
 	}
 }

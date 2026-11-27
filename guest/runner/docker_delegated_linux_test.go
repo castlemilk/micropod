@@ -191,6 +191,7 @@ func TestDelegatedRoute(t *testing.T) {
 		{"POST", "/containers/create", true}, {"GET", "/containers/json", true}, {"POST", "/containers/x/start", true},
 		{"PUT", "/containers/x/archive", true}, {"POST", "/exec/x/start", true}, {"POST", "/images/create", true},
 		{"POST", "/networks/create", true}, {"GET", "/networks", true}, {"DELETE", "/volumes/x", true}, {"GET", "/volumes", true},
+		{"GET", "/system/df", true}, {"GET", "/v1.47/system/df", true}, {"POST", "/system/df", false}, {"GET", "/system/events", false},
 		{"GET", "/micropod/buildkit", false}, {"GET", "/v1.47/micropod/buildkit", false},
 		{"GET", "/micropod/caches", false}, {"POST", "/micropod/caches/prune", false}, {"DELETE", "/v1.47/micropod/caches", false},
 		{"POST", "/micropod/caches/debug", false}, {"GET", "/micropod/containers/summary", false}, {"POST", "/micropod/traces/clear", false},

@@ -273,6 +273,30 @@ final class ControlPlaneServiceTests: XCTestCase {
         XCTAssertEqual(prunes.last?["scope"] as? String, "proj")
     }
 
+    func testSetCachePolicyChangesTheDockerSocketPolicyOnlyOnTheOwnersSocket() async throws {
+        let api = await makeHandlers()
+        let before = try Data(contentsOf: layout.config)
+        let request = Micropod_V1_SetCachePolicyRequest.with { $0.dockerSocket = "any" }
+        for binary in [true, false] {
+            let reply = try await rpc(api, "CacheService", "SetCachePolicy", request, binary: binary)
+            XCTAssertEqual(reply.status, 403)
+            XCTAssertEqual(reply.json["code"] as? String, "permission_denied")
+            XCTAssertTrue((reply.json["message"] as? String ?? "").contains("nothing was written"), "\(reply.json)")
+        }
+        XCTAssertEqual(try Data(contentsOf: layout.config), before, "machine.json is untouched")
+
+        let saved = try await RequestOrigin.$ownerSocket.withValue(true) {
+            try decoded(
+                Micropod_V1_SetCachePolicyResponse.self,
+                try await rpc(api, "CacheService", "SetCachePolicy", request))
+        }
+        XCTAssertEqual(saved.policy.dockerSocket, "any")
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy.dockerSocket, .any)
+        let shown = try decoded(
+            Micropod_V1_CachePolicy.self, try await rpc(api, "CacheService", "GetCachePolicy", Micropod_V1_Empty()))
+        XCTAssertEqual(shown.dockerSocket, "any")
+    }
+
     func testSetCachePolicyNamingNothingIsInvalidAndWritesNothing() async throws {
         let api = await makeHandlers()
         let before = try Data(contentsOf: layout.config)
@@ -530,6 +554,117 @@ final class ControlPlaneServiceTests: XCTestCase {
         XCTAssertEqual(json["containersRunning"] as? Int, 2)
         XCTAssertEqual(json["engineVersion"] as? String, "micropod-1.2")
         XCTAssertEqual((json["autostart"] as? [String: Any])?["enabled"] as? Bool, false)
+    }
+
+    /// The guest engine's own report, key for key (GET /micropod/capacity).
+    static let guestCapacity =
+        #"""
+        {"capacity":{"conntrack_max":262144,"cpus":16,"family_containers_max":256,"max_containers":1024,"memory_bytes":50502500352,"open_files_max":4930989,"pid_max":4194304,"relay_connections_max":4096,"start_parallelism_limit":0},"containers":{"total":9,"running":6,"starting":1,"created":1,"exited":1,"requested_milli_cpu":4000,"requested_memory_bytes":8589934592,"without_cpu_limit":3,"families":[{"name":"gha-runner-1","running":4,"total":5,"requested_milli_cpu":2000,"requested_memory_bytes":4294967296},{"name":"","running":3,"total":4,"requested_milli_cpu":2000,"requested_memory_bytes":4294967296}]},"disks":{"cache":{"free_bytes":16891420672,"total_bytes":16908267520},"os":{"free_bytes":21861261312,"total_bytes":33818648576}},"engine":{"creates_in_flight":1,"starts_in_flight":2,"start_p50_ms":180,"start_p95_ms":420,"starts_sampled":256,"setup_slots_in_use":0},"headroom":{"containers":18,"under_pressure":false,"reasons":[],"limited_by":"cpu","unit_cpu":0.57,"unit_memory_bytes":1078975342,"by_cpu":18,"by_memory":37,"by_tasks":52420,"by_containers":1017},"pressure":{"available":true,"cpu":{"some":{"avg10":0,"avg60":0,"avg300":0},"full":{"avg10":0,"avg60":0,"avg300":0}},"io":{"some":{"avg10":0,"avg60":1.05,"avg300":1},"full":{"avg10":0,"avg60":1.04,"avg300":1}},"memory":{"some":{"avg10":1.5,"avg60":0,"avg300":0},"full":{"avg10":0,"avg60":0,"avg300":0}}},"sampled_unix_ms":1795782926188,"usage":{"conntrack_entries":33,"cpu_busy_cpus":4.0,"cpu_busy_fraction":0.25,"load1":3.5,"load15":1.0,"load5":2.0,"memory_available_bytes":42949672960,"memory_used_bytes":7552827392,"open_files":2100,"relay_connections":2,"runnable":5,"swap_used_bytes":0,"tasks":640}}
+        """#
+
+    /// One guest request, mapped field for field; the Mac's own figures are
+    /// read in this process.
+    func testMachineCapacityIsOneGuestRequestMappedFieldForField() async throws {
+        try installPlaceholders()
+        let api = await makeHandlers()
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        let guest = try FakeGuestDockerAPI(path: layout.dockerSocket.path) { request in
+            request.path == "/micropod/capacity" ? (200, Data(Self.guestCapacity.utf8)) : (404, Data())
+        }
+        defer { guest.stop() }
+        for binary in [true, false] {
+            let report = try decoded(
+                Micropod_V1_MachineCapacity.self,
+                try await rpc(api, "RigService", "GetMachineCapacity", Micropod_V1_Empty(), binary: binary))
+            XCTAssertEqual(report.cpus, 16)
+            XCTAssertEqual(report.sampledUnixMs, 1_795_782_926_188)
+            XCTAssertEqual(report.pidMax, 4_194_304)
+            XCTAssertEqual(report.maxContainers, 1024)
+            XCTAssertEqual(report.familyContainersMax, 256)
+            XCTAssertEqual(report.relayConnectionsMax, 4096)
+            XCTAssertEqual(report.usage.cpuBusyCpus, 4.0)
+            XCTAssertEqual(report.usage.load1, 3.5)
+            XCTAssertEqual(report.usage.tasks, 640)
+            XCTAssertEqual(report.usage.memoryAvailableBytes, 42_949_672_960)
+            XCTAssertEqual(report.containers.running, 6)
+            XCTAssertEqual(report.containers.starting, 1)
+            XCTAssertEqual(report.containers.withoutCpuLimit, 3)
+            XCTAssertEqual(report.containers.requestedMilliCpu, 4000)
+            XCTAssertEqual(report.containers.families.map(\.name), ["gha-runner-1", ""])
+            XCTAssertEqual(report.containers.families.first?.running, 4)
+            XCTAssertEqual(report.engine.startsInFlight, 2)
+            XCTAssertEqual(report.engine.startP95Ms, 420)
+            XCTAssertTrue(report.pressure.available)
+            XCTAssertEqual(report.pressure.memory.some.avg10, 1.5)
+            XCTAssertGreaterThan(report.osDisk.totalBytes, 0)
+            XCTAssertTrue(report.hasCacheDisk)
+            XCTAssertEqual(report.headroom.byMemory, 37)
+            XCTAssertEqual(report.headroom.unitCpu, 0.57)
+            XCTAssertGreaterThan(report.host.cpus, 0)
+            XCTAssertGreaterThan(report.host.memoryBytes, 0)
+            // The Mac's own pressure decides the last word.
+            if report.host.memoryPressure == "normal" || report.host.memoryPressure.isEmpty {
+                XCTAssertEqual(report.headroom.containers, 18)
+                XCTAssertFalse(report.headroom.underPressure)
+                XCTAssertEqual(report.headroom.limitedBy, "cpu")
+            } else {
+                XCTAssertEqual(report.headroom.containers, 0)
+                XCTAssertTrue(report.headroom.underPressure)
+            }
+        }
+        XCTAssertEqual(
+            guest.requests.map(\.path), ["/micropod/capacity", "/micropod/capacity"], "one guest request per call")
+        let twin = await rest(api, .get, "/v1/rig/capacity")
+        XCTAssertEqual(twin.status, 200)
+        XCTAssertEqual((twin.json["headroom"] as? [String: Any])?["byCpu"] as? Int, 18)
+    }
+
+    /// A Mac under memory pressure withdraws the guest's headroom; an older
+    /// engine and a stopped machine are unavailable, and nothing is started.
+    func testMachineCapacityFollowsTheMacAndNeverStartsAMachine() async throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let guest = try decoder.decode(HVFGuestCapacity.self, from: Data(Self.guestCapacity.utf8))
+        func host(_ pressure: String) -> HVFHostPressure {
+            HVFHostPressure(
+                cpus: 16, memoryBytes: 128 << 30, memoryAvailableBytes: 8 << 30, memoryPressure: pressure, load1: 2)
+        }
+        let calm = HVFMachineClient.capacityMessage(guest: guest, host: host("normal"))
+        XCTAssertEqual(calm.headroom.containers, 18)
+        XCTAssertEqual(calm.host.memoryPressure, "normal")
+        XCTAssertEqual(calm.host.memoryAvailableBytes, 8 << 30)
+        for pressure in ["warning", "critical"] {
+            let pressed = HVFMachineClient.capacityMessage(guest: guest, host: host(pressure))
+            XCTAssertEqual(pressed.headroom.containers, 0, pressure)
+            XCTAssertTrue(pressed.headroom.underPressure, pressure)
+            XCTAssertEqual(pressed.headroom.limitedBy, "host-memory", pressure)
+            XCTAssertEqual(pressed.headroom.reasons, ["the Mac is under memory pressure (\(pressure))"])
+            XCTAssertEqual(pressed.headroom.byCpu, 18, "what each resource alone allows is still reported")
+        }
+        XCTAssertEqual(HVFMachineClient.capacityMessage(guest: guest, host: host("")).headroom.containers, 18)
+
+        try installPlaceholders()
+        let api = await makeHandlers()
+        var reply = try await rpc(api, "RigService", "GetMachineCapacity", Micropod_V1_Empty())
+        XCTAssertEqual(reply.status, 503)
+        XCTAssertEqual(reply.json["code"] as? String, "unavailable")
+        XCTAssertFalse(HVFFileLock.isHeld(layout.supervisorLock), "nothing was started")
+        let twin = await rest(api, .get, "/v1/rig/capacity")
+        XCTAssertEqual(twin.status, 503)
+
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        let old = try FakeGuestDockerAPI(path: layout.dockerSocket.path) { _ in
+            (404, Data(#"{"message":"page not found"}"#.utf8))
+        }
+        defer { old.stop() }
+        reply = try await rpc(api, "RigService", "GetMachineCapacity", Micropod_V1_Empty())
+        XCTAssertEqual(reply.status, 503)
+        XCTAssertTrue(
+            (reply.json["message"] as? String ?? "").contains("update the machine's payload"), "\(reply.json)")
     }
 
     /// The app's Start button is an explicit start, as `machine start` is:

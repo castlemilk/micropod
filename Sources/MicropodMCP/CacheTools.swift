@@ -178,6 +178,14 @@ enum CacheTools {
             patch.proxyUntrusted = proxy
             named = true
         }
+        if let socket = args.optionalString("docker_socket") {
+            patch.dockerSocket = socket
+            named = true
+        }
+        if let limits = args.optionalString("default_limits") {
+            patch.defaultLimits = limits
+            named = true
+        }
         if let goProxy = args.optionalString("go_proxy") {
             patch.goProxy = url(goProxy)
             named = true
@@ -210,7 +218,7 @@ enum CacheTools {
         guard named else {
             throw MCPArgumentError(
                 message: "cache_policy_set: name at least one setting to change (mode, shared_l0, default_trust, "
-                    + "proxy_untrusted, go_proxy, npm_registry, default_scope, max_bytes, max_age_days); "
+                    + "proxy_untrusted, docker_socket, default_limits, go_proxy, npm_registry, default_scope, max_bytes, max_age_days); "
                     + "nothing was written")
         }
         return patch

@@ -45,6 +45,9 @@ extension APIHandlers {
             case "GetMachineStatus":
                 return unary(await machineStatus(hvfMachineClient()), binary: binary)
 
+            case "GetMachineCapacity":
+                return unary(try await machineCapacity(), binary: binary)
+
             case "ControlMachine":
                 let req = try decode(Micropod_V1_ControlMachineRequest.self, body, binary: binary)
                 let client = hvfMachineClient()
@@ -133,6 +136,16 @@ extension APIHandlers {
             }
         } catch let error as BadRequest {
             throw ConnectDecodeError(code: .invalidArgument, message: error.message)
+        }
+    }
+
+    /// `GetMachineCapacity` and `GET /v1/rig/capacity`: one guest request;
+    /// `unavailable` while the machine does not serve.
+    func machineCapacity() async throws -> Micropod_V1_MachineCapacity {
+        do {
+            return try await hvfMachineClient().capacityMessage()
+        } catch let error as HVFMachineClient.CapacityUnavailable {
+            throw ConnectDecodeError(code: .unavailable, message: error.message)
         }
     }
 
@@ -300,6 +313,8 @@ extension APIHandlers {
                 "mode": policy.mode.rawValue,
                 "sharedL0": policy.sharedL0,
                 "defaultTrust": policy.effectiveDefaultTrust.rawValue,
+                "dockerSocket": policy.effectiveDockerSocket.rawValue,
+                "defaultLimits": policy.effectiveDefaultLimits.rawValue,
                 "goProxy": policy.goProxy ?? "",
                 "toolCount": policy.tools.count,
             ],
@@ -360,6 +375,8 @@ enum RigProto {
                 $0.mode = policy.mode.rawValue
                 $0.sharedL0 = policy.sharedL0
                 $0.defaultTrust = policy.effectiveDefaultTrust.rawValue
+                $0.dockerSocket = policy.effectiveDockerSocket.rawValue
+                $0.defaultLimits = policy.effectiveDefaultLimits.rawValue
                 $0.goProxy = policy.goProxy ?? ""
                 $0.toolCount = Int32(clamping: policy.tools.count)
             }

@@ -35,6 +35,13 @@ service RigService {
   // while it runs, the guest is asked for its engine version, its
   // containers and its cache disk (one second each).
   rpc GetMachineStatus(Empty) returns (HVFMachineStatus);
+  // What the hvf machine has, what is in use, how hard it is being pushed
+  // and how many more containers it can take now: the figures a scheduler
+  // admits work by. One request to the guest engine, which answers from its
+  // own counters and a once-a-second sample of the kernel's (no subprocess,
+  // no listing); the Mac's memory pressure is read in this process. Never
+  // boots anything: unavailable while the machine does not serve.
+  rpc GetMachineCapacity(Empty) returns (MachineCapacity);
   // Start (returns once the guest answers), stop (a stop on request: Ping and
   // GetSystem then say stopped and nothing restarts it on demand) or restart
   // the machine; replies with its status afterwards. Stop and restart are
@@ -121,6 +128,12 @@ message RigCachePolicySummary {
   string default_trust = 3;
   string go_proxy = 4;
   int32 tool_count = 5;
+  // trusted or any: which containers may be given a Docker socket
+  // (CachePolicy.docker_socket as the guest applies it).
+  string docker_socket = 6;
+  // job or none: what a container naming no limit gets
+  // (CachePolicy.default_limits as the guest applies it).
+  string default_limits = 7;
 }
 
 message RigDepproxy {
@@ -313,4 +326,163 @@ message ControlMachineRequest {
   string action = 1 [(buf.validate.field).string = {in: ["start", "stop", "restart"]}];
   // Stop or restart even while containers run (interrupts them).
   bool force = 2;
+}
+
+// The hvf machine's capacity, load and headroom (GetMachineCapacity).
+message MachineCapacity {
+  // When the guest sampled its kernel figures (Unix milliseconds). The
+  // container counts and the engine's own counters are of the request.
+  int64 sampled_unix_ms = 1;
+  // What the machine has.
+  uint32 cpus = 2;
+  uint64 memory_bytes = 3;
+  // The most tasks (processes and threads) the guest kernel runs at once.
+  uint64 pid_max = 4;
+  // The most containers running at once the headroom is counted against.
+  uint32 max_containers = 5;
+  // The most containers one delegated Docker socket may hold at once.
+  uint32 family_containers_max = 6;
+  // The most gateway relay connections (published ports reached from
+  // containers) the engine holds at once.
+  uint32 relay_connections_max = 7;
+  MachineUsage usage = 8;
+  MachineContainers containers = 9;
+  MachineEngineLoad engine = 10;
+  MachinePressure pressure = 11;
+  MachineDisk os_disk = 12;
+  // Unset when the machine has no cache disk.
+  optional MachineDisk cache_disk = 13;
+  MachineHeadroom headroom = 14;
+  MachineHost host = 15;
+}
+
+message MachineUsage {
+  // The share of all CPUs busy over the second before the sample (0..1),
+  // and the same as a number of CPUs.
+  double cpu_busy_fraction = 1;
+  double cpu_busy_cpus = 2;
+  double load1 = 3;
+  double load5 = 4;
+  double load15 = 5;
+  // Tasks runnable now, and all tasks.
+  uint32 runnable = 6;
+  uint32 tasks = 7;
+  uint64 memory_available_bytes = 8;
+  uint64 memory_used_bytes = 9;
+  uint64 swap_used_bytes = 10;
+  uint64 open_files = 11;
+  uint64 conntrack_entries = 12;
+  uint32 relay_connections = 13;
+}
+
+message MachineContainers {
+  uint32 total = 1;
+  uint32 running = 2;
+  uint32 starting = 3;
+  uint32 created = 4;
+  uint32 exited = 5;
+  // The CPU limits (thousandths of a CPU) and memory limits of the running
+  // and starting containers, summed; without_cpu_limit counts those with no
+  // CPU limit, which the sum leaves out, as it does a memory limit of the
+  // whole machine.
+  int64 requested_milli_cpu = 6;
+  int64 requested_memory_bytes = 7;
+  uint32 without_cpu_limit = 8;
+  // By family, the largest first, at most 64 rows (the rest summed as
+  // "(other)"). A family is a delegated Docker socket's owner and what it
+  // created, named by the owner's io.micropod.family label or its name; or
+  // every container the host created with the same io.micropod.family
+  // label; "" is what the host created without one.
+  repeated MachineFamily families = 9;
+}
+
+message MachineFamily {
+  string name = 1;
+  uint32 running = 2;
+  uint32 total = 3;
+  int64 requested_milli_cpu = 4;
+  int64 requested_memory_bytes = 5;
+}
+
+message MachineEngineLoad {
+  uint32 creates_in_flight = 1;
+  uint32 starts_in_flight = 2;
+  // Over the latest starts_sampled starts (256 at most): from the start
+  // request to the container's process running, in milliseconds.
+  uint32 start_p50_ms = 3;
+  uint32 start_p95_ms = 4;
+  uint32 starts_sampled = 5;
+}
+
+// The guest kernel's pressure stall information: the percentage of the last
+// 10, 60 and 300 seconds in which some, or all, tasks were stalled on a
+// resource. available is false on a kernel without it.
+message MachinePressure {
+  bool available = 1;
+  PressureResource cpu = 2;
+  PressureResource memory = 3;
+  PressureResource io = 4;
+}
+
+message PressureResource {
+  PressureAverages some = 1;
+  PressureAverages full = 2;
+}
+
+message PressureAverages {
+  double avg10 = 1;
+  double avg60 = 2;
+  double avg300 = 3;
+}
+
+message MachineDisk {
+  uint64 total_bytes = 1;
+  uint64 free_bytes = 2;
+}
+
+// How many more typical containers the machine can take now.
+//
+// The unit is one typical container: what the running ones use on average
+// (busy CPUs / running, used memory / running), held to 0.25..2 CPUs and
+// 256 MiB..4 GiB; 0.5 CPU and 512 MiB when nothing runs.
+//
+//   by_cpu        = (cpus * 0.90 - busy CPUs) / unit_cpu
+//   by_memory     = (memory available - max(5% of memory, 1 GiB)) / unit_memory_bytes
+//   by_tasks      = (pid_max * 0.80 - tasks) / 64
+//   by_containers = max_containers - containers running or starting
+//   containers    = max(0, the smallest of the four)
+//
+// and 0 under pressure: memory PSI some avg10 >= 10 or full avg10 >= 2, CPU
+// PSI some avg10 >= 80, IO PSI full avg10 >= 25, less memory available than
+// the reserve, a disk with less than max(5%, 2 GiB) free, a start-latency
+// p95 of 10 s or more, or the Mac itself under memory pressure (warning or
+// critical). CPU and memory are counted on what is used, not on the limits
+// containers were given: a limit is a ceiling, and the pressure terms catch
+// a machine whose promised memory is being used after all.
+message MachineHeadroom {
+  uint32 containers = 1;
+  bool under_pressure = 2;
+  // Why it is under pressure; empty when it is not.
+  repeated string reasons = 3;
+  // The resource containers is the smallest for: cpu, memory, tasks,
+  // containers, os-disk, cache-disk, pressure or host-memory.
+  string limited_by = 4;
+  double unit_cpu = 5;
+  uint64 unit_memory_bytes = 6;
+  uint32 by_cpu = 7;
+  uint32 by_memory = 8;
+  uint32 by_tasks = 9;
+  uint32 by_containers = 10;
+}
+
+// The Mac the machine runs on, read by the API process.
+message MachineHost {
+  uint32 cpus = 1;
+  uint64 memory_bytes = 2;
+  // Free, inactive, speculative and purgeable memory.
+  uint64 memory_available_bytes = 3;
+  // normal, warning or critical (the kernel's memory pressure level); empty
+  // when it could not be read.
+  string memory_pressure = 4;
+  double load1 = 5;
 }

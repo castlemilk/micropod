@@ -12,7 +12,9 @@ final class SandboxVMTests: XCTestCase {
 
     func testMergeEnvBareKeyCopiesHostValue() {
         let merged = SandboxVM.mergeEnv([], ["HOME", "MICROPOD_SANDBOX_DEFINITELY_UNSET"])
-        XCTAssertEqual(merged, ["HOME=\(NSHomeDirectory())"])
+        // The environment's value, which is not NSHomeDirectory() when
+        // CFFIXED_USER_HOME moves the latter.
+        XCTAssertEqual(merged, ["HOME=\(ProcessInfo.processInfo.environment["HOME"] ?? "")"])
     }
 
     /// ro/rw shares never touch the run directory; only overlays clone into it.

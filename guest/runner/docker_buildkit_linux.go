@@ -20,6 +20,7 @@ import (
 
 	"github.com/containerd/containerd/api/types"
 	control "github.com/moby/buildkit/api/services/control"
+	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2"
@@ -75,7 +76,7 @@ func (s *dockerEngine) dockerBuildkitUpgrade(w http.ResponseWriter, r *http.Requ
 	if path == "session" {
 		serveDockerBuildSession(r, client, bk)
 	} else {
-		s.serveDockerBuildControl(r.Context(), client, bk)
+		s.serveDockerBuildControl(r.Context(), client, bk, cc)
 	}
 	return nil
 }
@@ -96,7 +97,7 @@ func (s *dockerEngine) dockerBuildkitUpgrade(w http.ResponseWriter, r *http.Requ
 // Prune), the workers, Info, a session and the health check stay the
 // machine's, and anything else (the history, the content and trace
 // services, reflection) is refused.
-func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Conn, bk control.ControlClient) {
+func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Conn, bk control.ControlClient, cc grpc.ClientConnInterface) {
 	transport := &http2.Transport{AllowHTTP: true, DialTLSContext: func(ctx context.Context, _, _ string, _ *tls.Config) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", s.buildkitSocket)
 	}}
@@ -105,8 +106,12 @@ func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Con
 		r.Out.URL.Scheme, r.Out.URL.Host, r.Out.Host = "http", "localhost", "localhost"
 	}}
 	viewer := viewerOf(ctx)
+	cacheNS := s.buildCacheNamespace(viewer)
 	solver := grpc.NewServer(grpc.MaxRecvMsgSize(buildkitMaxMessage), grpc.MaxSendMsgSize(buildkitMaxMessage))
-	control.RegisterControlServer(solver, dockerBuildSolver{backend: bk, node: s.node, viewer: viewer, builds: &s.builds})
+	control.RegisterControlServer(solver, dockerBuildSolver{backend: bk, node: s.node, viewer: viewer, builds: &s.builds, cacheNS: cacheNS})
+	if cacheNS != "" {
+		gwpb.RegisterLLBBridgeServer(solver, dockerBuildGateway{backend: gwpb.NewLLBBridgeClient(cc), cacheNS: cacheNS})
+	}
 	defer solver.Stop()
 	refuse := grpc.NewServer(grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 		if method, _ := grpc.MethodFromServerStream(stream); strings.HasPrefix(method, buildkitGatewayService) {
@@ -127,7 +132,11 @@ func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Con
 		case strings.HasPrefix(method, buildkitGatewayService):
 			// The gateway client may call before its Solve has arrived.
 			if s.builds.owns(req.Context(), req.Header.Get(buildkitBuildIDHeader), viewer, buildkitRefWait) {
-				proxy.ServeHTTP(w, req)
+				if cacheNS != "" && method == gwpb.LLBBridge_Solve_FullMethodName {
+					solver.ServeHTTP(w, req) // dockerBuildGateway names its cache mounts
+				} else {
+					proxy.ServeHTTP(w, req)
+				}
 			} else {
 				refuse.ServeHTTP(w, req)
 			}
@@ -278,6 +287,80 @@ type dockerBuildSolver struct {
 	// builds whose each build is.
 	viewer string
 	builds *dockerBuildRefs
+	// cacheNS: see buildCacheNamespace; "" leaves the request as it is.
+	cacheNS string
+}
+
+// untrustedBuildCaches is the BuildKit cache-mount namespace of every build
+// made through an untrusted container's Docker socket.
+const untrustedBuildCaches = "micropod-untrusted"
+
+// buildCacheNamespace is the namespace a build through viewer's delegated
+// socket keeps its `RUN --mount=type=cache` directories in: "" (BuildKit's
+// own, shared with the host's builds) for the host and for a trusted owner,
+// untrustedBuildCaches for an owner that only reads the shared caches or
+// that is gone. BuildKit keys a cache mount by its id alone, so without a
+// namespace an untrusted job's build could fill the directory a trusted
+// build's `--mount=type=cache,id=...` reads next, which is the write into a
+// shared store that the copy-on-write cache views exist to refuse. Untrusted
+// builds share one namespace with each other and stay warm between jobs.
+//
+// The Dockerfile frontend applies it (its BUILDKIT_CACHE_MOUNT_NS build
+// argument), so it covers Dockerfile builds, the ones a Docker client makes.
+// A client that sends BuildKit its own LLB, or a Dockerfile that names its
+// own frontend image, chooses its cache mount ids itself.
+func (s *dockerEngine) buildCacheNamespace(viewer string) string {
+	if viewer == "" {
+		return ""
+	}
+	pol := s.cachePolicy.get()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if owner := s.containers[viewer]; owner != nil && !owner.cacheReadOnly(pol) {
+		return ""
+	}
+	return untrustedBuildCaches
+}
+
+// buildCacheMountNS is the frontend attribute the Dockerfile frontend reads
+// its cache-mount namespace from.
+const buildCacheMountNS = "build-arg:BUILDKIT_CACHE_MOUNT_NS"
+
+// namespaceBuildCaches puts a frontend request's cache mounts in ns, keeping
+// a namespace the build named itself inside it. A request without a frontend
+// (LLB the client wrote) has no attributes to read.
+func namespaceBuildCaches(ns, frontend string, attrs *map[string]string) {
+	if ns == "" || frontend == "" {
+		return
+	}
+	if *attrs == nil {
+		*attrs = map[string]string{}
+	}
+	if own := (*attrs)[buildCacheMountNS]; own != "" {
+		ns += "-" + own
+	}
+	(*attrs)[buildCacheMountNS] = ns
+}
+
+// dockerBuildGateway serves the one frontend gateway call that starts a
+// frontend, for a build on an untrusted container's socket: buildx runs its
+// Dockerfile builds through it (the control Solve carries no frontend), so
+// this is where the cache-mount namespace goes in. Every other gateway call
+// passes through untouched (serveDockerBuildControl).
+type dockerBuildGateway struct {
+	gwpb.UnimplementedLLBBridgeServer
+	backend gwpb.LLBBridgeClient
+	cacheNS string
+}
+
+func (g dockerBuildGateway) Solve(ctx context.Context, req *gwpb.SolveRequest) (*gwpb.SolveResponse, error) {
+	namespaceBuildCaches(g.cacheNS, req.Frontend, &req.FrontendOpt)
+	md, _ := metadata.FromIncomingContext(ctx)
+	var header, trailer metadata.MD
+	result, err := g.backend.Solve(metadata.NewOutgoingContext(ctx, buildkitMetadata(md)), req, grpc.Header(&header), grpc.Trailer(&trailer))
+	_ = grpc.SetHeader(ctx, buildkitMetadata(header))
+	grpc.SetTrailer(ctx, buildkitMetadata(trailer))
+	return result, err
 }
 
 // Status streams a build's progress; on a delegated socket only its own
@@ -378,6 +461,7 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 	if len(req.Exporters) > 0 {
 		tags = nil
 	}
+	namespaceBuildCaches(s.cacheNS, req.Frontend, &req.FrontendAttrs)
 	for _, exporter := range req.Exporters {
 		if exporter != nil {
 			current, err := dockerImageExporter(&exporter.Type, &exporter.Attrs)
