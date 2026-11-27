@@ -109,7 +109,8 @@ public enum RuntimeMode: String, CaseIterable, Sendable {
 // MARK: - Persisted configuration
 
 /// `~/.micropod/runtimes.json` (`MICROPOD_RUNTIMES_CONFIG` overrides the
-/// path). Written by `SetDefaultRuntime` / `UpdateRuntime`.
+/// path). Written by `SetDefaultRuntime` / `UpdateRuntime`, and first by
+/// `InstallOrigin.resolve`, which pins `defaultOrigin`.
 public struct EngineConfig: Codable, Sendable, Equatable {
     public struct Engine: Codable, Sendable, Equatable {
         public var enabled: Bool?
@@ -118,26 +119,48 @@ public struct EngineConfig: Codable, Sendable, Equatable {
 
     public var `default`: String?
     public var engines: [String: Engine] = [:]
+    /// `InstallOrigin` raw value: "fresh-install" makes hvf the default and
+    /// the Apple runtime opt-in; "existing-install" (or none) keeps Apple.
+    public var defaultOrigin: String?
 
-    public init(default: String? = nil, engines: [String: Engine] = [:]) {
+    public init(default: String? = nil, engines: [String: Engine] = [:], defaultOrigin: String? = nil) {
         self.default = `default`
         self.engines = engines
+        self.defaultOrigin = defaultOrigin
     }
+
+    /// Every key is optional: a hand-written `{"default": "hvf"}` is a
+    /// valid file, not an empty configuration.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.default = try container.decodeIfPresent(String.self, forKey: .default)
+        engines = try container.decodeIfPresent([String: Engine].self, forKey: .engines) ?? [:]
+        defaultOrigin = try container.decodeIfPresent(String.self, forKey: .defaultOrigin)
+    }
+
+    public var origin: InstallOrigin? { defaultOrigin.flatMap(InstallOrigin.init(rawValue:)) }
 
     /// "docker" is opt-in so an existing Docker Desktop's containers don't
-    /// appear in `ps` until asked for; everything else defaults on.
+    /// appear in `ps` until asked for; everything else defaults on, except
+    /// Apple on a fresh install (`appleEnabledByDefault`).
     static let enabledByDefault: Set<String> = ["apple", "sandbox"]
 
+    /// Apple's runtime is opt-in on a fresh install: `runtime enable apple`,
+    /// `runtime use apple` or `MICROPOD_LEGACY_APPLE=1` turns it on.
+    var appleEnabledByDefault: Bool { origin != .fresh }
+
     func isEnabled(_ name: String) -> Bool {
-        engines[name]?.enabled ?? Self.enabledByDefault.contains(name)
+        if let explicit = engines[name]?.enabled { return explicit }
+        if name == "apple" { return appleEnabledByDefault }
+        return Self.enabledByDefault.contains(name)
     }
 
+    /// The default when neither `MICROPOD_DEFAULT_RUNTIME` nor the file
+    /// names one: hvf for a fresh install, else Apple.
+    var implicitDefault: String { origin == .fresh ? InstallOrigin.freshDefaultRuntime : "apple" }
+
     static func url(environment: [String: String]) -> URL {
-        if let path = environment["MICROPOD_RUNTIMES_CONFIG"] {
-            return URL(fileURLWithPath: path)
-        }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".micropod/runtimes.json")
+        InstallOrigin.configURL(environment: environment)
     }
 
     static func load(from url: URL) -> EngineConfig {
@@ -175,6 +198,12 @@ public final class EngineRegistry: Sendable {
     private let dockerEnvironment: [String: String]
     /// `MICROPOD_DEFAULT_RUNTIME` overrides the persisted default (CI jobs).
     private let envDefault: String?
+    /// `MICROPOD_LEGACY_APPLE=1` enables the Apple runtime whatever the
+    /// configuration says (a fresh install makes it opt-in).
+    private let legacyApple: Bool
+    /// Where a docker engine endpoint must not point: the hvf machine's
+    /// socket and the canonical link (`update`).
+    private let machineSockets: (machine: URL, canonical: URL)
     public let sandbox: SandboxEngine
     private let ci: DockerEngine
 
@@ -186,6 +215,11 @@ public final class EngineRegistry: Sendable {
         dockerEnvironment = environment.filter { $0.key == "DOCKER_HOST" || $0.key == "DOCKER_API_VERSION" }
         let config = EngineConfig.load(from: configURL)
         envDefault = environment["MICROPOD_DEFAULT_RUNTIME"]
+        legacyApple = environment["MICROPOD_LEGACY_APPLE"] == "1"
+        machineSockets = (
+            HVFMachineLayout(environment: environment).dockerSocket,
+            HVFMachineLayout.canonicalDockerSocket(environment: environment)
+        )
         self.sandbox = sandbox
         ci = DockerEngine(worker: CIWorker(environment: environment))
         state = Mutex(
@@ -210,12 +244,32 @@ public final class EngineRegistry: Sendable {
     public var config: EngineConfig { state.withLock { $0.config } }
 
     public var defaultName: String {
-        if let envDefault { return Self.canonicalName(envDefault) }
-        if let persisted = state.withLock({ $0.config.default }) {
-            return Self.canonicalName(persisted)
-        }
-        return "apple"
+        Self.defaultName(config: state.withLock { $0.config }, environmentDefault: envDefault)
     }
+
+    static func defaultName(config: EngineConfig, environmentDefault: String?) -> String {
+        if let environmentDefault { return canonicalName(environmentDefault) }
+        if let persisted = config.default { return canonicalName(persisted) }
+        return config.implicitDefault
+    }
+
+    /// Whether the Apple runtime is enabled under `environment`'s
+    /// configuration, without building a registry: the backend resolver
+    /// asks before it pings Apple's apiserver.
+    public static func appleEnabled(environment: [String: String]) -> Bool {
+        let config = EngineConfig.load(from: EngineConfig.url(environment: environment))
+        return appleEnabled(
+            config: config, environmentDefault: environment["MICROPOD_DEFAULT_RUNTIME"],
+            legacy: environment["MICROPOD_LEGACY_APPLE"] == "1")
+    }
+
+    static func appleEnabled(config: EngineConfig, environmentDefault: String?, legacy: Bool) -> Bool {
+        if defaultName(config: config, environmentDefault: environmentDefault) == "apple" || legacy { return true }
+        return config.isEnabled("apple")
+    }
+
+    /// The configuration's install origin (`InstallOrigin`), if pinned.
+    public var origin: InstallOrigin? { state.withLock { $0.config.origin } }
 
     public var activeMode: RuntimeMode? { RuntimeMode(engineName: defaultName) }
 
@@ -231,6 +285,7 @@ public final class EngineRegistry: Sendable {
     public func isEnabled(_ rawName: String) -> Bool {
         let name = Self.canonicalName(rawName)
         if name == defaultName { return true }
+        if name == "apple", legacyApple { return true }
         return state.withLock { state in
             if let explicit = state.config.engines[name]?.enabled { return explicit }
             // Auto-enable HVF once installed on disk so users don't need a separate `runtime enable hvf`.
@@ -286,12 +341,14 @@ public final class EngineRegistry: Sendable {
                 throw MicropodError.message("invalidArgument: runtime '\(name)' has no configurable endpoint")
             }
             if case .unix(let path) = try DockerClient.Endpoint.parse(endpoint),
-                URL(fileURLWithPath: path).standardizedFileURL.path
-                    == URL(fileURLWithPath: NSString("~/.micropod/docker.sock").expandingTildeInPath)
-                    .standardizedFileURL.path
+                let refusal = Self.ownSocketRefusal(
+                    path, machineSocket: machineSockets.machine,
+                    canonicalLinks: [
+                        machineSockets.canonical,
+                        URL(fileURLWithPath: NSString("~/.micropod/docker.sock").expandingTildeInPath),
+                    ])
             {
-                throw MicropodError.message(
-                    "invalidArgument: that is micropod's own Docker shim — it already fronts the apple runtime")
+                throw MicropodError.message("invalidArgument: \(refusal)")
             }
         }
         try mutate { config in
@@ -306,6 +363,34 @@ public final class EngineRegistry: Sendable {
                     endpoint: $0.config.engines["docker"]?.endpoint, environment: dockerEnvironment)
             }
         }
+    }
+
+    /// Why a `docker` engine endpoint at `path` would only reach micropod
+    /// itself: the hvf machine's socket, or a canonical link to a machine
+    /// (both are the hvf runtime already), or the Docker shim's socket in
+    /// the canonical place (it fronts the Apple runtime). Paths compare with
+    /// symlinks resolved, so `/tmp/x` and `/private/tmp/x` are one socket.
+    static func ownSocketRefusal(_ path: String, machineSocket: URL, canonicalLinks: [URL]) -> String? {
+        let machine =
+            "that is the micropod machine's own socket — it is the hvf runtime already "
+            + "(`micropod runtime use hvf`; `micropod docker install` gives the docker CLI a context for it)"
+        if HVFBuilderSetup.sameEndpoint("unix://" + path, "unix://" + machineSocket.path) { return machine }
+        // The link's own path, its directory resolved: not what it points at.
+        func spelled(_ path: String) -> String {
+            let url = URL(fileURLWithPath: path)
+            return (HVFBuilderSetup.resolvedPath(url.deletingLastPathComponent().path) as NSString)
+                .appendingPathComponent(url.lastPathComponent)
+        }
+        for link in canonicalLinks where spelled(path) == spelled(link.path) {
+            var info = stat()
+            guard lstat(link.path, &info) == 0 else {
+                return "that is micropod's own Docker socket path (\(link.path)): the hvf machine links it and the "
+                    + "Docker shim serves it"
+            }
+            if info.st_mode & S_IFMT == S_IFLNK { return machine }
+            return "that is micropod's own Docker shim — it already fronts the apple runtime"
+        }
+        return nil
     }
 
     private func mutate(_ body: (inout EngineConfig) -> Void) throws {
@@ -422,11 +507,22 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         if request.initImage != nil && name != "apple" {
             throw MicropodError.unsupported("init_image needs runtime 'apple', not '\(name)'")
         }
-        if name == "apple" { return apple }
+        if name == "apple" {
+            guard registry.isEnabled("apple") else { throw Self.appleOptIn }
+            return apple
+        }
         guard let engine = registry.engine(name) else {
             throw MicropodError.message(
                 "failedPrecondition: unknown runtime '\(name)' (known: \(EngineRegistry.engineNames.joined(separator: ", ")))"
             )
+        }
+        if let hvf = engine as? HVFEngine {
+            let missing = hvf.machine.status().missing
+            if !missing.isEmpty {
+                throw MicropodError.message(
+                    "failedPrecondition: the micropod machine is not set up (missing \(missing.joined(separator: ", "))): "
+                        + "run `micropod setup`")
+            }
         }
         guard registry.isEnabled(name) else {
             throw MicropodError.message(
@@ -438,6 +534,12 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         }
         return engine
     }
+
+    /// A call for the Apple runtime while it is not enabled (a fresh
+    /// install makes it opt-in).
+    public static let appleOptIn = MicropodError.message(
+        "failedPrecondition: the Apple runtime is opt-in: `micropod runtime enable apple` turns it on "
+            + "(`micropod runtime use apple` also makes it the default)")
 
     /// `RuntimeEngine.awaitStateChange` on the engine that owns `id`.
     public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool {
@@ -560,7 +662,7 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     public func restart(_ id: String) async throws { try await owner(id).containers.restart(id) }
 
     public func stopAll() async throws {
-        try await apple.containers.stopAll()
+        if !registry.skipsApple(installed: apple.isInstalled) { try await apple.containers.stopAll() }
         for engine in registry.extraEngines() { try? await engine.containers.stopAll() }
     }
 
@@ -573,12 +675,12 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     }
 
     public func deleteAll(force: Bool) async throws {
-        try await apple.containers.deleteAll(force: force)
+        if !registry.skipsApple(installed: apple.isInstalled) { try await apple.containers.deleteAll(force: force) }
         for engine in registry.extraEngines() { try? await engine.containers.deleteAll(force: force) }
     }
 
     public func prune() async throws -> String {
-        var reports = [try await apple.containers.prune()]
+        var reports = registry.skipsApple(installed: apple.isInstalled) ? [] : [try await apple.containers.prune()]
         for engine in registry.extraEngines() {
             if let report = try? await engine.containers.prune(), !report.isEmpty {
                 reports.append("\(engine.name): \(report)")

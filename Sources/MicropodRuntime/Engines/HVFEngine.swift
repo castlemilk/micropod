@@ -58,7 +58,7 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
                 available: false,
                 reason:
                     "HVF machine not installed under \(root.path): missing \(status.missing.joined(separator: ", "))"
-                    + " — run `micropod machine install`",
+                    + " — run `micropod setup` (or `micropod machine install`)",
                 endpoint: endpoint)
         }
         if let problem = status.problem {

@@ -5,10 +5,15 @@ import SwiftUI
 @main
 struct MicropodApp: App {
     @NSApplicationDelegateAdaptor(MicropodApplicationDelegate.self) private var appDelegate
-    @State private var store = AppStore()
+    @State private var store: AppStore
     @Environment(\.openWindow) private var openWindow
 
     init() {
+        // First, before the store or anything else can write under
+        // ~/.micropod: that would make a fresh install look like an
+        // existing one.
+        InstallOrigin.resolve()
+        _store = State(initialValue: AppStore())
         // Before any desktop command can start, retain a fence left by an
         // interrupted installer. Other processes keep serving their jobs.
         DesktopActivity.shared.enable(closed: UpdateContinuityStore.standard.requiresRecovery)

@@ -268,7 +268,7 @@ public struct HVFMachineClient: Sendable {
         guard missing.isEmpty else {
             throw MicropodError.message(
                 "failedPrecondition: hvf machine not installed under \(layout.root.path): missing "
-                    + "\(missing.joined(separator: ", ")); run `micropod machine install`")
+                    + "\(missing.joined(separator: ", ")); run `micropod setup` (or `micropod machine install`)")
         }
         if let problem = layout.configurationProblem() { throw MicropodError.message("failedPrecondition: \(problem)") }
         if isServing, await Self.ping(layout.dockerSocket) { return }

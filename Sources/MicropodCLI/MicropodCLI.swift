@@ -48,6 +48,9 @@ struct MicropodCLI {
     nonisolated(unsafe) static var exitOverride: Int32?
 
     static func main() async {
+        // First: anything written under ~/.micropod before it would make a
+        // fresh install look like an existing one.
+        InstallOrigin.resolve()
         #if canImport(Darwin)
             setvbuf(stdout, nil, _IOLBF, 8192)
         #endif
