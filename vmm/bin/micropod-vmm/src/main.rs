@@ -16,6 +16,7 @@ use vmm_virtio::vsock::VsockExposeSpec;
 const USAGE: &str = "\
 Usage: micropod-vmm (--kernel <Image> | --restore-from <dir>) [--initrd <cpio>]
   [--disk <raw> [--disk-ro]] [--cache-disk <raw>] [--disk-flush barrier|full|fsync]
+  [--disk-flush-os barrier|full|fsync]
   [--share tag:path[:ro]] [--workspace <dir>]
   [--vsock-expose unix_sock:guest_port] [--published-net] [--published-mtu 9000]
   [--allow-host-port PORT]
@@ -29,6 +30,9 @@ journal commits): barrier (default) F_BARRIERFSYNC, writes persist in order
 across a host crash or power loss; full F_FULLFSYNC, ordered and durable at
 each flush; fsync fsync(2), safe only against the VMM itself crashing. A
 filesystem without the fcntl falls back to full, then fsync.
+--disk-flush-os sets it for the OS disk (--disk) alone; the cache disk keeps
+--disk-flush. With fsync there, a host power loss or kernel panic can leave
+the OS disk's journal holding commits whose blocks never reached the drive.
 
 Exit codes:
   0  the guest powered off in an orderly way (also after SIGTERM/SIGINT)
@@ -209,6 +213,7 @@ fn main() {
     let mut disk_read_only = false;
     let mut cache_disk_path: Option<PathBuf> = None;
     let mut disk_flush = DiskFlush::default();
+    let mut os_disk_flush: Option<DiskFlush> = None;
     let mut num_vcpus: u32 = 4;
     let mut memory_mib: usize = 512;
     let mut cmdline = String::from(
@@ -267,6 +272,14 @@ fn main() {
                 disk_flush = flag_value(&args, i, "--disk-flush")
                     .parse()
                     .unwrap_or_else(|e: String| usage_error(&format!("--disk-flush: {e}")));
+            }
+            "--disk-flush-os" => {
+                i += 1;
+                os_disk_flush = Some(
+                    flag_value(&args, i, "--disk-flush-os")
+                        .parse()
+                        .unwrap_or_else(|e: String| usage_error(&format!("--disk-flush-os: {e}"))),
+                );
             }
             "--cpus" => {
                 i += 1;
@@ -458,6 +471,7 @@ fn main() {
         disk_read_only,
         cache_disk_path,
         disk_flush,
+        os_disk_flush,
         num_vcpus,
         memory_mib,
         cmdline,

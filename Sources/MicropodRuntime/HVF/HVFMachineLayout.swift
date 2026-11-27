@@ -305,6 +305,12 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     /// install, the supervisor and `machine status` say so when it is gone.
     /// nil: no cache disk, the stores live on the OS disk.
     public var cacheDiskBytes: UInt64?
+    /// The OS disk's flush mode (`--disk-flush-os`): `barrier`, `full` or
+    /// `fsync`; nil (absent) keeps the VMM's default, `barrier` on both
+    /// disks. `fsync` is an opt-in trade: faster journal commits, and an OS
+    /// disk a host power loss or kernel panic can corrupt (`HVFDiskFlush`).
+    /// The cache disk keeps its ordering whatever this says.
+    public var osDiskFlush: String?
 
     public static var defaultWorkspace: String { HVFMachineLayout.canonicalPath(NSHomeDirectory()) }
     /// Cuttlefish's depproxy listens on host loopback 7677.
@@ -313,7 +319,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
         case extraArguments, allowHostPorts, depproxyPort, cache
-        case cacheDiskBytes
+        case cacheDiskBytes, osDiskFlush
     }
 
     public init(
@@ -321,7 +327,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
         shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = [],
         allowHostPorts: [UInt16] = [], depproxyPort: UInt16 = HVFMachineConfig.defaultDepproxyPort,
-        cache: HVFMachineCachePolicy? = nil, cacheDiskBytes: UInt64? = nil
+        cache: HVFMachineCachePolicy? = nil, cacheDiskBytes: UInt64? = nil, osDiskFlush: String? = nil
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -336,6 +342,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.depproxyPort = depproxyPort
         self.cache = cache
         self.cacheDiskBytes = cacheDiskBytes
+        self.osDiskFlush = osDiskFlush
     }
 
     public init(from decoder: any Decoder) throws {
@@ -357,6 +364,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         depproxyPort = try c.decodeIfPresent(UInt16.self, forKey: .depproxyPort) ?? defaults.depproxyPort
         cache = try c.decodeIfPresent(HVFMachineCachePolicy.self, forKey: .cache)
         cacheDiskBytes = try c.decodeIfPresent(UInt64.self, forKey: .cacheDiskBytes)
+        osDiskFlush = try c.decodeIfPresent(String.self, forKey: .osDiskFlush)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -374,6 +382,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         if depproxyPort != Self.defaultDepproxyPort { try c.encode(depproxyPort, forKey: .depproxyPort) }
         try c.encodeIfPresent(cache, forKey: .cache)
         try c.encodeIfPresent(cacheDiskBytes, forKey: .cacheDiskBytes)
+        try c.encodeIfPresent(osDiskFlush, forKey: .osDiskFlush)
     }
 
     /// `cache`, or the defaults when machine.json has none.
@@ -485,6 +494,16 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
                 "invalidArgument: hvf extraArguments must not contain \(flag): list host ports in allowHostPorts, "
                     + "which refuses Micropod's control ports")
         }
+        if let osDiskFlush, !HVFDiskFlush.modes.contains(osDiskFlush) {
+            throw MicropodError.message(
+                "invalidArgument: hvf osDiskFlush must be one of \(HVFDiskFlush.modes.joined(separator: ", ")), "
+                    + "got '\(osDiskFlush)'")
+        }
+        // `machine status` reports the OS disk's mode from osDiskFlush.
+        if extraArguments.contains("--disk-flush-os") {
+            throw MicropodError.message(
+                "invalidArgument: hvf extraArguments must not contain --disk-flush-os: set osDiskFlush instead")
+        }
         if depproxyPort != 0 {
             guard depproxyPort >= HVFHostPortAllowlist.minimumPolicyPort, !control.contains(depproxyPort) else {
                 throw MicropodError.message(
@@ -581,6 +600,7 @@ public enum HVFVMMCommand {
         }
         args += ["--cmdline-append", kernelLogLevelBootArgument]
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
+        if let osDiskFlush = config.osDiskFlush { args += ["--disk-flush-os", osDiskFlush] }
         if !config.console { args.append("--quiet") }
         args += [
             "--shutdown-timeout", String(config.shutdownTimeoutSeconds), "--json-summary",
@@ -637,6 +657,9 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
     /// The host ports (`--allow-host-port`) the current (or last) VMM was
     /// launched with; nil from a supervisor that predates the record.
     public var allowHostPorts: [UInt16]?
+    /// The disk flush modes the current (or last) VMM was launched with; nil
+    /// from a supervisor that predates the record.
+    public var diskFlush: HVFDiskFlush?
     public var updatedAt: Date
 
     public init(
@@ -644,9 +667,10 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
         vmmStartSeconds: Int64? = nil, startedAt: Date? = nil, readyAt: Date? = nil, restartCount: Int = 0,
         lastExitReason: String? = nil, lastExitCode: Int32? = nil, lastExitMeaning: String? = nil,
         loadedPayloadPath: String? = nil, loadedPayloadVersion: String? = nil, loadedPayloadRevision: String? = nil,
-        allowHostPorts: [UInt16]? = nil, updatedAt: Date = Date()
+        allowHostPorts: [UInt16]? = nil, diskFlush: HVFDiskFlush? = nil, updatedAt: Date = Date()
     ) {
         self.allowHostPorts = allowHostPorts
+        self.diskFlush = diskFlush
         self.lastExitCode = lastExitCode
         self.lastExitMeaning = lastExitMeaning
         self.loadedPayloadPath = loadedPayloadPath

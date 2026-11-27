@@ -617,6 +617,11 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		if err != nil {
 			return err
 		}
+		// The unpacked files are on the disk before the pull answers
+		// (image_durability_linux.go).
+		if err := imageSync.Sync(); err != nil {
+			return err
+		}
 		writeJSON(w, 200, map[string]string{"status": "Downloaded " + ref})
 		return nil
 	case r.Method == "DELETE":

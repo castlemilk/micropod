@@ -23,6 +23,27 @@ func setRealtimeClock(unixNs int64) error {
 	return nil
 }
 
+// syncRealtimeClock applies a wall clock reading the host sent (CLOCK): a
+// small backward correction is slewed, everything else is stepped
+// (backwardSlew).
+func syncRealtimeClock(unixNs int64) error {
+	if unixNs < minBootRealtimeNano {
+		return errors.New("realtime timestamp precedes minimum valid UTC floor")
+	}
+	back, slew := backwardSlew(time.Now().UnixNano(), unixNs)
+	if !slew {
+		return setRealtimeClock(unixNs)
+	}
+	// adjtime(3) as a system call: the offset, in microseconds, is taken
+	// off over time, and replaces what an earlier call left.
+	const adjOffsetSingleshot = 0x8001
+	tx := syscall.Timex{Modes: adjOffsetSingleshot, Offset: -back.Microseconds()}
+	if _, err := syscall.Adjtimex(&tx); err != nil {
+		return fmt.Errorf("slew CLOCK_REALTIME back %v: %w", back, err)
+	}
+	return nil
+}
+
 func initializeBootClock() error {
 	cmdline, err := os.ReadFile("/proc/cmdline")
 	if err != nil {

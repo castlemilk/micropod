@@ -414,6 +414,42 @@ another container that uses it reads it copy-on-write (`micropod cache explain` 
 `RUN --mount=type=cache` contents included, lives on the OS disk with the image snapshots it refers to: it survives
 restarts, and `machine install --replace-disk` starts it empty (the dependency stores on the cache disk survive).
 
+An image the machine has answered for is on its OS disk: a `docker pull`, `docker load` or `docker build` (a
+build's Solve, and a scheduler job's pull) answers only after the engine has synced the filesystem that holds
+containerd's store, so a crash of the VMM afterwards leaves the image whole (and a host power loss, under the default
+ordered flushes below, leaves it whole or, if it took the last flushes with it, gone, never broken). containerd
+itself writes an unpacked layer's files without a sync: before this, an image pulled up to about 35 s before a crash
+came back listed but broken (`exec format error`) and stayed broken through every pull. One whose pull,
+load or build had not answered when the machine went down is gone after the restart, or whole: the engine's start
+after an unclean stop removes what containerd committed after the last sync (snapshots, blobs whose file is
+missing, the image records that name them, BuildKit's cache records made since), so the next pull unpacks it again.
+A stop is never taken for a crash: the engine syncs once more as it stops, so the start after a `machine stop` removes
+nothing. "After the last sync" is read off the guest's clock, which guest init never sets back in ordinary running (it
+slews a backward correction from the host); only a host whose own clock is set back by half a second or more can make
+a layer committed right after look older than it is.
+The engine's metrics count the syncs (`image_syncs`, `image_sync_usec_total`), and `scripts/gates/records-crash.sh`
+kills the VMM around each kind.
+
+Each of the machine's disks orders its writes on the host: a guest journal commit is an `F_BARRIERFSYNC`
+(micropod-vmm `--disk-flush barrier`, the default for both disks), so a host power loss or kernel panic loses at most
+the last commits, in order. `osDiskFlush` in `machine.json` trades that ordering for speed on the OS disk alone. It is
+opt-in; nothing sets it, and a restart applies it:
+
+```json
+{ "osDiskFlush": "fsync" }
+```
+
+micropod-vmm then runs with `--disk-flush-os fsync`: the OS disk's flushes are plain `fsync(2)`, which hands the data
+to the drive in no guaranteed order. **A host power loss or kernel panic can corrupt the OS disk; recovery is
+`micropod machine install --replace-disk`, which loses the images, containers and volumes on it.** The cache disk
+keeps barrier ordering, so the dependency stores survive. A crash of the VMM alone (kill -9) is safe either way. What
+it buys, measured on an 8 vCPU machine (create+start of `alpine true`, p50 of 40): 62.9 → 29.1 ms with caches off and
+56.8 → 30.5 ms with them on, about 30 ms a container start, the same as `--disk-flush fsync` on both disks
+(29.5 and 31.3 ms); an image sync costs 29 → 17 ms a pull and 61 → 27 ms a 16 MiB load. `osDiskFlush` also takes
+`barrier` and `full` (`F_FULLFSYNC`), `extraArguments` may not carry `--disk-flush-os`, and `machine status` shows
+the modes (`disk flush:`, `diskFlush` in `--json`): what the running VMM was launched with and, after an edit, what
+the next start uses.
+
 Stock `docker build` with `DOCKER_HOST=$(micropod machine docker-endpoint)` works when the engine serves BuildKit on
 its Docker socket (`machine status` says `docker build: ready (docker socket)`). For an older engine,
 `micropod machine builder install` adds a docker context `micropod` on the machine's Docker socket and a remote

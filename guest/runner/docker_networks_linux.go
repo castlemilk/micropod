@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -47,6 +48,28 @@ func networkName(name string) string {
 }
 func builtinNetwork(name string) bool { return name == "bridge" || name == "none" }
 func (n *workerNetwork) dir() string  { return filepath.Join(engineRoot, "networks", n.ID) }
+
+// writeNetworkResolver writes the resolv.conf a container on n reads (an
+// ipvlan or macvlan network, or a bridge without its own sandbox: see
+// configureDockerBridge), mode 0644. Its data is written out before it
+// returns, so the network's commit (network.json's fsync and the directory
+// syncs after it) carries the file whole: without that, a crash after the
+// create answered could keep the network and lose the file's contents.
+// Recovery calls it with fresh false: it rewrites only a file that differs
+// from what n needs (one an earlier engine left empty).
+func writeNetworkResolver(n *workerNetwork, fresh bool) error {
+	path := filepath.Join(n.dir(), "resolv.conf")
+	want := []byte("nameserver " + n.gateway().String() + "\noptions ndots:1\n")
+	if !fresh {
+		if b, err := os.ReadFile(path); err == nil && bytes.Equal(b, want) {
+			return os.Chmod(path, 0644)
+		}
+	}
+	if err := writeFileOut(path, want, 0644); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0644)
+}
 
 // Resolve exact IDs and names before trying a unique ID prefix. Caller holds s.mu.
 func (s *dockerEngine) findNetwork(key string, includeDeleting bool) (*workerNetwork, error) {
@@ -160,7 +183,9 @@ func (s *dockerEngine) recoverNetworks(ctx context.Context) error {
 		} else if !errors.Is(e, os.ErrNotExist) {
 			return e
 		}
-		if err := os.Chmod(filepath.Join(p, "resolv.conf"), 0644); err != nil {
+		// An engine before writeNetworkResolver could leave it empty after a
+		// crash: its network.json was durable, its data was not.
+		if err := writeNetworkResolver(n, false); err != nil {
 			return err
 		}
 		if err := s.startNetwork(ctx, n); err != nil {
@@ -276,11 +301,7 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 	if err = os.Mkdir(n.dir(), 0700); err != nil {
 		return err
 	}
-	resolver := filepath.Join(n.dir(), "resolv.conf")
-	if err = os.WriteFile(resolver, []byte("nameserver "+n.gateway().String()+"\noptions ndots:1\n"), 0644); err == nil {
-		err = os.Chmod(resolver, 0644)
-	}
-	if err != nil {
+	if err = writeNetworkResolver(n, true); err != nil {
 		return errors.Join(err, os.RemoveAll(n.dir()))
 	}
 	// Commit ownership before creating links. Startup can finish an interrupted

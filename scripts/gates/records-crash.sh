@@ -5,6 +5,7 @@
 # numbered checks with a receipt.
 #
 #   scripts/gates/records-crash.sh [--payload DIR] [--offsets MS,MS,...]
+#                                  [--image-trials SPEC] [--sweep records,images]
 #                                  [--receipt-dir DIR] [--keep] [--help]
 #
 # Every trial creates, through the guest's Docker API: a container (created),
@@ -32,12 +33,35 @@
 # and keeps what it had: so this proves the guest syncs (engine and
 # containerd) are where the answers need them, not the host's disk flushes.
 #
+# Before any kill (section C): a container runs (CRI pulls its sandbox image
+# by itself, and nothing syncs that), the machine is stopped and started, and
+# the start must remove no image: a clean stop is never taken for a crash.
+#
+# Then the image trials (section I): each makes an image the engine never had
+# (a pull of a never-pulled public image, or a load and a build of a
+# generated image with a unique layer of 32 MiB, GATE_IMAGE_MIB) and kills the VMM
+# either MS after the operation answered (after:MS) or a FRACTION of the
+# kind's measured duration after it began (before:FRACTION; one that answered
+# first is judged as answered). After the relaunch:
+#   - an answered pull, load or build: the image is whole,
+#   - an unanswered one: the image is gone or whole, never present but broken,
+#   - the same pull, load or build again: the image is whole (a broken image
+#     that survives its own re-pull fails),
+# where whole is a container from it that runs a probe printing the sha256 of
+# every regular file, all equal to the image's layers (from the registry for
+# a pull, from the generated layer for a load or build). The default trials
+# kill 0 to 10000 ms after a pull answered (the engine before image syncs left
+# the image broken 0 to 35 s after) and 0 to 3000 ms after a load or build.
+#
 # It fails when a needed sync is missing: run it with --payload of an engine
 # built with one removed (the receipt's versions.txt names the payload).
 #
 # --payload    a payload directory (micropod-vmm, Image, mp-hvf-init.cpio,
 #              tools/); default: the rig's known-good payload, cloned (read only)
 # --offsets    kill offsets in ms after the last answer
+# --image-trials  comma-separated KIND:after:MS or KIND:before:FRACTION, KIND
+#              pull, load or build ("" for none; default: see IMAGE_TRIALS)
+# --sweep      which sweeps run: records (the creates above), images, or both
 # --receipt-dir default ~/.micropod/gates/records-crash/<UTC time>/:
 #              result.json, checks.tsv, versions.txt, logs/, evidence/
 # --keep       keep the throwaway root (stopped) for inspection
@@ -47,7 +71,9 @@
 # (default .build/debug/micropod), GATE_API_PORT (19340), GATE_SHIM_PORT
 # (19341), GATE_DISK_FROM (default ~/.micropod/ci/worker.ext4, cloned, read
 # only), GATE_CPUS (4), GATE_MEMORY_MIB (4096), GATE_IMAGE (alpine:3.20),
-# GATE_DOCKER.
+# GATE_DOCKER, GATE_PULL_IMAGES and GATE_PULL_BEFORE_IMAGES (comma-separated
+# public linux/arm64 images for the pull trials; default busybox, python and
+# node from public.ecr.aws), GATE_IMAGE_MIB (32).
 #
 # Safety: one throwaway machine under GATE_ROOT with MICROPOD_LINK_DOCKER_SOCK=0
 # and its own MICROPOD_API_SOCK, API and shim ports; only that root's VMM (its
@@ -64,6 +90,10 @@ GATE="$HERE/records-crash"
 REPO="$(cd "$HERE/../.." && pwd)"
 PAYLOAD_SRC=""
 OFFSETS="0,1,3,10,30,100,300,1000,3000,3000,1000,300,100,30,10,3,1,0"
+IMAGE_TRIALS="pull:after:0,pull:after:30,pull:after:300,pull:after:3000,pull:after:10000,pull:before:0.5,pull:before:0.8,pull:before:0.95"
+IMAGE_TRIALS="$IMAGE_TRIALS,load:after:0,load:after:300,load:after:3000,load:before:0.5,load:before:0.8"
+IMAGE_TRIALS="$IMAGE_TRIALS,build:after:0,build:after:300,build:after:3000,build:before:0.35,build:before:0.6"
+SWEEP="records,images"
 KEEP=0
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 R="$HOME/.micropod/gates/records-crash/$TS"
@@ -73,6 +103,8 @@ while [ "$#" -gt 0 ]; do
     case $1 in
     --payload) PAYLOAD_SRC=$2 && shift ;;
     --offsets) OFFSETS=$2 && shift ;;
+    --image-trials) IMAGE_TRIALS=$2 && shift ;;
+    --sweep) SWEEP=$2 && shift ;;
     --receipt-dir) R=$2 && shift ;;
     --keep) KEEP=1 ;;
     -h | --help) usage && exit 0 ;;
@@ -81,6 +113,8 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 case "$OFFSETS" in '' | *[!0-9.,]*) echo "--offsets must be milliseconds separated by commas" >&2 && exit 2 ;; esac
+case "$IMAGE_TRIALS" in *[!a-z0-9.,:]*) echo "--image-trials must be KIND:after:MS or KIND:before:FRACTION, comma-separated" >&2 && exit 2 ;; esac
+case ",$SWEEP," in *,records,* | *,images,*) ;; *) echo "--sweep must name records, images or both" >&2 && exit 2 ;; esac
 
 BASE="${GATE_ROOT:-/tmp/mpg-rc}"
 case "$BASE" in
@@ -155,7 +189,7 @@ for line in open(os.path.join(r, "versions.txt")) if os.path.exists(os.path.join
     versions[k] = v
 bad = [c for c in checks if c["status"] != "pass"]
 verdict = "error" if aborted else ("fail" if bad or not checks else "pass")
-json.dump({"gate": "records-crash: answered creates survive kill -9 of the VMM at swept offsets",
+json.dump({"gate": "records-crash: answered creates and images survive kill -9 of the VMM at swept offsets",
            "receipt": r, "started": datetime.datetime.strptime(ts, "%Y%m%dT%H%M%SZ").replace(tzinfo=datetime.timezone.utc).isoformat(),
            "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
            "offsetsMs": [float(x) for x in offsets.split(",") if x], "throwawayRoot": base, "aborted": aborted or None,
@@ -193,7 +227,9 @@ log "throwaway root $BASE; offsets $OFFSETS ms; payload $PAYLOAD_SRC"
 "$M" machine stop >/dev/null 2>&1
 remove_tree "$BASE"
 { mkdir -p "$BASE" "$MROOT" "$WS" "$STAGE" "$TMPD/docker" && touch "$BASE/$MARKER"; } || abort "cannot create $BASE"
-echo '{}' >"$DOCKER_CONFIG/config.json"
+# The user's CLI plugin directory, so `docker build` (buildx) loads; nothing
+# else of the user's docker config is read.
+python3 -c 'import json,os,sys; json.dump({"cliPluginsExtraDirs": [os.path.expanduser("~/.docker/cli-plugins")]}, open(sys.argv[1], "w"))' "$DOCKER_CONFIG/config.json"
 cp -cR "$PAYLOAD_SRC/." "$STAGE/payload/" 2>/dev/null || cp -R "$PAYLOAD_SRC/." "$STAGE/payload/"
 chmod -R u+w "$STAGE/payload"
 {
@@ -204,6 +240,8 @@ chmod -R u+w "$STAGE/payload"
     done
     echo "bundle_manifest=$(cat "$STAGE/payload/tools/runner/manifest.json" 2>/dev/null)"
     echo "offsets_ms=$OFFSETS"
+    echo "image_trials=$IMAGE_TRIALS"
+    echo "sweep=$SWEEP"
     echo "run=$RUN"
 } >"$R/versions.txt"
 "$M" machine install --vmm "$STAGE/payload/micropod-vmm" --kernel "$STAGE/payload/Image" --initrd "$STAGE/payload/mp-hvf-init.cpio" \
@@ -214,7 +252,8 @@ for _ in $(seq 1 240); do curl -s -m 2 --unix-socket "$SOCK" http://d/_ping 2>/d
 curl -s -m 5 --unix-socket "$SOCK" http://d/version >"$R/evidence/version.json" || abort "the engine never answered"
 echo "engine_commit=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('GitCommit'))" "$R/evidence/version.json")" >>"$R/versions.txt"
 "$DOCKER" pull -q "$IMAGE" >"$R/logs/pull.log" 2>&1 || abort "cannot pull $IMAGE"
-python3 -I "$GATE/driver.py" "$MROOT" "$R" "$RUN" "$OFFSETS" "$IMAGE"
+GATE_IMAGE_TRIALS="$IMAGE_TRIALS" GATE_SWEEP="$SWEEP" GATE_DOCKER_BIN="$DOCKER" GATE_TMP="$TMPD" \
+    python3 -I "$GATE/driver.py" "$MROOT" "$R" "$RUN" "$OFFSETS" "$IMAGE"
 rc=$?
 [ "$rc" -le 1 ] || abort "the driver could not run the trials (exit $rc)"
 link=$(readlink "$HOME/.micropod/docker.sock" 2>/dev/null || echo absent)

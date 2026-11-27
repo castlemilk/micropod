@@ -13,7 +13,8 @@ import (
 	"github.com/distribution/reference"
 )
 
-const ctrPath = "/opt/micropod-oci/runner/bin/ctr"
+// ctrPath is the bundle's ctr (a variable only so tests can stand one in).
+var ctrPath = "/opt/micropod-oci/runner/bin/ctr"
 
 // These infrequent, streaming image operations use the same namespace and
 // snapshotter as CRI and BuildKit. Image bytes never enter the agent heap.
@@ -63,6 +64,11 @@ func importImages(w http.ResponseWriter, r *http.Request) error {
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
 		return fail(400, fmt.Sprintf("image import: %s: %v", out, err))
+	}
+	// ctr unpacked what it imported: on the disk before the load answers
+	// (image_durability_linux.go).
+	if err := imageSync.Sync(); err != nil {
+		return err
 	}
 	writeJSON(w, 200, map[string]string{"stream": string(out)})
 	return nil

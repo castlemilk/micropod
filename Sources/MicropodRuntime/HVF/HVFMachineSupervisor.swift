@@ -395,8 +395,11 @@ public actor HVFMachineSupervisor {
             let hostPorts = HVFHostPortAllowlist(config: config)
             log("host ports open to the guest: \(hostPorts.description)")
             for refusal in hostPorts.refused { log(refusal.message) }
+            let diskFlush = HVFDiskFlush(config: config)
+            if diskFlush != HVFDiskFlush() { log("disk flush: \(diskFlush.description)") }
             process = try launcher.launch(executable: command.executable, arguments: command.arguments)
             state.allowHostPorts = hostPorts.ports
+            state.diskFlush = diskFlush
         } catch {
             continuation.yield(.exited(generation: g, HVFVMMExit(launchError: error.localizedDescription)))
             return
