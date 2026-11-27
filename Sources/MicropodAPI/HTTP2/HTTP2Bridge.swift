@@ -16,7 +16,9 @@ import Network
 /// instead of filling memory. NIO's side closing (after its last frame, the
 /// trailers included) ends the client's connection once every byte before
 /// it was sent, or after `HTTP2Limits.closeDrain` when the client does not
-/// take them: its connection is then cancelled with the bytes unsent.
+/// take them: its connection is then cancelled with the bytes unsent. While
+/// NIO's side is open, a client that takes none of the bytes sent to it for
+/// `HTTP2Limits.connectionWriteStall` is cut off the same way.
 enum HTTP2Bridge {
     /// Both ends of a new socketpair, close-on-exec, non-blocking, without
     /// SIGPIPE and with 256 KiB buffers each way (a Unix stream socket's
@@ -75,6 +77,15 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
     private let drain: TimeAmount
     /// Cancels the client's connection when `drain` ran out.
     private var deadline: Deadline?
+    /// How long sends to the client may be outstanding with none completing.
+    private let stall: TimeAmount
+    /// Closes the server's channel when the client was cut off for a stall.
+    private let onStall: @Sendable () -> Void
+    /// When the oldest outstanding send was handed over, or a send last completed.
+    private var progress = NIODeadline.now()
+    private var stallTimer: Scheduled<Void>?
+    /// The client was cut off for a stall: nothing more is sent to it.
+    private var cut = false
 
     /// `DispatchWorkItem.cancel` may be called from any thread.
     private final class Deadline: @unchecked Sendable {
@@ -82,10 +93,15 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
         init(_ work: @escaping @Sendable () -> Void) { item = DispatchWorkItem(block: work) }
     }
 
-    init(connection: NWConnection, initial: Data, drain: TimeAmount) {
+    init(
+        connection: NWConnection, initial: Data, drain: TimeAmount, stall: TimeAmount,
+        onStall: @escaping @Sendable () -> Void
+    ) {
         self.connection = connection
         self.initial = initial
         self.drain = drain
+        self.stall = stall
+        self.onStall = onStall
     }
 
     func handlerAdded(context: ChannelHandlerContext) { HTTP2Bridge.live.add(1) }
@@ -93,6 +109,7 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
         removed = true
         gone.add(1)
         HTTP2Bridge.live.add(-1)
+        unwatch()
         expire()
         if !ended { end() }
     }
@@ -143,7 +160,10 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
     /// NIO → client.
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let bytes = Data(unwrapInboundIn(data).readableBytesView)
+        guard !cut else { return }
+        if sending == 0 { progress = .now() }
         sending += 1
+        watch(context)
         let bound = NIOLoopBound((self, context), eventLoop: context.eventLoop)
         connection.send(
             content: bytes,
@@ -152,6 +172,7 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
                 bound.eventLoop.execute {
                     let (handler, context) = bound.value
                     handler.sending -= 1
+                    handler.progress = .now()
                     guard !handler.removed else { return }
                     if error != nil {
                         context.close(promise: nil)
@@ -180,8 +201,44 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
         }
     }
 
+    /// One timer while sends are outstanding, re-armed from the last
+    /// progress when it fires: a send that completes costs no timer.
+    private func watch(_ context: ChannelHandlerContext) {
+        guard stallTimer == nil, sending > 0, !ending, !cut else { return }
+        let bound = NIOLoopBound((self, context), eventLoop: context.eventLoop)
+        stallTimer = context.eventLoop.scheduleTask(deadline: progress + stall) {
+            let (handler, context) = bound.value
+            handler.stallTimer = nil
+            guard !handler.removed, !handler.ending, handler.sending > 0 else { return }
+            if NIODeadline.now() - handler.progress >= handler.stall {
+                handler.stalled(context)
+            } else {
+                handler.watch(context)
+            }
+        }
+    }
+
+    private func unwatch() {
+        stallTimer?.cancel()
+        stallTimer = nil
+    }
+
+    /// The client took none of the bytes sent to it for `stall`, with NIO's
+    /// side still open: nothing NIO writes (a stream's RST_STREAM, a GOAWAY)
+    /// can reach it, so no stream of the connection ends and it never goes
+    /// idle. Its connection is cancelled with the bytes unsent, which gives
+    /// its places back, and both channels close.
+    private func stalled(_ context: ChannelHandlerContext) {
+        cut = true
+        ended = true
+        connection.forceCancel()
+        onStall()
+        context.close(promise: nil)
+    }
+
     func channelInactive(context: ChannelHandlerContext) {
         ending = true
+        unwatch()
         expire()
         if sending == 0 { end() }
         context.fireChannelInactive()
@@ -196,7 +253,7 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
     /// reading would keep its connection, descriptor and unsent bytes for
     /// good. After `drain` the connection is cancelled whatever is unsent.
     private func expire() {
-        guard deadline == nil else { return }
+        guard deadline == nil, !cut else { return }
         let connection = self.connection
         let deadline = Deadline { connection.forceCancel() }
         self.deadline = deadline
