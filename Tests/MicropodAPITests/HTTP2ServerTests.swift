@@ -96,6 +96,9 @@ final class H2Fixture: @unchecked Sendable {
             return .text(200, "slow")
         case "/echo":
             return .data(200, "application/octet-stream", request.body)
+        case "/big":
+            let count = Int(request.string("bytes")) ?? 0
+            return .data(200, "application/octet-stream", Data((0..<count).map { UInt8(truncatingIfNeeded: $0 &* 31) }))
         default:
             return .json(404, ["error": "not found"])
         }
@@ -149,7 +152,8 @@ final class H2Fixture: @unchecked Sendable {
     }
 }
 
-final class HTTP2ServerTests: XCTestCase {
+/// A server on a throwaway owner socket and loopback port, and clients for it.
+class HTTP2TestCase: XCTestCase {
     var dir: URL!
     var servers: [HTTPServer] = []
 
@@ -203,6 +207,9 @@ final class HTTP2ServerTests: XCTestCase {
         (try? JSONSerialization.jsonObject(with: response.body)) as? [String: Any]
     }
 
+}
+
+final class HTTP2ServerTests: HTTP2TestCase {
     // MARK: - REST and Connect
 
     func testRESTAndConnectUnaryAnswerOnBothListeners() async throws {
@@ -304,6 +311,31 @@ final class HTTP2ServerTests: XCTestCase {
         XCTAssertFalse(fixture.requests.contains { $0.path.hasSuffix("/Teleport") }, "no handler ran for it")
         let seen = fixture.requests.filter { $0.path == "/api/micropod.v1.SystemService/Ping" }
         XCTAssertEqual(Set(seen.map { $0.headers["content-type"] ?? "" }), ["application/proto", "application/json"])
+    }
+
+    /// A method no service declares (reflection here) or a client stream is
+    /// refused from its headers, without waiting for a body that a
+    /// bidirectional client never ends.
+    func testUnknownGRPCMethodsAreRefusedFromTheirHeaders() async throws {
+        let served = try await serve(H2Fixture())
+        let drained = try await offPool { () -> (types: [UInt8], resets: [(stream: UInt32, code: UInt32)]) in
+            let raw = H2Raw(try GoldenWire.unix(served.socket))
+            try raw.start()
+            for (stream, path) in [
+                (UInt32(1), "/grpc.reflection.v1.ServerReflection/ServerReflectionInfo"),
+                (3, "/micropod.v1.SystemService/Teleport"),
+            ] {
+                try raw.headers(
+                    stream: stream,
+                    H2Raw.request(path, method: "POST") + [("content-type", "application/grpc"), ("te", "trailers")],
+                    endStream: false)
+            }
+            let result = raw.drain(timeout: 3) { type, stream in type == 0x3 && stream == 3 }
+            return (result.types, result.resets)
+        }
+        XCTAssertEqual(drained.types.filter { $0 == 0x1 }.count, 2, "a Trailers-Only answer for each")
+        XCTAssertEqual(Set(drained.resets.map(\.stream)), [1, 3])
+        XCTAssertTrue(drained.resets.allSatisfy { $0.code == 0 }, "then RST_STREAM(NO_ERROR)")
     }
 
     func testGRPCServerStreamsEndInTheirStatus() async throws {

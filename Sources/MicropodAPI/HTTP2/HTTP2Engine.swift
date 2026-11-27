@@ -22,7 +22,7 @@ final class HTTP2Engine: @unchecked Sendable {
     let limits: HTTP2Limits
     private let lock = NSLock()
     private var group: MultiThreadedEventLoopGroup?
-    private var channels: [ObjectIdentifier: any Channel] = [:]
+    private var channels: [ObjectIdentifier: (channel: any Channel, state: HTTP2ConnectionState)] = [:]
     private var stopping = false
     private let counters: [ListenerKind: ListenerCounters] = [.owner: ListenerCounters(), .tcp: ListenerCounters()]
 
@@ -109,7 +109,8 @@ final class HTTP2Engine: @unchecked Sendable {
                 let key = ObjectIdentifier(serverChannel)
                 let admitted = self?.lock.withLock { () -> Bool in
                     guard let self, !self.stopping else { return false }
-                    self.channels[key] = serverChannel
+                    self.channels[key] = (serverChannel, state)
+                    state.attach(serverChannel)
                     return true
                 }
                 serverChannel.closeFuture.whenComplete { [weak self] _ in
@@ -148,7 +149,8 @@ final class HTTP2Engine: @unchecked Sendable {
         }
         try channel.pipeline.syncOperations.addHandler(http2)
         try channel.pipeline.syncOperations.addHandler(manager)
-        try channel.pipeline.syncOperations.addHandler(FirstStreamDeadline(limits.firstStreamDeadline))
+        try channel.pipeline.syncOperations.addHandler(FirstStreamDeadline(limits.firstStreamDeadline, state: state))
+        try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors())
     }
 
     /// The client gets this server's (empty) SETTINGS and
@@ -163,18 +165,19 @@ final class HTTP2Engine: @unchecked Sendable {
         [0, 0, 0, 0x04, 0, 0, 0, 0, 0]  // SETTINGS, no parameters
             + [0, 0, 8, 0x07, 0, 0, 0, 0, 0] + [0, 0, 0, 0] + [0, 0, 0, 0x0B])  // GOAWAY 0, ENHANCE_YOUR_CALM
 
-    /// Every connection gets GOAWAY; once their streams finish (or
-    /// `goAwayGrace` ran out) they close, and the event loops stop.
+    /// Every connection gets GOAWAY; once its streams finish (or
+    /// `goAwayGrace` ran out) it closes, and then the event loops stop.
     func stop() {
-        let (open, group) = lock.withLock { () -> ([any Channel], MultiThreadedEventLoopGroup?) in
+        let (open, group) = lock.withLock {
+            () -> ([(channel: any Channel, state: HTTP2ConnectionState)], MultiThreadedEventLoopGroup?) in
             stopping = true
             return (Array(channels.values), self.group)
         }
-        for channel in open { channel.pipeline.fireUserInboundEventTriggered(ChannelShouldQuiesceEvent()) }
+        for entry in open { entry.state.goAway() }
         guard let group else { return }
         let grace = limits.goAwayGrace.nanoseconds
-        DispatchQueue.global().asyncAfter(deadline: .now() + .nanoseconds(Int(grace)) + .seconds(2)) {
-            let remaining = self.lock.withLock { Array(self.channels.values) }
+        DispatchQueue.global().asyncAfter(deadline: .now() + .nanoseconds(Int(grace)) + .seconds(1)) {
+            let remaining = self.lock.withLock { self.channels.values.map(\.channel) }
             for channel in remaining { channel.close(promise: nil) }
             group.shutdownGracefully { _ in }
         }
@@ -184,16 +187,22 @@ final class HTTP2Engine: @unchecked Sendable {
     var openConnections: Int { lock.withLock { channels.count } }
 }
 
-/// Closes a connection that opened no stream within its deadline.
+/// Closes a connection that opened no stream within its deadline. (With
+/// the inline stream multiplexer NIO reports a new stream to the stream
+/// delegate only, not down the pipeline, so the stream handlers say so
+/// through `HTTP2ConnectionState`.)
 final class FirstStreamDeadline: ChannelInboundHandler {
     typealias InboundIn = HTTP2Frame
     typealias InboundOut = HTTP2Frame
 
     private let deadline: TimeAmount
+    private let state: HTTP2ConnectionState
     private var timer: Scheduled<Void>?
-    private var opened = false
 
-    init(_ deadline: TimeAmount) { self.deadline = deadline }
+    init(_ deadline: TimeAmount, state: HTTP2ConnectionState) {
+        self.deadline = deadline
+        self.state = state
+    }
 
     func handlerAdded(context: ChannelHandlerContext) {
         if context.channel.isActive { arm(context) }
@@ -205,18 +214,58 @@ final class FirstStreamDeadline: ChannelInboundHandler {
     }
 
     private func arm(_ context: ChannelHandlerContext) {
-        guard timer == nil, !opened else { return }
+        guard timer == nil else { return }
         let bound = NIOLoopBound(context, eventLoop: context.eventLoop)
-        timer = context.eventLoop.scheduleTask(in: deadline) { bound.value.close(promise: nil) }
-    }
-
-    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
-        if event is NIOHTTP2StreamCreatedEvent {
-            opened = true
-            timer?.cancel()
+        let state = self.state
+        timer = context.eventLoop.scheduleTask(in: deadline) {
+            if !state.everOpened { bound.value.close(promise: nil) }
         }
-        context.fireUserInboundEventTriggered(event)
     }
 
     func handlerRemoved(context: ChannelHandlerContext) { timer?.cancel() }
+}
+
+/// Closes the connection on a connection error. NIOHTTP2Handler answers
+/// one (a flood past its bound, a malformed frame, a broken header block)
+/// with GOAWAY and reports it here, leaving the close to the pipeline;
+/// without this the connection would stay open after its GOAWAY.
+///
+/// A stream's own error (a bad header block, a Content-Length that lies)
+/// reaches here too, unwrapped, after
+/// NIO reset that stream: those leave the connection and its other streams
+/// alone. Repeated ones still end it, through NIO's own bounds
+/// (ExcessiveStreamErrors, ExcessiveNumberOfGlitches).
+final class HTTP2ConnectionErrors: ChannelInboundHandler {
+    typealias InboundIn = HTTP2Frame
+
+    func errorCaught(context: ChannelHandlerContext, error: any Error) {
+        guard !Self.streamLevel(error) else { return }
+        // The GOAWAY NIO just wrote goes out first: closing the output
+        // waits for pending writes; the bridge then closes the rest.
+        context.flush()
+        context.close(mode: .output, promise: nil)
+    }
+
+    static func streamLevel(_ error: any Error) -> Bool {
+        switch error {
+        // IOOnClosedConnection: a write (a stream's WINDOW_UPDATE) after a
+        // graceful close went quiet; the connection manager closes it once
+        // the last frames are flushed, and closing here would drop them.
+        case is NIOHTTP2Errors.StreamError, is NIOHTTP2Errors.NoSuchStream, is NIOHTTP2Errors.StreamClosed,
+            is NIOHTTP2Errors.IOOnClosedConnection,
+            is NIOHTTP2Errors.BadStreamStateTransition,
+            is NIOHTTP2Errors.MissingPseudoHeader, is NIOHTTP2Errors.DuplicatePseudoHeader,
+            is NIOHTTP2Errors.PseudoHeaderAfterRegularHeader, is NIOHTTP2Errors.UnknownPseudoHeader,
+            is NIOHTTP2Errors.UnsupportedPseudoHeader, is NIOHTTP2Errors.InvalidPseudoHeaders,
+            is NIOHTTP2Errors.MissingHostHeader, is NIOHTTP2Errors.DuplicateHostHeader,
+            is NIOHTTP2Errors.EmptyPathHeader, is NIOHTTP2Errors.InvalidStatusValue,
+            is NIOHTTP2Errors.TrailersWithoutEndStream, is NIOHTTP2Errors.ForbiddenHeaderField,
+            is NIOHTTP2Errors.InvalidPseudoHeaderValue, is NIOHTTP2Errors.ContentLengthViolated,
+            is NIOHTTP2Errors.ContentLengthHeadersMismatch, is NIOHTTP2Errors.ContentLengthHeaderNegative,
+            is NIOHTTP2Errors.ContentLengthHeaderMalformedValue:
+            return true
+        default:
+            return false
+        }
+    }
 }

@@ -105,7 +105,10 @@ final class HTTP2BridgeHandler: ChannelDuplexHandler {
                     case .success where isComplete: channel.close(mode: .output, promise: nil)
                     case .success where error != nil: channel.close(promise: nil)
                     case .success: receive(from: connection, into: channel)
-                    case .failure: channel.close(promise: nil)
+                    // NIO's side closed (after a GOAWAY, say): stop taking the
+                    // client's bytes, but read what NIO wrote before its
+                    // close, so the GOAWAY still reaches the client.
+                    case .failure: break
                     }
                 }
             } else if error != nil {

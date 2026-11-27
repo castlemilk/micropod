@@ -12,6 +12,10 @@ final class HTTP2ConnectionState: @unchecked Sendable {
     private let lock = NSLock()
     private var handlers = 0
     private var bodyBytes = 0
+    private var streams = 0
+    private var opened = false
+    private var closing = false
+    private var channel: (any Channel)?
 
     init(limits: HTTP2Limits, context: HTTP2ExchangeContext, listener: HTTP2Engine.ListenerCounters) {
         self.limits = limits
@@ -36,6 +40,52 @@ final class HTTP2ConnectionState: @unchecked Sendable {
     }
 
     var handlersInFlight: Int { lock.withLock { handlers } }
+
+    /// The connection's own channel, once adopted.
+    func attach(_ channel: any Channel) { lock.withLock { self.channel = channel } }
+
+    func streamOpened() {
+        lock.withLock {
+            streams += 1
+            opened = true
+        }
+    }
+
+    /// A stream was ever opened on this connection.
+    var everOpened: Bool { lock.withLock { opened } }
+
+    func streamClosed() {
+        let close = lock.withLock { () -> (any Channel)? in
+            streams -= 1
+            return closing && streams == 0 ? channel : nil
+        }
+        if let close { Self.closeSoon(close) }
+    }
+
+    /// The server is stopping: GOAWAY(NO_ERROR) now, and the close once no
+    /// stream is open. (NIO's connection manager would close as the last
+    /// stream's END_STREAM is written, which can be before its bytes are
+    /// flushed: its last DATA frame was lost.)
+    func goAway() {
+        let (channel, idle) = lock.withLock { () -> ((any Channel)?, Bool) in
+            closing = true
+            return (self.channel, streams == 0)
+        }
+        guard let channel else { return }
+        let frame = HTTP2Frame(
+            streamID: .rootStream, payload: .goAway(lastStreamID: .maxID, errorCode: .noError, opaqueData: nil))
+        channel.writeAndFlush(frame, promise: nil)
+        if idle { Self.closeSoon(channel) }
+    }
+
+    /// Closes once the frames already written reached the socket: a flush
+    /// a moment later, then the output's close, which waits for them.
+    private static func closeSoon(_ channel: any Channel) {
+        channel.eventLoop.scheduleTask(in: .milliseconds(50)) {
+            channel.flush()
+            channel.close(mode: .output, promise: nil)
+        }
+    }
 
     fileprivate func releaseHandler() {
         lock.withLock { handlers -= 1 }
@@ -134,6 +184,7 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
     init(connection: HTTP2ConnectionState) { self.connection = connection }
 
     func handlerAdded(context: ChannelHandlerContext) {
+        connection.streamOpened()
         let bound = NIOLoopBound((self, context), eventLoop: context.eventLoop)
         deadline = context.eventLoop.scheduleTask(in: limits.requestDeadline) { bound.value.0.expire(bound.value.1) }
         touch(context)
@@ -239,6 +290,7 @@ final class HTTP2StreamHandler: ChannelInboundHandler {
         if exchange == nil { releaseBody() }
         stopTimers()
         settled = true
+        connection.streamClosed()
         context.fireChannelInactive()
     }
 

@@ -248,6 +248,12 @@ final class H2Raw: @unchecked Sendable {
                     | Int(buffer[buffer.startIndex + 2])
                 guard buffer.count >= 9 + length else { break }
                 let type = buffer[buffer.startIndex + 3]
+                let flags = buffer[buffer.startIndex + 4]
+                if type == 0x6, flags & 0x1 == 0, length == 8 {
+                    // Answer a PING as any client does (a graceful close waits for it).
+                    let opaque = buffer[(buffer.startIndex + 9)..<(buffer.startIndex + 17)]
+                    try? wire.send(Self.frame(type: 0x6, flags: 0x1, Data(opaque)))
+                }
                 let id = buffer[(buffer.startIndex + 5)..<(buffer.startIndex + 9)]
                 let stream = id.reduce(0) { $0 << 8 | UInt32($1) } & 0x7FFF_FFFF
                 types.append(type)
