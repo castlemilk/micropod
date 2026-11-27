@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -233,6 +235,36 @@ func TestNewVolumeIsDurableWhenCreated(t *testing.T) {
 	v, err := inspectVolume("data")
 	if err != nil || v.Labels["k"] != "v" {
 		t.Fatalf("volume %+v (%v)", v, err)
+	}
+}
+
+// An answered volume removal is durable as the create is: once the name and
+// its metadata are gone, both directories are synced before the answer, so a
+// crash never brings the volume back.
+func TestRemovedVolumeIsDurableWhenAnswered(t *testing.T) {
+	old := volumeStore
+	volumeStore = t.TempDir()
+	t.Cleanup(func() { volumeStore = old })
+	for _, d := range []string{"volumes", "volume-meta"} {
+		if err := os.Mkdir(filepath.Join(volumeStore, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	steps := observeRecordIO(t)
+	if err := ensureVolume("data", map[string]string{"k": "v"}); err != nil {
+		t.Fatal(err)
+	}
+	*steps = nil
+	s := &dockerEngine{}
+	rec := httptest.NewRecorder()
+	if err := s.volumes(rec, httptest.NewRequest("DELETE", "/volumes/data", nil), "/data"); err != nil || rec.Code != http.StatusNoContent {
+		t.Fatalf("volume removal: %v, status %d", err, rec.Code)
+	}
+	if want := []string{"commit volume-meta ", "commit volumes "}; !slices.Equal(*steps, want) {
+		t.Fatalf("volume removal steps %q, want both directories synced once the name is gone: %q", *steps, want)
+	}
+	if _, err := inspectVolume("data"); !os.IsNotExist(err) {
+		t.Fatalf("the removed volume is still there: %v", err)
 	}
 }
 
