@@ -143,12 +143,14 @@ final class HTTP2Engine: @unchecked Sendable {
                 try stream.pipeline.syncOperations.addHandler(HTTP2StreamHandler(connection: state))
             }
         }
+        let goAways = HTTP2GoAwayWatch()
+        try channel.pipeline.syncOperations.addHandler(goAways)
         try channel.pipeline.syncOperations.addHandler(http2)
         try channel.pipeline.syncOperations.addHandler(FirstStreamDeadline(limits.firstStreamDeadline, state: state))
         if limits.logControlFrames {
             try channel.pipeline.syncOperations.addHandler(HTTP2ControlFrameMeter(window: limits.controlFrames.window))
         }
-        try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors())
+        try channel.pipeline.syncOperations.addHandler(HTTP2ConnectionErrors(goAways: goAways))
     }
 
     /// The client gets this server's (empty) SETTINGS and
@@ -233,11 +235,21 @@ final class FirstStreamDeadline: ChannelInboundHandler {
 /// NIO reset that stream: those leave the connection and its other streams
 /// alone. Repeated ones still end it, through NIO's own bounds
 /// (ExcessiveStreamErrors, ExcessiveNumberOfGlitches).
+///
+/// NIO reports both kinds the same way, so they are told apart by type.
+/// Two types are raised at either level (a WINDOW_UPDATE that is zero or
+/// overflows the window: a stream error on a stream, a connection error on
+/// stream 0); for those the GOAWAY NIO wrote, or did not, decides.
 final class HTTP2ConnectionErrors: ChannelInboundHandler {
     typealias InboundIn = HTTP2Frame
 
+    private let goAways: HTTP2GoAwayWatch
+
+    init(goAways: HTTP2GoAwayWatch) { self.goAways = goAways }
+
     func errorCaught(context: ChannelHandlerContext, error: any Error) {
         guard !Self.streamLevel(error) else { return }
+        if Self.eitherLevel(error), !goAways.sentError { return }
         // The GOAWAY NIO just wrote goes out first: closing the output
         // waits for pending writes; the bridge then closes the rest.
         context.flush()
@@ -259,12 +271,67 @@ final class HTTP2ConnectionErrors: ChannelInboundHandler {
             is NIOHTTP2Errors.MissingHostHeader, is NIOHTTP2Errors.DuplicateHostHeader,
             is NIOHTTP2Errors.EmptyPathHeader, is NIOHTTP2Errors.InvalidStatusValue,
             is NIOHTTP2Errors.TrailersWithoutEndStream, is NIOHTTP2Errors.ForbiddenHeaderField,
+            is NIOHTTP2Errors.InvalidHTTP2HeaderFieldName, is NIOHTTP2Errors.InvalidHTTP2HeaderFieldValue,
             is NIOHTTP2Errors.InvalidPseudoHeaderValue, is NIOHTTP2Errors.ContentLengthViolated,
             is NIOHTTP2Errors.ContentLengthHeadersMismatch, is NIOHTTP2Errors.ContentLengthHeaderNegative,
             is NIOHTTP2Errors.ContentLengthHeaderMalformedValue:
             return true
         default:
             return false
+        }
+    }
+
+    /// A stream error on a stream, a connection error on stream 0.
+    static func eitherLevel(_ error: any Error) -> Bool {
+        error is NIOHTTP2Errors.InvalidWindowIncrementSize || error is NIOHTTP2Errors.InvalidFlowControlWindowSize
+    }
+}
+
+/// Notes a GOAWAY with an error code among the bytes NIOHTTP2Handler writes:
+/// the one sign that NIO treated an error as the connection's (it reports a
+/// stream's and a connection's error identically). It sits between the
+/// socket and NIOHTTP2Handler and reads frame headers only. This server's
+/// own GOAWAYs (idle, `stop()`) carry NO_ERROR.
+final class HTTP2GoAwayWatch: ChannelOutboundHandler {
+    typealias OutboundIn = IOData
+    typealias OutboundOut = IOData
+
+    private(set) var sentError = false
+    /// A frame header's bytes so far (nine make one).
+    private var header: [UInt8] = []
+    /// Payload bytes of the current frame still to pass.
+    private var payload = 0
+    /// A GOAWAY's first eight payload bytes (last stream, error code), while collected.
+    private var goAway: [UInt8]?
+
+    func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
+        if !sentError, case .byteBuffer(let buffer) = unwrapOutboundIn(data) { scan(buffer.readableBytesView) }
+        context.write(data, promise: promise)
+    }
+
+    func scan(_ bytes: ByteBufferView) {
+        var index = bytes.startIndex
+        while index < bytes.endIndex {
+            if goAway != nil {
+                goAway!.append(bytes[index])
+                index += 1
+                payload -= 1
+                if goAway!.count == 8 {
+                    if goAway![4...].contains(where: { $0 != 0 }) { sentError = true }
+                    goAway = nil
+                }
+            } else if payload > 0 {
+                let skipped = min(payload, bytes.endIndex - index)
+                payload -= skipped
+                index += skipped
+            } else {
+                header.append(bytes[index])
+                index += 1
+                guard header.count == 9 else { continue }
+                payload = Int(header[0]) << 16 | Int(header[1]) << 8 | Int(header[2])
+                if header[3] == 0x7, payload >= 8 { goAway = [] }
+                header.removeAll(keepingCapacity: true)
+            }
         }
     }
 }

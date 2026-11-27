@@ -261,6 +261,91 @@ final class HTTP2LimitsTests: HTTP2TestCase {
         XCTAssertEqual(served.server.http2?.connections(.owner), 0, "neither connection kept its place")
     }
 
+    /// A stream's own error (a header name in upper case, a header value
+    /// with CR LF, a WINDOW_UPDATE of zero or one that overflows the window)
+    /// resets that stream and leaves the connection and its other streams
+    /// alone. The same WINDOW_UPDATE on stream 0 is the connection's error:
+    /// GOAWAY and the close.
+    func testAStreamErrorLeavesTheOtherStreamsAlone() async throws {
+        let fixture = H2Fixture()
+        let served = try await serve(fixture)
+        let post = Self.post
+        @Sendable func update(_ stream: UInt32, _ increment: UInt32) -> Data {
+            H2Raw.frame(type: 0x8, stream: stream, Data(withUnsafeBytes(of: increment.bigEndian) { Array($0) }))
+        }
+        let cases: [(String, @Sendable (H2Raw) throws -> Void)] = [
+            ("header name in upper case", { try $0.headers(stream: 3, H2Raw.request("/health") + [("X-Upper", "1")]) }),
+            (
+                "header value with CR LF",
+                { try $0.headers(stream: 3, H2Raw.request("/health") + [("x-a", "b\r\nc: d")]) }
+            ),
+            (
+                "WINDOW_UPDATE of zero",
+                {
+                    try $0.headers(stream: 3, post, endStream: false)
+                    try $0.wire.send(update(3, 0))
+                }
+            ),
+            (
+                "WINDOW_UPDATE past the window",
+                {
+                    try $0.headers(stream: 3, post, endStream: false)
+                    try $0.wire.send(update(3, 0x7FFF_FFFF))
+                }
+            ),
+        ]
+        for (name, misbehave) in cases {
+            let outcome = try await offPool { () -> (resets: [UInt32], goAway: UInt32?, answered: Bool) in
+                let raw = try Self.raw(served)
+                try raw.headers(stream: 1, H2Raw.request("/slow?ms=600"))
+                usleep(100_000)
+                try misbehave(raw)
+                // Stream 1's answer (HEADERS then DATA) still comes.
+                let drained = raw.drain(timeout: 3) { type, stream in type == 0x0 && stream == 1 }
+                return (drained.resets.map(\.stream), drained.goAway, !drained.closed && drained.types.last == 0x0)
+            }
+            XCTAssertEqual(outcome.resets, [3], "\(name): only the stream at fault is reset")
+            XCTAssertNil(outcome.goAway, "\(name): no GOAWAY")
+            XCTAssertTrue(outcome.answered, "\(name): the other stream got its answer")
+        }
+        for (name, increment) in [("zero", UInt32(0)), ("past the window", 0x7FFF_FFFF)] {
+            let drained = try await offPool { () -> (goAway: UInt32?, closed: Bool) in
+                let raw = try Self.raw(served)
+                try raw.headers(stream: 1, H2Raw.request("/slow?ms=600"))
+                usleep(100_000)
+                try raw.wire.send(update(0, increment))
+                let drained = raw.drain(timeout: 3)
+                return (drained.goAway, drained.closed)
+            }
+            XCTAssertNotNil(drained.goAway, "WINDOW_UPDATE(0, \(name)): the connection's error")
+            XCTAssertNotEqual(drained.goAway, 0)
+            XCTAssertTrue(drained.closed, "WINDOW_UPDATE(0, \(name)): closed after its GOAWAY")
+        }
+    }
+
+    /// The watch reads NIO's output as frames whatever the buffers' cuts.
+    func testTheGoAwayWatchReadsFramesAcrossBuffers() {
+        let settings = H2Raw.frame(type: 0x4)
+        let data = H2Raw.frame(type: 0x0, stream: 1, Data(repeating: 0x07, count: 300))
+        func goAway(_ code: UInt8) -> Data {
+            H2Raw.frame(type: 0x7, Data([0, 0, 0, 0, 0, 0, 0, code]) + Data("why".utf8))
+        }
+        for cut in [1, 2, 9, 13, 400] {
+            for (code, expected) in [(UInt8(0), false), (UInt8(1), true)] {
+                let watch = HTTP2GoAwayWatch()
+                let bytes = settings + data + goAway(code) + settings
+                var offset = 0
+                while offset < bytes.count {
+                    let piece = bytes[
+                        (bytes.startIndex + offset)..<min(bytes.endIndex, bytes.startIndex + offset + cut)]
+                    watch.scan(ByteBuffer(bytes: piece).readableBytesView)
+                    offset += cut
+                }
+                XCTAssertEqual(watch.sentError, expected, "cut \(cut), code \(code)")
+            }
+        }
+    }
+
     /// Past the HTTP/2 connection cap a client gets SETTINGS, GOAWAY and the
     /// close; HTTP/1.1 keeps its places.
     func testTheConnectionCap() async throws {
