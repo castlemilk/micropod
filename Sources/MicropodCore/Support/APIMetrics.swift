@@ -13,7 +13,12 @@ public final class APIMetrics: @unchecked Sendable {
         var latencyUs: Int = 0
     }
 
-    private let queue = DispatchQueue(label: "APIMetrics", attributes: .concurrent)
+    /// Held only around the dictionary's update and its copy. (This was a
+    /// concurrent queue with barrier writes and `sync` reads: handlers run
+    /// on Swift's cooperative pool, and once every thread of it waited in a
+    /// read behind a pending write, no thread was left to run the write and
+    /// the process stopped answering for good.)
+    private let lock = NSLock()
     private var buckets: [String: Bucket] = [:]
     private let startedAt: Date = Date()
     /// Metric name prefix — lets two registries coexist in one exposition
@@ -36,12 +41,12 @@ public final class APIMetrics: @unchecked Sendable {
     public func record(route: String, method: String, label: String, isError: Bool = false, duration: TimeInterval) {
         let key = "\(route)\(Self.sep)\(method)\(Self.sep)\(label)"
         let us = Int(duration * 1_000_000)
-        queue.async(flags: .barrier) {
-            var b = self.buckets[key, default: Bucket()]
+        lock.withLock {
+            var b = buckets[key, default: Bucket()]
             b.count += 1
             if isError { b.errors += 1 }
             b.latencyUs += us
-            self.buckets[key] = b
+            buckets[key] = b
         }
     }
 
@@ -57,8 +62,7 @@ public final class APIMetrics: @unchecked Sendable {
         lines.append("# HELP \(prefix)_request_duration_microseconds_total Total request latency")
         lines.append("# TYPE \(prefix)_request_duration_microseconds_total counter")
 
-        var snapshot: [(String, Bucket)] = []
-        queue.sync { snapshot = self.buckets.map { ($0.key, $0.value) } }
+        var snapshot = lock.withLock { buckets.map { ($0.key, $0.value) } }
         snapshot.sort { $0.0 < $1.0 }
         var durations: [String: Int] = [:]
         for (key, b) in snapshot {
