@@ -309,7 +309,7 @@ func (s *dockerEngine) pullEmulatedImage(w http.ResponseWriter, r *http.Request,
 		if err := s.node.moveEmulatedTagLabel(ctx, tag.String(), pinned); err != nil {
 			return err
 		}
-		if tagMoved, err = s.node.pointTagAtEmulated(ctx, tag.String(), root, manifest); err != nil {
+		if tagMoved, err = s.node.pointTagAtEmulated(ctx, tag.String(), manifest); err != nil {
 			return err
 		}
 	}
@@ -398,7 +398,7 @@ func (n node) moveEmulatedTagLabel(ctx context.Context, tag, pinned string) erro
 // another platform. A tag naming a native image (a multi-platform index
 // pulled with no platform, or an arm64 manifest) keeps it.
 // It reports whether it named the image by the tag.
-func (n node) pointTagAtEmulated(ctx context.Context, tag string, root, manifest ocispec.Descriptor) (bool, error) {
+func (n node) pointTagAtEmulated(ctx context.Context, tag string, manifest ocispec.Descriptor) (bool, error) {
 	storeCtx := imageMetadataContext(ctx)
 	target := &types.Descriptor{MediaType: manifest.MediaType, Digest: manifest.Digest.String(), Size: manifest.Size}
 	current, err := n.imageStore.Get(storeCtx, &images.GetImageRequest{Name: tag})
@@ -416,13 +416,15 @@ func (n node) pointTagAtEmulated(ctx context.Context, tag string, root, manifest
 		return false, fmt.Errorf("read tag %s: %w", tag, err)
 	}
 	have := current.GetImage().GetTarget()
-	if have.GetDigest() == manifest.Digest.String() || have.GetDigest() == root.Digest.String() {
+	if have.GetDigest() == manifest.Digest.String() {
 		return false, nil
 	}
-	if isIndexDescriptor(have.GetMediaType()) {
-		return false, nil // CRI resolved this index for linux/arm64: the tag is native
-	}
-	native, err := n.recordRunsNatively(ctx, have)
+	// The tag keeps a native image: an index CRI resolves for linux/arm64
+	// (its arm64 manifest is here), or an arm64 manifest. An index with no
+	// arm64 image here (the record a failed no-platform pull of an
+	// amd64-only image leaves, which CRI cannot resolve) names nothing that
+	// runs, so the tag takes the amd64 image.
+	native, err := n.targetRunsNatively(ctx, have)
 	if err != nil || native {
 		return false, err
 	}
@@ -434,6 +436,41 @@ func (n node) pointTagAtEmulated(ctx context.Context, tag string, root, manifest
 		return false, fmt.Errorf("move tag %s: %w", tag, err)
 	}
 	return true, nil
+}
+
+// targetRunsNatively reports whether a record's target resolves to a native
+// image here: an index whose linux/arm64 manifest is in the content store,
+// or a manifest whose config names linux/arm64.
+func (n node) targetRunsNatively(ctx context.Context, target *types.Descriptor) (bool, error) {
+	if !isIndexDescriptor(target.GetMediaType()) {
+		return n.recordRunsNatively(ctx, target)
+	}
+	raw, err := n.readVerifiedImageBlob(imageMetadataContext(ctx), target, "image index")
+	var problem apiError
+	if errors.As(err, &problem) {
+		return false, nil // the index itself is not here
+	}
+	if err != nil {
+		return false, err
+	}
+	var index ocispec.Index
+	if json.Unmarshal(raw, &index) != nil {
+		return false, nil
+	}
+	native := platforms.OnlyStrict(nativePlatform)
+	for _, m := range index.Manifests {
+		if m.Platform == nil || !isManifestDescriptor(m.MediaType) || !native.Match(platforms.Normalize(*m.Platform)) {
+			continue
+		}
+		_, err := n.readVerifiedImageBlob(imageMetadataContext(ctx), &types.Descriptor{MediaType: m.MediaType, Digest: m.Digest.String(), Size: m.Size}, "image manifest")
+		if err == nil {
+			return true, nil
+		}
+		if !errors.As(err, &problem) {
+			return false, err
+		}
+	}
+	return false, nil
 }
 
 // recordRunsNatively reads a single-manifest record's config platform.

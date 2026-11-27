@@ -467,3 +467,28 @@ func TestBuildIsNative(t *testing.T) {
 		}
 	}
 }
+
+// A failed no-platform pull of an amd64-only image leaves the tag naming an
+// index with no linux/arm64 image, which CRI cannot resolve. An emulated pull
+// then points the tag at the amd64 image, so `docker run TAG` runs it.
+func TestEmulatedPullTakesATagThatNamesNothingRunnable(t *testing.T) {
+	observeImageSync(t, new([]string), nil)
+	f := newEmulatedPullFixture(t)
+	amd := f.amd64
+	amd.Platform = &ocispec.Platform{OS: "linux", Architecture: "amd64"}
+	amd64Only := f.registry.put(t, ocispec.MediaTypeImageIndex, ocispec.Index{Versioned: specs.Versioned{SchemaVersion: 2},
+		MediaType: ocispec.MediaTypeImageIndex, Manifests: []ocispec.Descriptor{amd}})
+	f.registry.roots["docker.io/library/alpine:3.20"] = amd64Only
+	tag := "docker.io/library/alpine:3.20"
+	f.store.refs[tag] = &images.Image{Name: tag, Labels: map[string]string{criManagedImage: "managed"},
+		Target: &types.Descriptor{MediaType: amd64Only.MediaType, Digest: amd64Only.Digest.String(), Size: amd64Only.Size}}
+	if _, err := f.pull(t, "fromImage=alpine&tag=3.20&platform=linux/amd64"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.store.refs[tag].Target.Digest; got != f.amd64.Digest.String() {
+		t.Fatalf("the tag names %s, want the amd64 manifest", got)
+	}
+	if f.store.refs[tag].Labels[criManagedImage] != "managed" {
+		t.Fatal("the tag lost its labels")
+	}
+}

@@ -290,8 +290,9 @@ if [ -x "$TOOLS/runner/emulators/qemu-x86_64" ]; then
         "$(gdocker pull --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'linux/amd64')" "1"
     check "…the tag stays the native image" "$(gdocker run --rm alpine:3.20 uname -m)" "aarch64"
     check "…run --platform linux/amd64 runs the amd64 image" "$(gdocker run --rm --platform linux/amd64 alpine:3.20 uname -m)" "x86_64"
-    AMD64_ID="$(gdocker images -a --format '{{.ID}} {{.Repository}}' --no-trunc | awk '$2 ~ /alpine$/ {print $1}' | while read -r id; do
-        [ "$(gdocker image inspect "$id" --format '{{.Architecture}}')" = amd64 ] && echo "$id"; done | head -1)"
+    AMD64_ID="$(guest_api http://d/images/json | python3 -c 'import sys,json
+rows = [i for i in json.load(sys.stdin) if i.get("Architecture") == "amd64" and any("/alpine@" in d for d in i.get("RepoDigests") or [])]
+print(rows[0]["Id"] if rows else "")')"
     check "…image inspect says amd64 by its ID" "$([ -n "$AMD64_ID" ] && gdocker image inspect "$AMD64_ID" --format '{{.Os}}/{{.Architecture}}')" "linux/amd64"
     check "…an image without linux/arm64 pulls for linux/amd64" \
         "$(gdocker pull -q --platform linux/amd64 amd64/alpine:3.20 >/dev/null 2>&1 && gdocker run --rm amd64/alpine:3.20 uname -m)" "x86_64"
