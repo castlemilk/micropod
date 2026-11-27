@@ -61,19 +61,27 @@ public struct HVFMachineClient: Sendable {
     public static let apiVersion = "v1.44"
 
     public let layout: HVFMachineLayout
-    let environment: [String: String]
+    public let environment: [String: String]
     let inspector: any HVFProcessInspecting
+    /// launchd, for a machine whose autostart LaunchAgent is on
+    /// (`HVFMachineAutostartAgent`); nil: `MICROPOD_LAUNCHCTL` or
+    /// `/bin/launchctl`, asked only when `<root>/autostart.json` says on.
+    let launch: (any RigLaunchControlling)?
     /// How `stop` waits between two looks at the supervisor's lock
     /// (`stopPollInterval`); tests replace it.
     var stopPollSleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    /// How long a `launchctl kickstart` has to produce a supervisor before
+    /// the start falls back to a detached one; tests shorten it.
+    var kickstartHandoverWait: Duration = .seconds(10)
 
     public init(
         layout: HVFMachineLayout? = nil, environment: [String: String] = ProcessInfo.processInfo.environment,
-        inspector: any HVFProcessInspecting = HVFDarwinProcessInspector()
+        inspector: any HVFProcessInspecting = HVFDarwinProcessInspector(), launch: (any RigLaunchControlling)? = nil
     ) {
         self.layout = layout ?? HVFMachineLayout(environment: environment)
         self.environment = environment
         self.inspector = inspector
+        self.launch = launch
     }
 
     public var docker: DockerClient {
@@ -260,7 +268,7 @@ public struct HVFMachineClient: Sendable {
         guard missing.isEmpty else {
             throw MicropodError.message(
                 "failedPrecondition: hvf machine not installed under \(layout.root.path): missing "
-                    + "\(missing.joined(separator: ", ")); run `micropod machine install`")
+                    + "\(missing.joined(separator: ", ")); run `micropod setup` (or `micropod machine install`)")
         }
         if let problem = layout.configurationProblem() { throw MicropodError.message("failedPrecondition: \(problem)") }
         if isServing, await Self.ping(layout.dockerSocket) { return }
@@ -359,6 +367,7 @@ public struct HVFMachineClient: Sendable {
         defer { start.release() }
         if HVFFileLock.isHeld(layout.supervisorLock) { return nil }
         if layout.installInProgress { throw layout.installInProgressError() }
+        if let pid = await kickstartAutostartJob(until: deadline) { return pid }
         guard let executable = Self.supervisorExecutable(environment: environment) else {
             throw MicropodError.message(
                 "failedPrecondition: cannot find the micropod CLI that runs the hvf machine supervisor "
@@ -387,6 +396,40 @@ public struct HVFMachineClient: Sendable {
             try await Task.sleep(for: .milliseconds(20))
         }
         throw MicropodError.message("deadlineExceeded: hvf machine supervisor pid \(pid) never took its lock")
+    }
+
+    /// With autostart on (`<root>/autostart.json`) and its job loaded,
+    /// launchd starts the supervisor (`launchctl kickstart`), so the machine
+    /// it runs is the one launchd stops at logout. The supervisor's pid once
+    /// it holds its lock; nil when autostart is off (launchd is not asked),
+    /// the job is not loaded, the kickstart fails, or no supervisor appears
+    /// within `kickstartHandoverWait`: the caller then launches a detached
+    /// one.
+    func kickstartAutostartJob(until deadline: ContinuousClock.Instant) async -> Int32? {
+        guard let record = HVFMachineAutostartAgent.loadRecord(layout: layout), record.enabled else { return nil }
+        let launch = self.launch ?? HVFMachineAutostartAgent.launchControl(environment: environment)
+        guard await launch.isLoaded(record.label) else { return nil }
+        try? FileManager.default.createDirectory(at: layout.logsDirectory, withIntermediateDirectories: true)
+        try? HVFRotatingLog.rotateIfLarger(layout.supervisorLog, than: HVFMachineSupervisor.supervisorLogMaxBytes)
+        do {
+            try await launch.kickstart(record.label)
+        } catch {
+            return nil
+        }
+        let wait = min(deadline, ContinuousClock.now + kickstartHandoverWait)
+        while ContinuousClock.now < wait {
+            if HVFFileLock.isHeld(layout.supervisorLock) {
+                // The pid lands in the lock file just after the lock is taken.
+                let recorded = ContinuousClock.now + .seconds(1)
+                while ContinuousClock.now < recorded {
+                    if let pid = HVFFileLock.recordedPID(layout.supervisorLock), pid > 1 { return pid }
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
+                return nil
+            }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return nil
     }
 
     static func lock(_ url: URL, until deadline: ContinuousClock.Instant) async throws -> HVFFileLock? {
@@ -518,6 +561,20 @@ public struct HVFMachineClient: Sendable {
                     "internal: hvf: the supervisor holds \(layout.supervisorLock.path) but recorded no pid")
             }
             try await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
+    /// What a stop or restart would interrupt, as the payload activation's
+    /// drain check sees it: running containers or live reaper sessions, or a
+    /// serving guest that cannot say. nil for a machine that is not serving
+    /// (stopped, failed, booting): nothing runs on it.
+    public func activeWorkloadSummary(drain: (any HVFDrainCoordinating)? = nil) async -> String? {
+        guard isServing else { return nil }
+        do {
+            let workloads = try await (drain ?? HVFGuestWorkloadDrain(client: self)).activeWorkloads()
+            return workloads.total > 0 ? "\(workloads.summary) on the machine" : nil
+        } catch {
+            return "could not confirm the machine is idle (\(error.localizedDescription))"
         }
     }
 

@@ -30,12 +30,21 @@ public struct HVFInstallRequest: Sendable, Equatable {
     public var cpus: Int?
     public var memoryMiB: Int?
     public var workspace: String?
+    /// Where missing runtime files come from, instead of the running
+    /// executable's package: an app bundle (`Contents/MacOS/micropod-vmm`,
+    /// `Contents/Resources/{vmlinux-hvf,mp-hvf-init.cpio,micropod-oci-tools,
+    /// hvf-base-disk.ext4}`) or a directory holding the same files (a payload
+    /// version's `Image` and `tools/` also work).
+    public var distribution: URL?
+    /// A disk source on another volume, which `clonefile` cannot clone, is
+    /// copied (sparsely) instead of refused. `micropod setup` sets it.
+    public var copyDiskAcrossVolumes: Bool
 
     public init(
         vmm: URL? = nil, kernel: URL? = nil, initrd: URL? = nil, tools: URL? = nil, diskFrom: URL? = nil,
         diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, cacheDiskBytes: UInt64? = nil,
         noCacheDisk: Bool = false, replaceDisk: Bool = false, cpus: Int? = nil, memoryMiB: Int? = nil,
-        workspace: String? = nil
+        workspace: String? = nil, distribution: URL? = nil, copyDiskAcrossVolumes: Bool = false
     ) {
         self.vmm = vmm
         self.kernel = kernel
@@ -50,6 +59,8 @@ public struct HVFInstallRequest: Sendable, Equatable {
         self.cpus = cpus
         self.memoryMiB = memoryMiB
         self.workspace = workspace
+        self.distribution = distribution
+        self.copyDiskAcrossVolumes = copyDiskAcrossVolumes
     }
 }
 
@@ -142,15 +153,13 @@ public enum HVFMachineInstaller {
         // Sources are read through symlinks (`copyfile` with COPYFILE_CLONE
         // would copy a link as a link).
         func resolved(_ url: URL?) -> URL? { url.map { URL(fileURLWithPath: HVFMachineLayout.canonicalPath($0.path)) } }
-        let package = packagedExecutable.flatMap { distributionDirectories(for: $0) }
+        let package =
+            request.distribution.map { distributionDirectories(forDistribution: $0) }
+            ?? packagedExecutable.flatMap { distributionDirectories(for: $0) }
         func source(_ explicit: URL?, target: URL, directory: URL?, name: String) -> URL? {
             if let explicit { return resolved(explicit) }
             guard !fm.fileExists(atPath: target.path), let directory else { return nil }
-            let member = directory.appendingPathComponent(name)
-            guard fm.fileExists(atPath: member.path), let canonical = resolved(member),
-                canonical.pathComponents.starts(with: directory.pathComponents)
-            else { return nil }
-            return canonical
+            return packaged(name, in: directory)
         }
         let vmm = source(request.vmm, target: layout.vmm, directory: package?.bin, name: "micropod-vmm")
         let kernel = source(request.kernel, target: layout.kernel, directory: package?.resources, name: "vmlinux-hvf")
@@ -162,7 +171,12 @@ public enum HVFMachineInstaller {
         ]
         let tools = source(
             request.tools, target: layout.tools, directory: package?.resources, name: "micropod-oci-tools")
-        let diskFrom = resolved(request.diskFrom)
+        // A machine with no disk, and no disk named, gets the package's base
+        // disk when it ships one.
+        let baseDisk =
+            request.diskFrom == nil && request.diskImage == nil && !HVFMachineLayout.isRegularFile(layout.disk)
+            ? package.flatMap { packaged(baseDiskName, in: $0.resources) } : nil
+        let diskFrom = resolved(request.diskFrom) ?? baseDisk
         // Versioned payloads are immutable: new boot assets go through a
         // stage and a probed activation, never into versions/<id>.
         let payload = layout.resolvePayload()
@@ -233,16 +247,12 @@ public enum HVFMachineInstaller {
             return url
         }
         var stagedDisk: URL?
+        var diskCopied = false
         if let disk = diskFrom {
             let into = stagingPath(for: layout.disk)
-            guard clonefile(disk.path, into.path, 0) == 0 else {
-                let code = errno
-                throw MicropodError.message(
-                    "failedPrecondition: cannot clone \(disk.path) into \(layout.root.path): "
-                        + "\(String(cString: strerror(code))). The disk must be on the same APFS volume "
-                        + "as the machine root (an instant `cp -c` copy-on-write clone)")
-            }
-            guard chmod(into.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(into.path)") }
+            diskCopied = try stageDisk(
+                disk, into: into, root: layout.root, copyAcrossVolumes: request.copyDiskAcrossVolumes,
+                progress: progress)
             stagedDisk = into
         } else if let image = request.diskImage {
             let into = stagingPath(for: layout.disk)
@@ -288,7 +298,7 @@ public enum HVFMachineInstaller {
             // A new disk holds none of the old disk's containers.
             try? HVFContainerIndexStore(layout: layout).reset()
             if let disk = diskFrom {
-                progress("cloned disk.ext4 from \(disk.path)")
+                progress("\(diskCopied ? "copied" : "cloned") disk.ext4 from \(disk.path)")
             } else if let image = request.diskImage {
                 progress("created disk.ext4 from \(image)")
             }
@@ -324,6 +334,88 @@ public enum HVFMachineInstaller {
         progress("wrote \(layout.config.path) (\(config.cpus) vCPU, \(config.memoryMiB) MiB)")
         progress(buildKitReport(layout.missingBuildKitFiles()))
         return warnings
+    }
+
+    /// The base disk a package may ship (`Contents/Resources/` of the app,
+    /// the root of the CLI tarball): an ext4 image a new machine's disk is
+    /// cloned from when no disk is named.
+    public static let baseDiskName = "hvf-base-disk.ext4"
+
+    /// Each layout file's names in a package: the distribution's, then a
+    /// payload version's (`Image`, `tools/`).
+    static let packagedNames: [String: [String]] = [
+        "micropod-vmm": ["micropod-vmm"], "vmlinux-hvf": ["vmlinux-hvf", "Image"],
+        "mp-hvf-init.cpio": ["mp-hvf-init.cpio"], "micropod-oci-tools": ["micropod-oci-tools", "tools"],
+        baseDiskName: [baseDiskName],
+    ]
+
+    /// `name` (or its payload-version spelling) inside `directory`, read
+    /// through symlinks that stay inside it.
+    static func packaged(_ name: String, in directory: URL) -> URL? {
+        for candidate in packagedNames[name] ?? [name] {
+            let member = directory.appendingPathComponent(candidate)
+            guard FileManager.default.fileExists(atPath: member.path) else { continue }
+            let canonical = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(member.path))
+            if canonical.pathComponents.starts(with: directory.pathComponents) { return canonical }
+        }
+        return nil
+    }
+
+    /// The bin and resources directories of an app bundle (`.app`, or any
+    /// directory with `Contents/MacOS`) or of a plain directory.
+    public static func distributionDirectories(forDistribution url: URL) -> (bin: URL, resources: URL) {
+        let root = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(url.path))
+        let contents = root.appendingPathComponent("Contents")
+        var isDirectory: ObjCBool = false
+        if root.pathExtension == "app"
+            || FileManager.default.fileExists(
+                atPath: contents.appendingPathComponent("MacOS").path, isDirectory: &isDirectory)
+                && isDirectory.boolValue
+        {
+            return (contents.appendingPathComponent("MacOS"), contents.appendingPathComponent("Resources"))
+        }
+        return (root, root)
+    }
+
+    /// The package the running executable came from: its app bundle, or
+    /// the directory of a standalone (extracted tarball) CLI; nil for a
+    /// development build.
+    public static func packageDirectory(for executable: URL) -> URL? {
+        let exe = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(executable.path))
+        switch CLIInstall.kind(of: exe) {
+        case .appManaged(let app): return URL(fileURLWithPath: HVFMachineLayout.canonicalPath(app.path))
+        case .standalone: return exe.deletingLastPathComponent()
+        case .development: return nil
+        }
+    }
+
+    /// Clones `disk` to `into` (APFS `clonefile`); when that fails because
+    /// they are on different volumes and `copyAcrossVolumes` allows it, copies
+    /// it sparsely instead. Returns whether it copied.
+    static func stageDisk(
+        _ disk: URL, into: URL, root: URL, copyAcrossVolumes: Bool,
+        clone: (String, String) -> Int32 = { clonefile($0, $1, 0) == 0 ? 0 : errno },
+        progress: (String) -> Void
+    ) throws -> Bool {
+        var copied = false
+        let code = clone(disk.path, into.path)
+        if code != 0 {
+            guard copyAcrossVolumes, [EXDEV, ENOTSUP, EOPNOTSUPP].contains(code) else {
+                throw MicropodError.message(
+                    "failedPrecondition: cannot clone \(disk.path) into \(root.path): "
+                        + "\(String(cString: strerror(code))). The disk must be on the same APFS volume "
+                        + "as the machine root (an instant `cp -c` copy-on-write clone)")
+            }
+            progress("\(disk.path) is on another volume than \(root.path): copying it (sparse)")
+            unlink(into.path)
+            let flags = copyfile_flags_t(COPYFILE_DATA | COPYFILE_DATA_SPARSE)
+            guard copyfile(disk.path, into.path, nil, flags) == 0 else {
+                throw HVFFiles.posixError("copy \(disk.path) to \(into.path)")
+            }
+            copied = true
+        }
+        guard chmod(into.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(into.path)") }
+        return copied
     }
 
     private static func distributionDirectories(for executable: URL) -> (bin: URL, resources: URL)? {

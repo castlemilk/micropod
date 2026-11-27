@@ -648,7 +648,7 @@ extension HVFMachineSupervisor {
     /// The foreground supervisor's log sink: one timestamped line to stderr
     /// (`logs/supervisor.log` when detached). A failed write — a full disk,
     /// a closed pipe — loses the line and never aborts supervision.
-    static func stderrLog(_ line: String, to fd: Int32 = STDERR_FILENO) {
+    public static func stderrLog(_ line: String, to fd: Int32 = STDERR_FILENO) {
         // Milliseconds: a relaunch or a switchover is timed from these lines.
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

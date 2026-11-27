@@ -277,11 +277,35 @@ container's `runtime`, and id-based calls route to the engine that owns it.
 
 | engine | kind | what it is | notes |
 |---|---|---|---|
-| `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
+| `hvf` | microvm | containerd and crun in a shared Hypervisor.framework machine | **the default on a fresh install**; set it up with `micropod setup`; enabled once installed |
+| `apple` | vm | Apple container runtime — one micro-VM per container | the default on an existing install; **opt-in** on a fresh one (`micropod runtime enable apple`); volumes, networks, ports |
 | `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
-| `hvf` | microvm | containerd and crun in a shared Hypervisor.framework machine | opt in with `micropod runtime enable hvf` after installing the machine assets |
 | `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; tcp ports, bind mounts; no named volumes; can't restart — run a new one |
 | `ci` | container | one Micropod-owned Linux VM per trusted runner account | `micropod ci start` keeps the kernel, Docker engine, BuildKit and named volumes warm |
+
+A fresh install defaults to `hvf`; an install that was already there keeps what it has. The first micropod
+binary to run (the CLI, the app, the API, the MCP server or the Docker shim) decides once, before it writes
+anything: with no `~/.micropod/runtimes.json` and a `~/.micropod` that is missing or empty it pins
+`{"default": "hvf", "defaultOrigin": "fresh-install"}`, and otherwise `{"defaultOrigin": "existing-install"}`, which
+keeps the Apple default. A runtimes.json that exists is never rewritten. On a fresh install the Apple runtime is
+**opt-in**: nothing pings, polls or starts it, the app does not start the Docker shim (which fronts it), a call
+that names it says `the Apple runtime is opt-in: micropod runtime enable apple`, and an id no enabled engine owns is
+not found instead of being asked of Apple. `micropod runtime enable apple` turns it on, `micropod runtime use apple`
+also makes it the default, and `MICROPOD_LEGACY_APPLE=1` enables it for one process. An existing install sees no
+change. (With `MICROPOD_RUNTIMES_CONFIG` set, as in tests and CI, nothing is decided unless
+`MICROPOD_INSTALL_ORIGIN=fresh|existing` says which.) No Apple or shim code is removed yet.
+
+```
+$ micropod runtime ls
+NAME       KIND       AVAILABLE  ENABLED  VERSION  ENDPOINT / REASON
+─────────  ─────────  ─────────  ───────  ───────  ─────────────────────────────────────────
+  apple    vm         yes        opt-in   —        opt-in: `micropod runtime enable apple`
+  docker   container  no         no       —        Docker socket not found
+  sandbox  microvm    yes        yes      —        —
+  ci       container  no         no       —        CI worker is stopped
+* hvf      microvm    no         yes      —        not set up: `micropod setup`
+default: hvf (chosen for a fresh install; `micropod runtime use <name>` changes it)
+```
 
 ```bash
 micropod runtime ls                        # availability, enabled, default
@@ -469,7 +493,160 @@ picks the context's own builder and fails. `docker --context micropod buildx bui
 rewrites its current-builder file, forgetting a builder chosen without `--default` for another context. (buildx
 gives each docker context an implicit builder of the same name, so the builder cannot be called `micropod`.)
 Installing changes neither the current docker context nor the current builder; each build pays a tarball load and
-leaves an `import-<date>` image record. `micropod machine builder rm` removes exactly those two. `micropod machine cache policy --register-buildx on` makes `machine start` install it when needed.
+leaves an `import-<date>` image record. `micropod machine builder rm` removes exactly those two (selecting the context
+`micropod docker install --use` replaced first, when `micropod` is current). `micropod machine cache policy --register-buildx on` makes `machine start` install it when needed.
+
+#### First run: `micropod setup`
+
+`micropod setup` sets the machine up from local files, in five steps it reports one by one:
+
+```
+$ micropod setup
+[1/5] runtime files   micropod-vmm, Image, mp-hvf-init.cpio, tools/ from /Applications/Micropod.app
+[2/5] disk            cloned from /Applications/Micropod.app/Contents/Resources/hvf-base-disk.ext4
+[3/5] cache disk      created (32 GiB sparse)
+[4/5] start           running (engine micropod, Docker API 1.44–1.47)
+[5/5] default runtime hvf
+next: micropod docker install --use    micropod machine autostart on
+```
+
+- **runtime files** come from the app bundle the CLI belongs to, the extracted CLI tarball, or `--payload <Micropod.app
+  or a directory>` (a directory holding `micropod-vmm`, `vmlinux-hvf`, `mp-hvf-init.cpio` and `micropod-oci-tools`;
+  a payload version's `Image` and `tools/` work too). A development build needs `--payload`.
+- **disk** is an APFS clone of `--disk-from <ext4>`, else of the package's base disk `hvf-base-disk.ext4`; a disk on
+  another volume is copied (sparsely) instead. Only `--disk-image <ref>|default` downloads anything: it unpacks an OCI
+  image (the default is `docker:29.9.3-dind`) into a fresh disk. Packages do not ship a base disk yet
+  (`MICROPOD_HVF_BASE_DISK=<ext4> scripts/package_app.sh` adds one), so setup then says: `no base disk: this package
+  ships none. Pass --disk-from <ext4> (a local image), or --disk-image default to download docker:29.9.3-dind from
+  Docker Hub.`
+- **cache disk**: 32 GiB sparse for a new machine (`--cache-disk-size`, `--no-cache-disk`).
+- **start** boots it and waits for the Docker API (`--no-start` skips it).
+- **default runtime**: hvf on a fresh install; an existing install keeps its default (`micropod runtime use hvf`).
+
+Every source is checked (present, ext4, the VMM's hypervisor entitlement) before anything is written, and every
+problem is reported at once. Re-running keeps what is there (`[2/5] disk  present, kept`). `--docker` adds the
+docker context below and `--use` selects it; `--autostart` turns autostart on and lets launchd start the machine;
+nothing is selected or loaded without them. `--dry-run` prints the plan, `--json` the steps. With no machine,
+`micropod run alpine` says `the micropod machine is not set up (missing …): run micropod setup`; it never sets one
+up on its own.
+
+The API does the same with `RigService/SetupMachine {payload_path, disk_from, cache_disk_bytes, no_cache_disk,
+start}` (local sources only; the reply lists the steps, `ok`, and the machine status), and the app's first run
+offers it ("Set Up Machine", with "Choose Disk Image…" when the bundle has no base disk).
+`scripts/e2e_first_run.sh` runs a fresh install's first run on throwaway machines.
+
+#### Use the docker CLI
+
+`micropod docker install` makes the stock docker CLI, compose and buildx work with the machine the way Docker
+Desktop or OrbStack do, through a docker context named `micropod` on `<root>/run/docker.sock`:
+
+```bash
+micropod docker install            # create the context; the current context is left as it is
+micropod docker install --use      # …and select it (the context it replaces is recorded)
+docker run --rm alpine echo ok     # with --use; otherwise: docker --context micropod run …
+docker compose up -d               # compose and buildx follow the context
+docker build -t app .              # buildx's docker driver on the engine's own socket
+micropod docker status             # CLI, context, selection, shell overrides, plugins, builder, sockets
+micropod docker uninstall          # select the recorded context again (else default), remove what install made
+```
+
+```
+docker context micropod -> unix:///Users/me/.micropod/hvf/run/docker.sock (created)
+builder: the context's own builder (the engine builds on its Docker socket)
+compose: 5.5.0    buildx: v0.37.2
+current context: desktop-linux (unchanged; select with `micropod docker install --use` or `docker context use micropod`)
+```
+
+Nothing is written by hand: every change goes through the docker CLI (`MICROPOD_DOCKER_CLI`, else `docker` on
+`PATH`), so `DOCKER_CONFIG` decides whose configuration changes, and the current context changes only with `--use`.
+The context `--use` replaced is kept in `<root>/docker-wiring.json`; a second `--use` keeps it. A `micropod` context
+that points somewhere else is refused, naming its endpoint (`--force` repoints it). None of the commands starts the
+machine: start it with `micropod machine start` (or a `micropod run --runtime hvf …`); a selected context on a stopped
+machine fails the way a stopped Docker Desktop does.
+
+`--builder auto` (the default) adds no builder when the engine builds on its Docker socket (`machine status` says
+`docker build: ready`), and the remote builder `micropod-buildkit` (as `micropod machine builder install`) when it
+cannot; `--builder remote` always adds it, `--builder none` never. Problems that do not stop the command are `note:`
+lines on stderr: `DOCKER_HOST` or `DOCKER_CONTEXT` set in the shell (docker ignores the selected context while either
+is set), a compose or buildx plugin the CLI does not find (Homebrew installs them in
+`/opt/homebrew/lib/docker/cli-plugins`, which the CLI searches only when `cliPluginsExtraDirs` in `config.json` names
+it; `docker build` needs buildx, because the engine has no classic `/build`), a `credsStore` or `credHelpers` entry
+whose `docker-credential-<name>` is not on `PATH` (a leftover `"credsStore": "desktop"` after removing Docker Desktop
+breaks every pull), a docker CLI older than the engine's minimum Docker API 1.44, and a stopped machine. Without a
+docker CLI, `install` fails and prints the `DOCKER_HOST` line to export instead.
+
+Clients that ignore docker contexts and only try `/var/run/docker.sock` need a link there, which takes root:
+`micropod docker install --system-socket` prints the `sudo ln -sfn …` command and what the link points at now
+(Docker Desktop, OrbStack, …) and runs nothing; `uninstall` prints the `sudo rm` line when the link still leads here.
+`scripts/e2e_docker_wiring.sh` runs all of it against a throwaway machine with a temporary `DOCKER_CONFIG`.
+
+#### Start at login, stop at logout, and see the machine's state
+
+`micropod machine autostart on` hands the machine to launchd: a per-user LaunchAgent runs `micropod machine serve
+--link-socket` in the foreground, so launchd starts the machine at login and, at logout or shutdown, sends the
+supervisor SIGTERM and waits for the guest to power off before it kills anything:
+
+```bash
+micropod machine autostart on            # load the job now (it starts the machine) and at every login
+micropod machine autostart on --no-load  # write the LaunchAgent only; launchd loads it at the next login
+micropod machine autostart status        # on/off, loaded, the program it runs, launchd's exit timeout
+micropod machine autostart off           # unload it (stops the machine), then start the machine again outside launchd
+```
+
+```
+autostart: on (launchd com.skunkworq.micropod.machine, loaded, program /Users/me/.local/bin/micropod, exit timeout 25 s)
+```
+
+The job (`~/Library/LaunchAgents/com.skunkworq.micropod.machine.plist`, recorded in `<root>/autostart.json`) has
+`RunAtLoad`, `KeepAlive {Crashed: true}` (a `machine stop` or a supervisor that gave up after repeated crashes stays
+down), `ExitTimeOut` = the machine's `shutdownTimeoutSeconds` + 15 s, and `ProcessType Interactive`; its log is
+`<root>/logs/supervisor.log`. While it is loaded, `machine start`, `micropod run --runtime hvf …` and the API start the
+machine with `launchctl kickstart`, so the machine launchd stops at logout is the one that runs; if the kickstart starts
+nothing within 10 s, they fall back to the detached supervisor they launch without autostart. A root without
+`autostart.json` never runs launchctl. Loading the job restarts a machine already running outside launchd, and
+unloading it stops the machine, so `on` and `off` are deferred while containers run (`error: deferred: 2 running
+container(s) on the machine; …`) unless `--force`. The program is `--program`, else `MICROPOD_CLI`, else
+`~/.local/bin/micropod` for a CLI inside the app bundle, else the CLI's own path; `autostart status` says when it is
+gone. Without autostart, the machine starts on demand from micropod and the API as before, and nothing stops it
+cleanly at logout.
+
+A root other than `~/.micropod/hvf` gets its own label (`com.skunkworq.micropod.machine.<8 hex digits of its path's
+SHA-256>`) and is loaded into launchd only with `MICROPOD_AUTOSTART_ANY_ROOT=1`. `MICROPOD_LAUNCHCTL` names the
+launchctl to run and `MICROPOD_LAUNCH_AGENTS_DIR` the directory for the plist, which is how the tests and
+`scripts/e2e_machine_lifecycle.sh` keep away from your launchd and `~/Library/LaunchAgents`.
+
+`micropod status` shows the machine first, read from the API's `RigService/GetMachineStatus` when an API answers for
+the same machine root within two seconds and in-process otherwise; it pings the Apple runtime only when Apple is the
+default or enabled (its lines then follow under `apple:`; `micropod system status` is the old command):
+
+```
+runtime:     hvf (default); also enabled: sandbox
+machine:     running
+engine:      micropod (Docker API 1.44–1.47)
+containers:  1 running, 1 total
+docker:      unix:///Users/me/.micropod/hvf/run/docker.sock (context micropod, selected)
+cache disk:  mounted, 21.4 GiB free of 32.0 GiB
+disk flush:  barrier (both disks)
+update:      none (payload 0.9.2)
+autostart:   on (loaded)
+api:         running (/Users/me/.micropod/api.sock)
+apple:       not enabled
+```
+
+The machine line also reads `starting`, `failed: <why>`, `stopped (on request)` or `not installed: missing … (micropod
+setup)`. The docker line is read from the docker CLI's own files (no docker process runs), so it follows a `docker
+context use` or `docker context rm` done since `micropod docker install`: `(context micropod; current context:
+desktop-linux)`, `(docker context micropod was removed: …)`, or `(docker context micropod points at …, not this
+machine: …)`; a `DOCKER_CONTEXT` or `DOCKER_HOST` in the shell counts as the docker CLI counts it. `GetMachineStatus` carries the same facts for any client: `readiness` and `failure_reason`, the
+engine's version and API range, `containers_total` and `containers_running`, `disk_flush`, `cache_disk`, `autostart`,
+`docker_endpoint` and the payload versions. It never boots the machine; while the machine runs it asks the guest
+(one second each). `SetMachineAutostart {enabled, force}` turns the LaunchAgent on or off as the CLI does, and
+`ControlMachine start` links the canonical Docker socket as `machine start` does.
+
+The menu-bar panel shows a machine card (state and why it failed, engine, containers, cache disk, disk flush, an
+"Update pending" badge, and Start, Stop or Restart) from those RPCs; a stop or restart the API defers asks first and
+then forces. With hvf the default runtime, the header and the menu-bar dot follow the machine. Settings → Machine has
+"Start the machine at login".
 
 Sandbox VMs are owned by the process that boots them: long-lived sandbox
 containers live in the API daemon; the CLI's `run --runtime sandbox` runs in

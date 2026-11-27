@@ -121,6 +121,9 @@ struct ShimBootstrap {
 @main
 enum ShimEntrypoint {
     static func main() async {
+        // First: anything written under ~/.micropod before it would make a
+        // fresh install look like an existing one.
+        InstallOrigin.resolve()
         do {
             try await ShimBootstrap.run()
         } catch {

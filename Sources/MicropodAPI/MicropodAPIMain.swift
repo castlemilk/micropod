@@ -37,6 +37,9 @@ import Network
 @main
 struct MicropodAPI {
     static func main() async {
+        // First: anything written under ~/.micropod before it would make a
+        // fresh install look like an existing one.
+        InstallOrigin.resolve()
         // When spawned by the app, die with it — no orphaned apiserver.
         ParentDeathWatch.install()
         // Before anything opens a descriptor: launchd's soft limit (256)

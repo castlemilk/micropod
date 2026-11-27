@@ -53,6 +53,9 @@ await MicropodMCP.main()
 
 enum MicropodMCP {
     static func main() async {
+        // First: anything written under ~/.micropod before it would make a
+        // fresh install look like an existing one.
+        InstallOrigin.resolve()
         let client = ContainerCLIClient()
         let server = MCPServer(
             client: client,

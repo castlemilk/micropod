@@ -752,11 +752,273 @@ public nonisolated struct Micropod_V1_HVFMachineStatus: @unchecked Sendable {
     set {_uniqueStorage()._stoppedOnRequest = newValue}
   }
 
+  /// The guest engine's /version, read only while the machine runs.
+  public var engineVersion: String {
+    get {_storage._engineVersion ?? String()}
+    set {_uniqueStorage()._engineVersion = newValue}
+  }
+  /// Returns true if `engineVersion` has been explicitly set.
+  public var hasEngineVersion: Bool {_storage._engineVersion != nil}
+  /// Clears the value of `engineVersion`. Subsequent reads from it will return its default value.
+  public mutating func clearEngineVersion() {_uniqueStorage()._engineVersion = nil}
+
+  /// The newest and oldest Docker API versions the engine serves.
+  public var engineApiVersion: String {
+    get {_storage._engineApiVersion ?? String()}
+    set {_uniqueStorage()._engineApiVersion = newValue}
+  }
+  /// Returns true if `engineApiVersion` has been explicitly set.
+  public var hasEngineApiVersion: Bool {_storage._engineApiVersion != nil}
+  /// Clears the value of `engineApiVersion`. Subsequent reads from it will return its default value.
+  public mutating func clearEngineApiVersion() {_uniqueStorage()._engineApiVersion = nil}
+
+  public var engineMinApiVersion: String {
+    get {_storage._engineMinApiVersion ?? String()}
+    set {_uniqueStorage()._engineMinApiVersion = newValue}
+  }
+  /// Returns true if `engineMinApiVersion` has been explicitly set.
+  public var hasEngineMinApiVersion: Bool {_storage._engineMinApiVersion != nil}
+  /// Clears the value of `engineMinApiVersion`. Subsequent reads from it will return its default value.
+  public mutating func clearEngineMinApiVersion() {_uniqueStorage()._engineMinApiVersion = nil}
+
+  /// Each disk's flush mode now and at the next start, as `micropod machine
+  /// status` prints it.
+  public var diskFlush: String {
+    get {_storage._diskFlush}
+    set {_uniqueStorage()._diskFlush = newValue}
+  }
+
+  /// The machine's containers (all, and running), read only while it runs.
+  public var containersTotal: Int32 {
+    get {_storage._containersTotal ?? 0}
+    set {_uniqueStorage()._containersTotal = newValue}
+  }
+  /// Returns true if `containersTotal` has been explicitly set.
+  public var hasContainersTotal: Bool {_storage._containersTotal != nil}
+  /// Clears the value of `containersTotal`. Subsequent reads from it will return its default value.
+  public mutating func clearContainersTotal() {_uniqueStorage()._containersTotal = nil}
+
+  public var containersRunning: Int32 {
+    get {_storage._containersRunning ?? 0}
+    set {_uniqueStorage()._containersRunning = newValue}
+  }
+  /// Returns true if `containersRunning` has been explicitly set.
+  public var hasContainersRunning: Bool {_storage._containersRunning != nil}
+  /// Clears the value of `containersRunning`. Subsequent reads from it will return its default value.
+  public mutating func clearContainersRunning() {_uniqueStorage()._containersRunning = nil}
+
+  /// running, starting, stopping, stopped, failed, not-ready, not-installed
+  /// or unusable: whether it can take work now.
+  public var readiness: String {
+    get {_storage._readiness}
+    set {_uniqueStorage()._readiness = newValue}
+  }
+
+  /// Why it is failed, unusable, not ready or not installed.
+  public var failureReason: String {
+    get {_storage._failureReason ?? String()}
+    set {_uniqueStorage()._failureReason = newValue}
+  }
+  /// Returns true if `failureReason` has been explicitly set.
+  public var hasFailureReason: Bool {_storage._failureReason != nil}
+  /// Clears the value of `failureReason`. Subsequent reads from it will return its default value.
+  public mutating func clearFailureReason() {_uniqueStorage()._failureReason = nil}
+
+  public var cacheDisk: Micropod_V1_RigCacheDisk {
+    get {_storage._cacheDisk ?? Micropod_V1_RigCacheDisk()}
+    set {_uniqueStorage()._cacheDisk = newValue}
+  }
+  /// Returns true if `cacheDisk` has been explicitly set.
+  public var hasCacheDisk: Bool {_storage._cacheDisk != nil}
+  /// Clears the value of `cacheDisk`. Subsequent reads from it will return its default value.
+  public mutating func clearCacheDisk() {_uniqueStorage()._cacheDisk = nil}
+
+  public var autostart: Micropod_V1_HVFMachineAutostart {
+    get {_storage._autostart ?? Micropod_V1_HVFMachineAutostart()}
+    set {_uniqueStorage()._autostart = newValue}
+  }
+  /// Returns true if `autostart` has been explicitly set.
+  public var hasAutostart: Bool {_storage._autostart != nil}
+  /// Clears the value of `autostart`. Subsequent reads from it will return its default value.
+  public mutating func clearAutostart() {_uniqueStorage()._autostart = nil}
+
+  /// unix:// socket for DOCKER_HOST and the `micropod` docker context.
+  public var dockerEndpoint: String {
+    get {_storage._dockerEndpoint}
+    set {_uniqueStorage()._dockerEndpoint = newValue}
+  }
+
+  /// The payload that runs (or the next start boots) and the one staged.
+  public var payloadVersion: String {
+    get {_storage._payloadVersion ?? String()}
+    set {_uniqueStorage()._payloadVersion = newValue}
+  }
+  /// Returns true if `payloadVersion` has been explicitly set.
+  public var hasPayloadVersion: Bool {_storage._payloadVersion != nil}
+  /// Clears the value of `payloadVersion`. Subsequent reads from it will return its default value.
+  public mutating func clearPayloadVersion() {_uniqueStorage()._payloadVersion = nil}
+
+  public var stagedVersion: String {
+    get {_storage._stagedVersion ?? String()}
+    set {_uniqueStorage()._stagedVersion = newValue}
+  }
+  /// Returns true if `stagedVersion` has been explicitly set.
+  public var hasStagedVersion: Bool {_storage._stagedVersion != nil}
+  /// Clears the value of `stagedVersion`. Subsequent reads from it will return its default value.
+  public mutating func clearStagedVersion() {_uniqueStorage()._stagedVersion = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// The machine's autostart LaunchAgent (`micropod machine autostart`).
+public nonisolated struct Micropod_V1_HVFMachineAutostart: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// On: launchd starts the machine at login.
+  public var enabled: Bool = false
+
+  /// launchd has the job loaded now.
+  public var loaded: Bool = false
+
+  public var label: String = String()
+
+  public var plistPath: String = String()
+
+  public var program: String {
+    get {_program ?? String()}
+    set {_program = newValue}
+  }
+  /// Returns true if `program` has been explicitly set.
+  public var hasProgram: Bool {self._program != nil}
+  /// Clears the value of `program`. Subsequent reads from it will return its default value.
+  public mutating func clearProgram() {self._program = nil}
+
+  /// launchd's SIGTERM -> SIGKILL wait, in seconds.
+  public var exitTimeoutSeconds: Int32 {
+    get {_exitTimeoutSeconds ?? 0}
+    set {_exitTimeoutSeconds = newValue}
+  }
+  /// Returns true if `exitTimeoutSeconds` has been explicitly set.
+  public var hasExitTimeoutSeconds: Bool {self._exitTimeoutSeconds != nil}
+  /// Clears the value of `exitTimeoutSeconds`. Subsequent reads from it will return its default value.
+  public mutating func clearExitTimeoutSeconds() {self._exitTimeoutSeconds = nil}
+
+  /// Why the job cannot start the machine as recorded.
+  public var problem: String {
+    get {_problem ?? String()}
+    set {_problem = newValue}
+  }
+  /// Returns true if `problem` has been explicitly set.
+  public var hasProblem: Bool {self._problem != nil}
+  /// Clears the value of `problem`. Subsequent reads from it will return its default value.
+  public mutating func clearProblem() {self._problem = nil}
+
+  public var summary: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _program: String? = nil
+  fileprivate var _exitTimeoutSeconds: Int32? = nil
+  fileprivate var _problem: String? = nil
+}
+
+public nonisolated struct Micropod_V1_SetMachineAutostartRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var enabled: Bool = false
+
+  /// Restart a machine that runs containers (interrupts them).
+  public var force: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_SetupMachineRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// An app bundle, or a directory holding micropod-vmm, vmlinux-hvf,
+  /// mp-hvf-init.cpio and micropod-oci-tools (and maybe hvf-base-disk.ext4);
+  /// empty: the API's own package.
+  public var payloadPath: String = String()
+
+  /// A local ext4 image the disk is cloned (or copied) from; empty: the
+  /// package's base disk.
+  public var diskFrom: String = String()
+
+  /// The cache disk's size; 0: 32 GiB for a new machine.
+  public var cacheDiskBytes: UInt64 = 0
+
+  /// No cache disk: the dependency caches live on the OS disk.
+  public var noCacheDisk: Bool = false
+
+  /// Boot the machine once it is installed (returns once the guest answers).
+  public var start: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One setup step.
+public nonisolated struct Micropod_V1_SetupMachineStep: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// runtime-files, disk, cache-disk, start or default-runtime.
+  public var id: String = String()
+
+  /// done, kept (already there), skipped (not asked for), failed, or pending
+  /// (not reached: an earlier step failed).
+  public var state: String = String()
+
+  /// What it did, or why it failed.
+  public var detail: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_SetupMachineResult: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// No step failed.
+  public var ok: Bool = false
+
+  public var steps: [Micropod_V1_SetupMachineStep] = []
+
+  /// The machine afterwards.
+  public var machine: Micropod_V1_HVFMachineStatus {
+    get {_machine ?? Micropod_V1_HVFMachineStatus()}
+    set {_machine = newValue}
+  }
+  /// Returns true if `machine` has been explicitly set.
+  public var hasMachine: Bool {self._machine != nil}
+  /// Clears the value of `machine`. Subsequent reads from it will return its default value.
+  public mutating func clearMachine() {self._machine = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _machine: Micropod_V1_HVFMachineStatus? = nil
 }
 
 public nonisolated struct Micropod_V1_ControlMachineRequest: Sendable {
@@ -1659,7 +1921,7 @@ nonisolated extension Micropod_V1_HVFMachineState: SwiftProtobuf.Message, SwiftP
 
 nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".HVFMachineStatus"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}root\0\u{1}socket\0\u{1}missing\0\u{1}installed\0\u{1}problem\0\u{3}supervisor_alive\0\u{1}phase\0\u{1}state\0\u{3}state_error\0\u{3}update_pending\0\u{1}summary\0\u{3}stopped_on_request\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}root\0\u{1}socket\0\u{1}missing\0\u{1}installed\0\u{1}problem\0\u{3}supervisor_alive\0\u{1}phase\0\u{1}state\0\u{3}state_error\0\u{3}update_pending\0\u{1}summary\0\u{3}stopped_on_request\0\u{3}engine_version\0\u{3}engine_api_version\0\u{3}engine_min_api_version\0\u{3}disk_flush\0\u{3}containers_total\0\u{3}containers_running\0\u{1}readiness\0\u{3}failure_reason\0\u{3}cache_disk\0\u{1}autostart\0\u{3}docker_endpoint\0\u{3}payload_version\0\u{3}staged_version\0")
 
   fileprivate class _StorageClass {
     var _root: String = String()
@@ -1674,6 +1936,19 @@ nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, Swift
     var _updatePending: Bool = false
     var _summary: String = String()
     var _stoppedOnRequest: Bool = false
+    var _engineVersion: String? = nil
+    var _engineApiVersion: String? = nil
+    var _engineMinApiVersion: String? = nil
+    var _diskFlush: String = String()
+    var _containersTotal: Int32? = nil
+    var _containersRunning: Int32? = nil
+    var _readiness: String = String()
+    var _failureReason: String? = nil
+    var _cacheDisk: Micropod_V1_RigCacheDisk? = nil
+    var _autostart: Micropod_V1_HVFMachineAutostart? = nil
+    var _dockerEndpoint: String = String()
+    var _payloadVersion: String? = nil
+    var _stagedVersion: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1696,6 +1971,19 @@ nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, Swift
       _updatePending = source._updatePending
       _summary = source._summary
       _stoppedOnRequest = source._stoppedOnRequest
+      _engineVersion = source._engineVersion
+      _engineApiVersion = source._engineApiVersion
+      _engineMinApiVersion = source._engineMinApiVersion
+      _diskFlush = source._diskFlush
+      _containersTotal = source._containersTotal
+      _containersRunning = source._containersRunning
+      _readiness = source._readiness
+      _failureReason = source._failureReason
+      _cacheDisk = source._cacheDisk
+      _autostart = source._autostart
+      _dockerEndpoint = source._dockerEndpoint
+      _payloadVersion = source._payloadVersion
+      _stagedVersion = source._stagedVersion
     }
   }
 
@@ -1726,6 +2014,19 @@ nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, Swift
         case 10: try { try decoder.decodeSingularBoolField(value: &_storage._updatePending) }()
         case 11: try { try decoder.decodeSingularStringField(value: &_storage._summary) }()
         case 12: try { try decoder.decodeSingularBoolField(value: &_storage._stoppedOnRequest) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._engineVersion) }()
+        case 14: try { try decoder.decodeSingularStringField(value: &_storage._engineApiVersion) }()
+        case 15: try { try decoder.decodeSingularStringField(value: &_storage._engineMinApiVersion) }()
+        case 16: try { try decoder.decodeSingularStringField(value: &_storage._diskFlush) }()
+        case 17: try { try decoder.decodeSingularInt32Field(value: &_storage._containersTotal) }()
+        case 18: try { try decoder.decodeSingularInt32Field(value: &_storage._containersRunning) }()
+        case 19: try { try decoder.decodeSingularStringField(value: &_storage._readiness) }()
+        case 20: try { try decoder.decodeSingularStringField(value: &_storage._failureReason) }()
+        case 21: try { try decoder.decodeSingularMessageField(value: &_storage._cacheDisk) }()
+        case 22: try { try decoder.decodeSingularMessageField(value: &_storage._autostart) }()
+        case 23: try { try decoder.decodeSingularStringField(value: &_storage._dockerEndpoint) }()
+        case 24: try { try decoder.decodeSingularStringField(value: &_storage._payloadVersion) }()
+        case 25: try { try decoder.decodeSingularStringField(value: &_storage._stagedVersion) }()
         default: break
         }
       }
@@ -1774,6 +2075,45 @@ nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, Swift
       if _storage._stoppedOnRequest != false {
         try visitor.visitSingularBoolField(value: _storage._stoppedOnRequest, fieldNumber: 12)
       }
+      try { if let v = _storage._engineVersion {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._engineApiVersion {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 14)
+      } }()
+      try { if let v = _storage._engineMinApiVersion {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 15)
+      } }()
+      if !_storage._diskFlush.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._diskFlush, fieldNumber: 16)
+      }
+      try { if let v = _storage._containersTotal {
+        try visitor.visitSingularInt32Field(value: v, fieldNumber: 17)
+      } }()
+      try { if let v = _storage._containersRunning {
+        try visitor.visitSingularInt32Field(value: v, fieldNumber: 18)
+      } }()
+      if !_storage._readiness.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._readiness, fieldNumber: 19)
+      }
+      try { if let v = _storage._failureReason {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 20)
+      } }()
+      try { if let v = _storage._cacheDisk {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+      } }()
+      try { if let v = _storage._autostart {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+      } }()
+      if !_storage._dockerEndpoint.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._dockerEndpoint, fieldNumber: 23)
+      }
+      try { if let v = _storage._payloadVersion {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 24)
+      } }()
+      try { if let v = _storage._stagedVersion {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 25)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1795,10 +2135,261 @@ nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, Swift
         if _storage._updatePending != rhs_storage._updatePending {return false}
         if _storage._summary != rhs_storage._summary {return false}
         if _storage._stoppedOnRequest != rhs_storage._stoppedOnRequest {return false}
+        if _storage._engineVersion != rhs_storage._engineVersion {return false}
+        if _storage._engineApiVersion != rhs_storage._engineApiVersion {return false}
+        if _storage._engineMinApiVersion != rhs_storage._engineMinApiVersion {return false}
+        if _storage._diskFlush != rhs_storage._diskFlush {return false}
+        if _storage._containersTotal != rhs_storage._containersTotal {return false}
+        if _storage._containersRunning != rhs_storage._containersRunning {return false}
+        if _storage._readiness != rhs_storage._readiness {return false}
+        if _storage._failureReason != rhs_storage._failureReason {return false}
+        if _storage._cacheDisk != rhs_storage._cacheDisk {return false}
+        if _storage._autostart != rhs_storage._autostart {return false}
+        if _storage._dockerEndpoint != rhs_storage._dockerEndpoint {return false}
+        if _storage._payloadVersion != rhs_storage._payloadVersion {return false}
+        if _storage._stagedVersion != rhs_storage._stagedVersion {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_HVFMachineAutostart: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HVFMachineAutostart"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}loaded\0\u{1}label\0\u{3}plist_path\0\u{1}program\0\u{3}exit_timeout_seconds\0\u{1}problem\0\u{1}summary\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.loaded) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.label) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.plistPath) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self._program) }()
+      case 6: try { try decoder.decodeSingularInt32Field(value: &self._exitTimeoutSeconds) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self._problem) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.summary) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    if self.loaded != false {
+      try visitor.visitSingularBoolField(value: self.loaded, fieldNumber: 2)
+    }
+    if !self.label.isEmpty {
+      try visitor.visitSingularStringField(value: self.label, fieldNumber: 3)
+    }
+    if !self.plistPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.plistPath, fieldNumber: 4)
+    }
+    try { if let v = self._program {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._exitTimeoutSeconds {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 6)
+    } }()
+    try { if let v = self._problem {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
+    } }()
+    if !self.summary.isEmpty {
+      try visitor.visitSingularStringField(value: self.summary, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_HVFMachineAutostart, rhs: Micropod_V1_HVFMachineAutostart) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.loaded != rhs.loaded {return false}
+    if lhs.label != rhs.label {return false}
+    if lhs.plistPath != rhs.plistPath {return false}
+    if lhs._program != rhs._program {return false}
+    if lhs._exitTimeoutSeconds != rhs._exitTimeoutSeconds {return false}
+    if lhs._problem != rhs._problem {return false}
+    if lhs.summary != rhs.summary {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetMachineAutostartRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetMachineAutostartRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}force\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.force) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    if self.force != false {
+      try visitor.visitSingularBoolField(value: self.force, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetMachineAutostartRequest, rhs: Micropod_V1_SetMachineAutostartRequest) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.force != rhs.force {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetupMachineRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupMachineRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}payload_path\0\u{3}disk_from\0\u{3}cache_disk_bytes\0\u{3}no_cache_disk\0\u{1}start\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.payloadPath) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.diskFrom) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.cacheDiskBytes) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.noCacheDisk) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.start) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.payloadPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.payloadPath, fieldNumber: 1)
+    }
+    if !self.diskFrom.isEmpty {
+      try visitor.visitSingularStringField(value: self.diskFrom, fieldNumber: 2)
+    }
+    if self.cacheDiskBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.cacheDiskBytes, fieldNumber: 3)
+    }
+    if self.noCacheDisk != false {
+      try visitor.visitSingularBoolField(value: self.noCacheDisk, fieldNumber: 4)
+    }
+    if self.start != false {
+      try visitor.visitSingularBoolField(value: self.start, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetupMachineRequest, rhs: Micropod_V1_SetupMachineRequest) -> Bool {
+    if lhs.payloadPath != rhs.payloadPath {return false}
+    if lhs.diskFrom != rhs.diskFrom {return false}
+    if lhs.cacheDiskBytes != rhs.cacheDiskBytes {return false}
+    if lhs.noCacheDisk != rhs.noCacheDisk {return false}
+    if lhs.start != rhs.start {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetupMachineStep: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupMachineStep"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}state\0\u{1}detail\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.state) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.detail) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.state.isEmpty {
+      try visitor.visitSingularStringField(value: self.state, fieldNumber: 2)
+    }
+    if !self.detail.isEmpty {
+      try visitor.visitSingularStringField(value: self.detail, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetupMachineStep, rhs: Micropod_V1_SetupMachineStep) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.state != rhs.state {return false}
+    if lhs.detail != rhs.detail {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetupMachineResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupMachineResult"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{1}steps\0\u{1}machine\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.steps) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._machine) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.ok != false {
+      try visitor.visitSingularBoolField(value: self.ok, fieldNumber: 1)
+    }
+    if !self.steps.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.steps, fieldNumber: 2)
+    }
+    try { if let v = self._machine {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetupMachineResult, rhs: Micropod_V1_SetupMachineResult) -> Bool {
+    if lhs.ok != rhs.ok {return false}
+    if lhs.steps != rhs.steps {return false}
+    if lhs._machine != rhs._machine {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

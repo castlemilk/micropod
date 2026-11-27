@@ -267,6 +267,15 @@ elif [[ "${GITHUB_ACTIONS:-false}" != true || -n "${MICROPOD_VMM_DIR:-}" ]]; the
     fi
 fi
 
+# An optional base disk for the hvf machine (an ext4 image), which
+# `micropod setup` clones a new machine's disk from without a download.
+# Releases do not ship one yet (it is not pinned or built by CI).
+hvf_base_disk=()
+if [[ -n "${MICROPOD_HVF_BASE_DISK:-}" ]]; then
+    bash scripts/stage_hvf_base_disk.sh "$MICROPOD_HVF_BASE_DISK" "$APP_BUNDLE/Contents/Resources" "$DIST"
+    hvf_base_disk=(hvf-base-disk.ext4)
+fi
+
 # The in-VM helper for sandbox file operations, watches and idle sandboxes
 # (a static linux/arm64 ELF — sealed as a resource, not signed as code).
 # The API finds it at ../Resources relative to its executable.
@@ -313,7 +322,7 @@ chmod +x "$DIST/micropod"
 codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$DIST/micropod"
 
 echo "==> Staging tarball"
-tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod ${oci_archive[@]+"${oci_archive[@]}"} ${hvf_archive[@]+"${hvf_archive[@]}"}
+tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod ${oci_archive[@]+"${oci_archive[@]}"} ${hvf_archive[@]+"${hvf_archive[@]}"} ${hvf_base_disk[@]+"${hvf_base_disk[@]}"}
 
 # Nothing above fails when a piece of the HVF runtime could not be built or
 # found: this does, naming each one. MICROPOD_PACKAGE_WITHOUT_HVF=1 makes a

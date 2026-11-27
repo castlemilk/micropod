@@ -48,6 +48,9 @@ struct MicropodCLI {
     nonisolated(unsafe) static var exitOverride: Int32?
 
     static func main() async {
+        // First: anything written under ~/.micropod before it would make a
+        // fresh install look like an existing one.
+        InstallOrigin.resolve()
         #if canImport(Darwin)
             setvbuf(stdout, nil, _IOLBF, 8192)
         #endif
@@ -78,6 +81,15 @@ struct MicropodCLI {
         }
         if let machine = MachineCommands.route(args) {
             exit(await MachineCommands.main(machine.args, json: machine.json))
+        }
+        if let setup = SetupCommands.route(args) {
+            exit(await SetupCommands.main(setup.args, json: setup.json))
+        }
+        if let docker = DockerCommands.route(args) {
+            exit(await DockerCommands.main(docker.args, json: docker.json))
+        }
+        if let status = StatusCommand.route(args) {
+            exit(await StatusCommand.main(status.args, json: status.json, cliPath: status.cliPath))
         }
         let globals = GlobalArguments(args)
         jsonOutput = globals.json
@@ -120,7 +132,6 @@ struct MicropodCLI {
 
     static func dispatch(_ command: String, _ args: [String], _ services: Services) async throws {
         switch command {
-        case "status": try await SystemCommands.status(args, services)
         case "ps", "list", "ls": try await ContainerCommands.ps(args, services)
         case "run": try await ContainerCommands.run(args, services, create: false)
         case "create": try await ContainerCommands.run(args, services, create: true)
@@ -177,9 +188,16 @@ struct MicropodCLI {
     }
 
     static let helpText = """
-        micropod — CLI for the Apple container runtime
+        micropod — containers on a Linux machine of your Mac's own (Hypervisor.framework)
 
         Usage: micropod <command> [flags] [args]
+
+        Getting started:
+          setup [--payload <app|dir>] [--disk-from <ext4>] [--docker] [--use] [--autostart]
+                                             set up the hvf machine: runtime files, disk and cache
+                                             disk, start it, make hvf the default on a fresh install
+                                             (`micropod setup --help`)
+          status [--json]                    the machine, its docker endpoint and the API
 
         CI worker:
           ci runner-start|status|health|stop manage the dedicated HVF/containerd CI worker
@@ -240,12 +258,19 @@ struct MicropodCLI {
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
-          runtime ls|use|enable|disable      execution engines: apple, docker, sandbox, ci, hvf
+          runtime ls|use|enable|disable      execution engines: hvf (the default on a fresh install),
+                                             sandbox, docker, ci, and apple (opt-in on a fresh install:
+                                             `micropod runtime enable apple`)
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
           machine install|start|stop|restart|status|logs|serve|docker-endpoint|buildkit-endpoint
+          machine autostart on|off|status    start the machine at login and stop it cleanly at logout
           machine cache policy|builder install|status|rm
                                              the shared hvf Linux machine behind --runtime hvf
                                              (`micropod machine help`)
+          docker install [--use]|uninstall|status
+                                             docker context `micropod` on the hvf machine for the
+                                             docker CLI, compose and buildx; --use selects it
+                                             (`micropod docker help`)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
@@ -253,7 +278,10 @@ struct MicropodCLI {
           storage [show|volumes|set <dir>]  where runtime data lives; move it to another volume
           storage dev-volume                create and manage a development APFS volume
           metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
-          status / version                   runtime + version info
+          status [--json]                    the hvf machine (state, engine, containers, cache disk,
+                                             disk flush, update, autostart), its docker endpoint and
+                                             the API; the Apple runtime too when it is enabled
+          version                            version info
 
         Global flags:
           --json                             machine-readable output where supported

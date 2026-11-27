@@ -63,7 +63,9 @@ extension RPCCatalog {
             "GetRigHealth": .unary,
             "GetRigMode": .unary,
             "RollbackHVFUpdate": .unary,
+            "SetMachineAutostart": .unary,
             "SetRigMode": .unary,
+            "SetupMachine": .unary,
         ],
         "micropod.v1.SandboxService": [
             "CheckpointSandbox": .unary,

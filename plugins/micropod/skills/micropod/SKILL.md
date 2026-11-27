@@ -81,15 +81,20 @@ Example tools/call (JSON-RPC over stdin/stdout):
 ## Runtimes (execution engines)
 
 Five engines sit behind the same API: `apple` (micro-VM per container, the
-default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
+default of an existing install; opt-in on a fresh one, where `hvf` is the
+default: `micropod runtime ls` says which, `micropod runtime enable apple`
+turns it on), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
 in-process micro-VM; fastest boot; tcp ports and bind mounts, no named
 volumes, not restartable), `ci` (opt-in: this account's one persistent Linux
 CI worker for trusted jobs — `micropod ci start|endpoint|status|stop` — whose
 Docker engine, BuildKit and named volumes stay warm between jobs), and `hvf`
 (opt-in: one shared Linux machine on micropod's Hypervisor.framework VMM,
 OrbStack-style — containerd + crun behind a Docker API; named volumes, retained containers and logs survive a
-machine restart). `hvf` is `available` once `micropod machine install` has
-put its assets in `MICROPOD_HVF_ROOT` (default `~/.micropod/hvf`); the first
+machine restart). `hvf` is `available` once `micropod setup` (runtime files
+and base disk from the app bundle or `--payload`, the disk from `--disk-from`;
+only `--disk-image` downloads; `--dry-run` shows the steps) or `micropod
+machine install` has put its assets in `MICROPOD_HVF_ROOT` (default
+`~/.micropod/hvf`); a run with no machine says to run `micropod setup`; the first
 `run`/`create`/`start` boots the machine (~2 s), reads never do (a stopped
 machine lists no containers). While it is stopped its containers still route
 to `hvf`: `start`/`restart` of one boots the machine, any other call on one
@@ -119,6 +124,24 @@ says `docker build: fallback builder only`, `micropod machine builder install`
 adds a `micropod` docker context and the remote buildx builder
 `micropod-buildkit`; build with
 `BUILDX_BUILDER=micropod-buildkit docker --context micropod build …`.
+For the stock docker CLI, compose and buildx, `micropod docker install`
+creates the docker context `micropod` on the machine's socket without
+changing the current context (`--use` selects it and records the one it
+replaced; `micropod docker uninstall` selects that again), picks the builder
+(`--builder auto|remote|none`), and prints `note:` lines for what would still
+break: `DOCKER_HOST`/`DOCKER_CONTEXT` set in the shell, a missing compose or
+buildx plugin, a credential helper not on `PATH`, a stopped machine.
+`micropod docker status --json` reports all of it. It never starts the
+machine and never runs sudo (`--system-socket` only prints the
+`/var/run/docker.sock` link command). In scripts, point `DOCKER_CONFIG` at a
+temporary directory so the user's `~/.docker` is not changed.
+`micropod status [--json]` shows the machine (state and why it failed, engine,
+containers, cache disk, disk flush, pending update, autostart) from RigService
+`GetMachineStatus`, or in-process with no API. `micropod machine autostart
+on|off|status` makes launchd start the machine at login and stop it cleanly
+at logout (deferred while containers run unless `--force`); never run it
+against the user's real launchd from a test: set `MICROPOD_LAUNCHCTL` and
+`MICROPOD_LAUNCH_AGENTS_DIR` to stand-ins.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP

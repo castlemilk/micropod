@@ -4,10 +4,12 @@ import MicropodCore
 import SwiftProtobuf
 
 enum SystemCommands {
-    static func status(_ args: [String], _ services: Services) async throws {
-        let parsed = try parseArgs(args, boolFlags: [], valueFlags: [], commandName: "status")
+    /// The Apple runtime's status (`micropod system status`; `micropod
+    /// status` shows the same under `apple:` when Apple is enabled).
+    static func appleStatus(_ args: [String], _ services: Services) async throws {
+        let parsed = try parseArgs(args, boolFlags: [], valueFlags: [], commandName: "system status")
         guard !parsed.has("--help") else {
-            print("usage: micropod status [--json]")
+            print("usage: micropod system status [--json]")
             return
         }
         let status = try await services.system.status()
@@ -360,7 +362,7 @@ enum SystemCommands {
             try await services.system.stop()
             print("Runtime stopped")
         case "status":
-            try await status([], services)
+            try await appleStatus(Array(args.dropFirst()), services)
         case "logs":
             try await systemLogs(Array(args.dropFirst()), services)
         default:

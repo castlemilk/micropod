@@ -16,6 +16,7 @@ struct MenuBarPanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             header
+            if store.hvfMachine.isShown { MachineStatusCard(model: store.hvfMachine) }
             resourceSummary
             workloadSection
             cacheSection
@@ -316,9 +317,11 @@ struct MenuBarPanelView: View {
         }
     }
     private var runtimeTransitioning: Bool {
-        store.runtimeOperationInProgress
+        store.hvfMachine.drivesHeader ? store.hvfMachine.transitioning : store.runtimeOperationInProgress
     }
     private var healthLabel: String {
+        // With hvf the default runtime, the header is the machine's.
+        if store.hvfMachine.drivesHeader { return store.hvfMachine.headline }
         if !store.clientAvailable { return "Runtime unavailable" }
         if store.isStoppingRuntime { return "Stopping runtime…" }
         if store.isHealingRuntime { return "Recovering runtime…" }
@@ -330,6 +333,7 @@ struct MenuBarPanelView: View {
         return store.runtimeHealth == .healthy ? "Runtime healthy" : "Runtime running · checking health"
     }
     private var healthColor: Color {
+        if store.hvfMachine.drivesHeader { return store.hvfMachine.color }
         if !store.clientAvailable { return Tokens.Palette.danger }
         if runtimeTransitioning || store.runtimeHealth == .wedged || agentsDegraded { return Tokens.Palette.warning }
         return store.isRuntimeRunning && store.runtimeHealth == .healthy

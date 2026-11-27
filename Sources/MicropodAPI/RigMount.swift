@@ -43,7 +43,7 @@ extension APIHandlers {
                 return unary(RigProto.updateResult(result), binary: binary)
 
             case "GetMachineStatus":
-                return unary(RigProto.machineStatus(hvfMachineClient().status()), binary: binary)
+                return unary(await machineStatus(hvfMachineClient()), binary: binary)
 
             case "ControlMachine":
                 let req = try decode(Micropod_V1_ControlMachineRequest.self, body, binary: binary)
@@ -58,11 +58,37 @@ extension APIHandlers {
                         message: "deferred: \(busy); nothing was stopped (force: true to \(req.action) anyway)")
                 }
                 switch req.action {
-                case "start": try await client.ensureRunning()
+                case "start":
+                    try await client.ensureRunning()
+                    // An explicit start, as `machine start`: the canonical
+                    // socket follows it under the same rules.
+                    _ = client.autoLinkCanonicalDockerSocket()
                 case "stop": try await client.stop()
                 default: try await client.restart()
                 }
-                return unary(RigProto.machineStatus(client.status()), binary: binary)
+                return unary(await machineStatus(client), binary: binary)
+
+            case "SetMachineAutostart":
+                let req = try decode(Micropod_V1_SetMachineAutostartRequest.self, body, binary: binary)
+                let client = hvfMachineClient()
+                let agent = machineAutostart(client.layout)
+                do {
+                    if req.enabled {
+                        _ = try await agent.enable(
+                            load: true,
+                            program: Self.autostartProgram(environment: ProcessInfo.processInfo.environment),
+                            force: req.force)
+                    } else {
+                        _ = try await agent.disable(force: req.force)
+                    }
+                } catch {
+                    throw Self.connectError(error)
+                }
+                return unary(await machineStatus(client, autostart: agent), binary: binary)
+
+            case "SetupMachine":
+                let req = try decode(Micropod_V1_SetupMachineRequest.self, body, binary: binary)
+                return unary(await setupMachine(req), binary: binary)
 
             case "GetTelemetryHealth":
                 return unary(RigProto.telemetryHealth(try await ciHealth()), binary: binary)
@@ -110,6 +136,71 @@ extension APIHandlers {
         }
     }
 
+    /// `SetupMachine`: `micropod setup` for the API's machine. Its package
+    /// is this process's app bundle or CLI package unless `payload_path`
+    /// names one; nothing is downloaded (the request has no image).
+    func setupMachine(_ req: Micropod_V1_SetupMachineRequest) async -> Micropod_V1_SetupMachineResult {
+        let client = hvfMachineClient()
+        func url(_ path: String) -> URL? {
+            path.isEmpty ? nil : URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+        }
+        let options = HVFMachineBootstrap.Options(
+            payload: url(req.payloadPath), diskFrom: url(req.diskFrom),
+            cacheDiskBytes: req.cacheDiskBytes == 0 ? nil : req.cacheDiskBytes, noCacheDisk: req.noCacheDisk,
+            start: req.start)
+        let steps = await HVFMachineBootstrap(
+            layout: client.layout, options: options, environment: client.environment,
+            packagedExecutable: CLIInstall.currentExecutable(), runtimes: .registry(engineRegistry)
+        ).run()
+        if steps.contains(where: { $0.id == .start && $0.state == .done }) {
+            // A start asked for, as `machine start`: the canonical socket
+            // follows it under the same rules.
+            _ = client.autoLinkCanonicalDockerSocket()
+        }
+        let machine = await machineStatus(client)
+        return .with {
+            $0.ok = !steps.contains { $0.state == .failed }
+            $0.steps = steps.map { step in
+                .with {
+                    $0.id = step.id.rawValue
+                    $0.state = step.state.rawValue
+                    $0.detail = step.detail
+                }
+            }
+            $0.machine = machine
+        }
+    }
+
+    /// GetMachineStatus, ControlMachine's and SetMachineAutostart's reply.
+    func machineStatus(_ client: HVFMachineClient, autostart: HVFMachineAutostartAgent? = nil) async
+        -> Micropod_V1_HVFMachineStatus
+    {
+        await client.statusMessage(timeout: .seconds(1), autostart: autostart ?? machineAutostart(client.layout))
+    }
+
+    /// The CLI the LaunchAgent runs when the API turns autostart on: this
+    /// process is not one, so the CLI `machine start` would launch
+    /// (`MICROPOD_CLI`, a sibling, the installed link); one inside an app
+    /// bundle is replaced by `~/.local/bin/micropod`, which outlives updates.
+    static func autostartProgram(environment: [String: String]) -> URL {
+        HVFMachineAutostartAgent.resolveProgram(
+            explicit: nil, environment: environment,
+            current: HVFMachineClient.supervisorExecutable(environment: environment) ?? CLIInstall.currentExecutable())
+    }
+
+    /// A refusal's Connect code, and its message without the code prefix
+    /// (`failedPrecondition: deferred: …` → `deferred: …`).
+    static func connectError(_ error: Error) -> Error {
+        let message = error.localizedDescription
+        guard let code = ConnectWireCode(rawValue: ConnectCodeMapping.code(for: error)) else { return error }
+        if let colon = message.firstIndex(of: ":"), message[..<colon].allSatisfy(\.isLetter),
+            message[message.index(after: colon)...].hasPrefix(" ")
+        {
+            return ConnectDecodeError(code: code, message: String(message[message.index(colon, offsetBy: 2)...]))
+        }
+        return ConnectDecodeError(code: code, message: message)
+    }
+
     /// Success for noop, activated and (for a rollback) rolled_back. A
     /// deferral changed nothing: `failed_precondition`. An activation that
     /// returned to known-good did not take, and taking it again would only
@@ -133,13 +224,7 @@ extension APIHandlers {
     static func machineBusy(
         _ client: HVFMachineClient, drain: (any HVFDrainCoordinating)? = nil
     ) async -> String? {
-        guard client.isServing else { return nil }
-        do {
-            let workloads = try await (drain ?? HVFGuestWorkloadDrain(client: client)).activeWorkloads()
-            return workloads.total > 0 ? "\(workloads.summary) on the machine" : nil
-        } catch {
-            return "could not confirm the machine is idle (\(error.localizedDescription))"
-        }
+        await client.activeWorkloadSummary(drain: drain)
     }
 
     // MARK: Shared with REST
@@ -266,21 +351,7 @@ enum RigProto {
                 $0.root = s.hvf.root
                 $0.dockerEndpoint = s.dockerEndpoint
                 $0.cacheDiskPresent = disk.mounted
-                $0.cacheDisk = .with {
-                    $0.mounted = disk.mounted
-                    $0.configured = disk.configured
-                    if let missing = disk.missingReason { $0.missing = missing }
-                    $0.source = disk.state == nil ? "unknown" : "guest"
-                    if let reason = disk.unknownReason { $0.reason = reason }
-                    if let state = disk.state?.state { $0.state = state }
-                    if let device = disk.state?.device { $0.device = device }
-                    if let error = disk.state?.mountInfoError { $0.mountInfoError = error }
-                    if let size = disk.state?.sizeBytes { $0.sizeBytes = size }
-                    if let free = disk.state?.freeBytes { $0.freeBytes = free }
-                    $0.sharedCaches = disk.sharedCaches
-                    if let off = disk.sharedCachesOffReason { $0.unavailable = off }
-                    $0.summary = disk.summary
-                }
+                $0.cacheDisk = HVFMachineClient.cacheDiskMessage(disk)
                 $0.sharedCaches = disk.sharedCaches
                 $0.updatePending = s.hvf.updatePending
                 $0.payloadVersion = s.payload.current?.version ?? ""
@@ -342,36 +413,9 @@ enum RigProto {
         }
     }
 
+    /// The fields of a machine status that need no guest round trip.
     static func machineStatus(_ s: HVFMachineStatus) -> Micropod_V1_HVFMachineStatus {
-        .with {
-            $0.root = s.root
-            $0.socket = s.socket
-            $0.missing = s.missing
-            $0.installed = s.installed
-            if let problem = s.problem { $0.problem = problem }
-            $0.supervisorAlive = s.supervisorAlive
-            $0.phase = s.phase.rawValue
-            if let st = s.state {
-                $0.state = .with {
-                    $0.phase = st.phase.rawValue
-                    $0.supervisorPid = st.supervisorPID
-                    if let pid = st.vmmPID { $0.vmmPid = pid }
-                    if let at = st.startedAt { $0.startedAt = rfc3339(at) }
-                    if let at = st.readyAt { $0.readyAt = rfc3339(at) }
-                    $0.restartCount = Int32(clamping: st.restartCount)
-                    if let reason = st.lastExitReason { $0.lastExitReason = reason }
-                    if let code = st.lastExitCode { $0.lastExitCode = code }
-                    if let path = st.loadedPayloadPath { $0.loadedPayloadPath = path }
-                    if let version = st.loadedPayloadVersion { $0.loadedPayloadVersion = version }
-                    $0.updatedAt = rfc3339(st.updatedAt)
-                }
-            }
-            if let error = s.stateError { $0.stateError = error }
-            $0.updatePending = s.updatePending
-            $0.summary = s.summary
-            // No supervisor, and the last one recorded a stop it was asked for.
-            $0.stoppedOnRequest = !s.supervisorAlive && s.state?.phase == .stopped
-        }
+        HVFMachineClient.statusMessage(s)
     }
 
     static func telemetryHealth(_ r: CIWorker.HealthReport) -> Micropod_V1_TelemetryHealth {

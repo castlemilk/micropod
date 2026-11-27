@@ -20,9 +20,19 @@ enum RuntimeCommands {
         runtime install-authority             legacy Apple root helper setup (sudo)
         """
 
+    /// The legacy Apple subcommands, which still manage Apple's runtime
+    /// while it is not enabled (say so first).
+    static let appleSubcommands: Set<String> = [
+        "update", "install-authority", "install", "repair", "start", "stop", "restart", "cancel", "recover",
+        "operation", "status",
+    ]
+
     static func run(_ args: [String], _ services: Services) async throws {
         let registry = EngineRegistry.shared
         let apple = services.runtime.router?.apple ?? AppleEngine(services: services.runtime)
+        if let sub = args.first, appleSubcommands.contains(sub), let note = appleNote(registry) {
+            FileHandle.standardError.write(Data("note: \(note)\n".utf8))
+        }
         switch args.first ?? "ls" {
         case "update":
             try await RuntimeUpdateCommands.run(Array(args.dropFirst()))
@@ -76,17 +86,7 @@ enum RuntimeCommands {
                 emitJSON(response.runtimes)
                 return
             }
-            let rows = response.runtimes.map { r in
-                [
-                    (r.default ? "* " : "  ") + r.name, r.kind,
-                    r.available ? "yes" : "no",
-                    r.enabled ? "yes" : "no", r.version.isEmpty ? "—" : r.version,
-                    r.available ? r.endpoint : r.reason,
-                ]
-            }
-            print(
-                renderTable(
-                    headers: ["NAME", "KIND", "AVAILABLE", "ENABLED", "VERSION", "ENDPOINT / REASON"], rows: rows))
+            print(listing(response, origin: registry.origin))
         case "mode":
             if let requested = args.dropFirst().first {
                 guard let mode = RuntimeMode(rawValue: requested.lowercased()) else {
@@ -138,6 +138,36 @@ enum RuntimeCommands {
         default:
             throw UsageError(message: "unknown runtime command '\(args[0])'\n\(usage)")
         }
+    }
+
+    /// `runtime ls`: the table, then where the default came from.
+    static func listing(_ response: Micropod_V1_ListRuntimesResponse, origin: InstallOrigin?) -> String {
+        let rows = response.runtimes.map { r -> [String] in
+            let optIn = r.name == "apple" && !r.enabled && origin == .fresh
+            let notSetUp = r.name == "hvf" && !r.available && r.reason.contains("not installed")
+            let detail =
+                optIn
+                ? "opt-in: `micropod runtime enable apple`"
+                : notSetUp ? "not set up: `micropod setup`" : r.available ? r.endpoint : r.reason
+            return [
+                (r.default ? "* " : "  ") + r.name, r.kind, r.available ? "yes" : "no",
+                r.enabled ? "yes" : optIn ? "opt-in" : "no", r.version.isEmpty ? "—" : r.version, detail,
+            ]
+        }
+        let table = renderTable(
+            headers: ["NAME", "KIND", "AVAILABLE", "ENABLED", "VERSION", "ENDPOINT / REASON"], rows: rows)
+        let why =
+            origin == .fresh && response.default == InstallOrigin.freshDefaultRuntime
+            ? "chosen for a fresh install; " : ""
+        return table + "\ndefault: \(response.default) (\(why)`micropod runtime use <name>` changes it)"
+    }
+
+    /// Said before a legacy Apple subcommand while Apple is not enabled.
+    static func appleNote(_ registry: EngineRegistry) -> String? {
+        registry.isEnabled("apple")
+            ? nil
+            : "the Apple runtime is not enabled (`micropod runtime enable apple` turns it on); this command manages it "
+                + "anyway"
     }
 
     static func requireName(_ args: [String]) throws -> String {

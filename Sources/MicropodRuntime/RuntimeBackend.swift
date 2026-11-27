@@ -82,11 +82,31 @@ public enum RuntimeBackendResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         pingTimeout: Duration = .seconds(10)
     ) async -> RuntimeServices {
+        await resolve(
+            client: client, environment: environment, pingTimeout: pingTimeout, makeAPI: { APIServerClient() })
+    }
+
+    /// `resolve` with the apiserver client injected: tests count how often
+    /// Apple's apiserver would be pinged.
+    static func resolve(
+        client: ContainerCLIClient, environment: [String: String], pingTimeout: Duration,
+        makeAPI: @Sendable () -> APIServerClient
+    ) async -> RuntimeServices {
         // Every engine (apple, docker, sandbox) behind one ContainerServing;
         // `MICROPOD_ENGINES=apple` opts out of routing entirely.
-        let apple = await resolveApple(client: client, environment: environment, pingTimeout: pingTimeout)
-        return environment["MICROPOD_ISOLATED_RUNTIME"] == "1" || environment["MICROPOD_ENGINES"] == "apple"
-            ? apple : apple.routed()
+        let routed = !(environment["MICROPOD_ISOLATED_RUNTIME"] == "1" || environment["MICROPOD_ENGINES"] == "apple")
+        let apple = await resolveApple(
+            client: client, environment: environment, pingTimeout: pingTimeout,
+            ping: !routed || pingsApple(environment: environment), makeAPI: makeAPI)
+        return routed ? apple.routed() : apple
+    }
+
+    /// Whether resolving pings Apple's apiserver: not while the Apple
+    /// runtime is disabled (it is opt-in on a fresh install), unless
+    /// `MICROPOD_RUNTIME=native` asks for it. Its CLI transport then stays
+    /// in place for the calls that still name Apple.
+    static func pingsApple(environment: [String: String]) -> Bool {
+        environment["MICROPOD_RUNTIME"] == "native" || EngineRegistry.appleEnabled(environment: environment)
     }
 
     /// The apple engine alone: native XPC or `container` CLI transport.
@@ -94,6 +114,15 @@ public enum RuntimeBackendResolver {
         client: ContainerCLIClient,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         pingTimeout: Duration = .seconds(10)
+    ) async -> RuntimeServices {
+        await resolveApple(
+            client: client, environment: environment, pingTimeout: pingTimeout, ping: true,
+            makeAPI: { APIServerClient() })
+    }
+
+    static func resolveApple(
+        client: ContainerCLIClient, environment: [String: String], pingTimeout: Duration, ping: Bool,
+        makeAPI: @Sendable () -> APIServerClient
     ) async -> RuntimeServices {
         let mode = environment["MICROPOD_RUNTIME"] ?? "auto"
         let cliContainers = ContainerService(client: client)
@@ -128,8 +157,9 @@ public enum RuntimeBackendResolver {
         if mode == "auto", environment["MICROPOD_CONTAINER_CLI_PATH"] != nil {
             return cliServices()
         }
+        guard ping else { return cliServices() }
 
-        let api = APIServerClient()
+        let api = makeAPI()
         do {
             let health = try await api.ping(timeout: pingTimeout)
             // The gate in front of `client` may still hold a `down` from

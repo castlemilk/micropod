@@ -54,6 +54,11 @@ const (
 	// RigServiceControlMachineProcedure is the fully-qualified name of the RigService's ControlMachine
 	// RPC.
 	RigServiceControlMachineProcedure = "/micropod.v1.RigService/ControlMachine"
+	// RigServiceSetMachineAutostartProcedure is the fully-qualified name of the RigService's
+	// SetMachineAutostart RPC.
+	RigServiceSetMachineAutostartProcedure = "/micropod.v1.RigService/SetMachineAutostart"
+	// RigServiceSetupMachineProcedure is the fully-qualified name of the RigService's SetupMachine RPC.
+	RigServiceSetupMachineProcedure = "/micropod.v1.RigService/SetupMachine"
 )
 
 // RigServiceClient is a client for the micropod.v1.RigService service.
@@ -77,7 +82,9 @@ type RigServiceClient interface {
 	// deferred like ApplyHVFUpdate.
 	RollbackHVFUpdate(context.Context, *connect.Request[v1.HVFUpdateRequest]) (*connect.Response[v1.HVFUpdateResult], error)
 	// The machine as every process sees it: assets, supervisor, phase, the
-	// published state. Never boots anything and never asks the guest.
+	// published state, and its autostart LaunchAgent. Never boots anything;
+	// while it runs, the guest is asked for its engine version, its
+	// containers and its cache disk (one second each).
 	GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
@@ -85,6 +92,20 @@ type RigServiceClient interface {
 	// deferred (`failed_precondition`, nothing stopped) while containers run on
 	// a serving machine or its idleness cannot be confirmed, unless `force`.
 	ControlMachine(context.Context, *connect.Request[v1.ControlMachineRequest]) (*connect.Response[v1.HVFMachineStatus], error)
+	// Turn the machine's autostart LaunchAgent on or off (`micropod machine
+	// autostart on|off`): on, launchd starts the machine at login and stops it
+	// cleanly at logout. Loading or unloading the job restarts a running
+	// machine, so it is deferred (`failed_precondition`, nothing changed)
+	// while containers run, unless `force`. Replies with the machine status.
+	SetMachineAutostart(context.Context, *connect.Request[v1.SetMachineAutostartRequest]) (*connect.Response[v1.HVFMachineStatus], error)
+	// The machine's first run (`micropod setup`): its runtime files from the
+	// API's own app bundle or CLI package (or `payload_path`), its disk from
+	// `disk_from` or the package's base disk, and its cache disk; then a start
+	// when `start`. Local sources only: nothing is downloaded. Re-running
+	// keeps what is there. A step that cannot be done is a failed step in the
+	// reply (`ok` false), never a partial install: every source is checked
+	// before anything is written.
+	SetupMachine(context.Context, *connect.Request[v1.SetupMachineRequest]) (*connect.Response[v1.SetupMachineResult], error)
 }
 
 // NewRigServiceClient constructs a client for the micropod.v1.RigService service. By default, it
@@ -146,19 +167,33 @@ func NewRigServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(rigServiceMethods.ByName("ControlMachine")),
 			connect.WithClientOptions(opts...),
 		),
+		setMachineAutostart: connect.NewClient[v1.SetMachineAutostartRequest, v1.HVFMachineStatus](
+			httpClient,
+			baseURL+RigServiceSetMachineAutostartProcedure,
+			connect.WithSchema(rigServiceMethods.ByName("SetMachineAutostart")),
+			connect.WithClientOptions(opts...),
+		),
+		setupMachine: connect.NewClient[v1.SetupMachineRequest, v1.SetupMachineResult](
+			httpClient,
+			baseURL+RigServiceSetupMachineProcedure,
+			connect.WithSchema(rigServiceMethods.ByName("SetupMachine")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // rigServiceClient implements RigServiceClient.
 type rigServiceClient struct {
-	getRigHealth       *connect.Client[v1.Empty, v1.RigHealth]
-	getRigMode         *connect.Client[v1.Empty, v1.RigMode]
-	setRigMode         *connect.Client[v1.SetRigModeRequest, v1.RigMode]
-	getHVFUpdateStatus *connect.Client[v1.Empty, v1.HVFUpdateStatus]
-	applyHVFUpdate     *connect.Client[v1.HVFUpdateRequest, v1.HVFUpdateResult]
-	rollbackHVFUpdate  *connect.Client[v1.HVFUpdateRequest, v1.HVFUpdateResult]
-	getMachineStatus   *connect.Client[v1.Empty, v1.HVFMachineStatus]
-	controlMachine     *connect.Client[v1.ControlMachineRequest, v1.HVFMachineStatus]
+	getRigHealth        *connect.Client[v1.Empty, v1.RigHealth]
+	getRigMode          *connect.Client[v1.Empty, v1.RigMode]
+	setRigMode          *connect.Client[v1.SetRigModeRequest, v1.RigMode]
+	getHVFUpdateStatus  *connect.Client[v1.Empty, v1.HVFUpdateStatus]
+	applyHVFUpdate      *connect.Client[v1.HVFUpdateRequest, v1.HVFUpdateResult]
+	rollbackHVFUpdate   *connect.Client[v1.HVFUpdateRequest, v1.HVFUpdateResult]
+	getMachineStatus    *connect.Client[v1.Empty, v1.HVFMachineStatus]
+	controlMachine      *connect.Client[v1.ControlMachineRequest, v1.HVFMachineStatus]
+	setMachineAutostart *connect.Client[v1.SetMachineAutostartRequest, v1.HVFMachineStatus]
+	setupMachine        *connect.Client[v1.SetupMachineRequest, v1.SetupMachineResult]
 }
 
 // GetRigHealth calls micropod.v1.RigService.GetRigHealth.
@@ -201,6 +236,16 @@ func (c *rigServiceClient) ControlMachine(ctx context.Context, req *connect.Requ
 	return c.controlMachine.CallUnary(ctx, req)
 }
 
+// SetMachineAutostart calls micropod.v1.RigService.SetMachineAutostart.
+func (c *rigServiceClient) SetMachineAutostart(ctx context.Context, req *connect.Request[v1.SetMachineAutostartRequest]) (*connect.Response[v1.HVFMachineStatus], error) {
+	return c.setMachineAutostart.CallUnary(ctx, req)
+}
+
+// SetupMachine calls micropod.v1.RigService.SetupMachine.
+func (c *rigServiceClient) SetupMachine(ctx context.Context, req *connect.Request[v1.SetupMachineRequest]) (*connect.Response[v1.SetupMachineResult], error) {
+	return c.setupMachine.CallUnary(ctx, req)
+}
+
 // RigServiceHandler is an implementation of the micropod.v1.RigService service.
 type RigServiceHandler interface {
 	// Mode, machine phase, cache disk and policy summary, staged payloads and
@@ -222,7 +267,9 @@ type RigServiceHandler interface {
 	// deferred like ApplyHVFUpdate.
 	RollbackHVFUpdate(context.Context, *connect.Request[v1.HVFUpdateRequest]) (*connect.Response[v1.HVFUpdateResult], error)
 	// The machine as every process sees it: assets, supervisor, phase, the
-	// published state. Never boots anything and never asks the guest.
+	// published state, and its autostart LaunchAgent. Never boots anything;
+	// while it runs, the guest is asked for its engine version, its
+	// containers and its cache disk (one second each).
 	GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
@@ -230,6 +277,20 @@ type RigServiceHandler interface {
 	// deferred (`failed_precondition`, nothing stopped) while containers run on
 	// a serving machine or its idleness cannot be confirmed, unless `force`.
 	ControlMachine(context.Context, *connect.Request[v1.ControlMachineRequest]) (*connect.Response[v1.HVFMachineStatus], error)
+	// Turn the machine's autostart LaunchAgent on or off (`micropod machine
+	// autostart on|off`): on, launchd starts the machine at login and stops it
+	// cleanly at logout. Loading or unloading the job restarts a running
+	// machine, so it is deferred (`failed_precondition`, nothing changed)
+	// while containers run, unless `force`. Replies with the machine status.
+	SetMachineAutostart(context.Context, *connect.Request[v1.SetMachineAutostartRequest]) (*connect.Response[v1.HVFMachineStatus], error)
+	// The machine's first run (`micropod setup`): its runtime files from the
+	// API's own app bundle or CLI package (or `payload_path`), its disk from
+	// `disk_from` or the package's base disk, and its cache disk; then a start
+	// when `start`. Local sources only: nothing is downloaded. Re-running
+	// keeps what is there. A step that cannot be done is a failed step in the
+	// reply (`ok` false), never a partial install: every source is checked
+	// before anything is written.
+	SetupMachine(context.Context, *connect.Request[v1.SetupMachineRequest]) (*connect.Response[v1.SetupMachineResult], error)
 }
 
 // NewRigServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -287,6 +348,18 @@ func NewRigServiceHandler(svc RigServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(rigServiceMethods.ByName("ControlMachine")),
 		connect.WithHandlerOptions(opts...),
 	)
+	rigServiceSetMachineAutostartHandler := connect.NewUnaryHandler(
+		RigServiceSetMachineAutostartProcedure,
+		svc.SetMachineAutostart,
+		connect.WithSchema(rigServiceMethods.ByName("SetMachineAutostart")),
+		connect.WithHandlerOptions(opts...),
+	)
+	rigServiceSetupMachineHandler := connect.NewUnaryHandler(
+		RigServiceSetupMachineProcedure,
+		svc.SetupMachine,
+		connect.WithSchema(rigServiceMethods.ByName("SetupMachine")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.RigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RigServiceGetRigHealthProcedure:
@@ -305,6 +378,10 @@ func NewRigServiceHandler(svc RigServiceHandler, opts ...connect.HandlerOption) 
 			rigServiceGetMachineStatusHandler.ServeHTTP(w, r)
 		case RigServiceControlMachineProcedure:
 			rigServiceControlMachineHandler.ServeHTTP(w, r)
+		case RigServiceSetMachineAutostartProcedure:
+			rigServiceSetMachineAutostartHandler.ServeHTTP(w, r)
+		case RigServiceSetupMachineProcedure:
+			rigServiceSetupMachineHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -344,4 +421,12 @@ func (UnimplementedRigServiceHandler) GetMachineStatus(context.Context, *connect
 
 func (UnimplementedRigServiceHandler) ControlMachine(context.Context, *connect.Request[v1.ControlMachineRequest]) (*connect.Response[v1.HVFMachineStatus], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.RigService.ControlMachine is not implemented"))
+}
+
+func (UnimplementedRigServiceHandler) SetMachineAutostart(context.Context, *connect.Request[v1.SetMachineAutostartRequest]) (*connect.Response[v1.HVFMachineStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.RigService.SetMachineAutostart is not implemented"))
+}
+
+func (UnimplementedRigServiceHandler) SetupMachine(context.Context, *connect.Request[v1.SetupMachineRequest]) (*connect.Response[v1.SetupMachineResult], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.RigService.SetupMachine is not implemented"))
 }
