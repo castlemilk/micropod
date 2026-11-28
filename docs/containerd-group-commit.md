@@ -100,7 +100,8 @@ are mounted once and then thrown away:
 
 - every pod's pause container (each pod is removed with its container);
 - the rootfs of a container removed at exit (`--rm`) or with a read-only
-  rootfs.
+  rootfs, unless one of its writable mounts is on the disk the layers are on
+  (a named volume, a bind of a guest directory).
 
 A container that keeps its rootfs runs on the engine's own snapshot
 (`docker_rootfs_linux.go`), which carries no such label and is mounted as
@@ -112,8 +113,16 @@ Durability lost, and why no one can tell: the content of an `--rm`
 container's rootfs or a pause rootfs if the machine crashes while it runs.
 After a crash recovery removes every pod and every AutoRemove container
 before the engine answers, so nothing can read that layer again; while the
-container runs, its reads see its writes as before. Volumes, binds and tmpfs
-are separate mounts and keep their own durability. The records-crash gate's
+container runs, its reads see its writes as before. A named volume is not a
+separate filesystem, though: it is a directory of the disk the layers are on,
+and the sync a plain layer's unmount makes is what put a container's unsynced
+volume writes on the disk at its exit. With every `--rm` layer volatile, a
+48 MiB file that `docker run --rm -v vol:/d` wrote without an fsync was empty
+after the VMM was killed as the run answered, in 5 of 5 trials, against whole
+in 5 of 5 on the build before. So a container with such a mount keeps a plain
+layer and its exit syncs as before (`writesLayerFilesystem`). A workspace bind
+(the Mac's filesystem), the cache stores (the cache disk) and tmpfs were never
+covered by that sync and keep their own durability. The records-crash gate's
 `rm-burst` kind kills the machine right after eight concurrent `--rm` starts
 answered and requires all eight gone after the relaunch.
 

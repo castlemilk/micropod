@@ -1477,9 +1477,11 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 				if err := c.Config.configure(cfg, mounts, containerExtras{Env: caches.env, RunAs: c.RunAs}); err != nil {
 					return err
 				}
-				if !c.retainsRootFS() {
+				if !c.retainsRootFS() && !writesLayerFilesystem(mounts) {
 					// CRI's scratch snapshot is this container's rootfs, and it
-					// goes when the container does (rootfs_volatile_linux.go).
+					// goes when the container does. One that writes a volume
+					// keeps the sync its exit gives that volume
+					// (rootfs_volatile_linux.go).
 					cfg.Annotations = withVolatileRootFS(cfg.Annotations)
 				}
 				if boostStartShares(cfg.Linux.Resources, startBoostWindow) {
