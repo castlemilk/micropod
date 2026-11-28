@@ -1232,6 +1232,10 @@ pub fn run_vm_with_parent(
             host_os: telemetry::TelemetryServer::make_host_os(),
             tracer: tracer.clone(),
             traces_endpoint: cfg.telemetry.traces_endpoint.clone(),
+            disks: [("os", &disk), ("cache", &cache_disk)]
+                .into_iter()
+                .filter_map(|(name, file)| Some((name, file.as_ref()?.try_clone().ok()?)))
+                .collect(),
         });
         let telemetry_server = telemetry::TelemetryServer::start(&cfg.telemetry, telemetry_source)?;
 

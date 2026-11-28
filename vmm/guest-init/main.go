@@ -18,7 +18,8 @@
 // device's), mp.published_path (macvlan | bridge | default), mp.worker /
 // mp.instance (engine identity), mp.sched_base_slice_ns (the fair
 // scheduler's base slice; default 0.4 ms, "default" keeps the kernel's;
-// sched.go).
+// sched.go), mp.idle_trim (seconds between idle trims of the disks, or
+// "off"; trim.go).
 //
 // Stopping: a host POWEROFF (or SIGTERM to PID 1) stops the engine within the
 // host's SHUTDOWN_BUDGET, remounts ext4 read-only and powers off (PSCI
@@ -330,6 +331,7 @@ func gracefulStop(workspace string, total time.Duration, orderly bool) {
 		deadline += orderlyStopSlack
 	}
 	armStopDeadline(deadline, orderly)
+	trimStopping.Store(true)
 	phases := splitShutdownBudget(total)
 	_ = syscall.Kill(-1, syscall.SIGTERM)
 	allGone := reapChildrenUntil(time.Now().Add(phases.term))
@@ -619,6 +621,7 @@ func stage2Supervise() {
 	}
 	_ = os.MkdirAll("/sys/fs/cgroup/worker", 0755)
 	configureSchedulerSlice(params)
+	startIdleTrim(params)
 
 	// Minimal /etc/resolv.conf & /etc/hosts for job engine DNS startup.
 	// Point host.docker.internal / host.micropod.internal at the eth0 egress

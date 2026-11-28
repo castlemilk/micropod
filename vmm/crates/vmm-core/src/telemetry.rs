@@ -311,6 +311,18 @@ pub struct TelemetrySource {
     pub service_name: String,
     pub worker_id: Option<String>,
     pub host_os: String,
+    /// The guest's disk files, by name ("os", "cache"), for their size and
+    /// the host storage they take (read at each sample, off the I/O path).
+    pub disks: Vec<(&'static str, std::fs::File)>,
+}
+
+/// One guest disk file: its size and the host storage it takes. A sparse
+/// file takes only what the guest wrote and has not discarded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiskUsage {
+    pub name: &'static str,
+    pub size_bytes: u64,
+    pub allocated_bytes: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -337,6 +349,10 @@ pub struct TelemetrySnapshot {
     pub blk_flush_syncs: u64,
     pub blk_flush_sync_usec: u64,
     pub blk_flush_sync_usec_max: u64,
+    pub blk_discard_ops: u64,
+    /// Bytes of the disk files the host freed for guest discards.
+    pub blk_discarded_bytes: u64,
+    pub disks: Vec<DiskUsage>,
     /// Read and write requests by data bytes, per `BLK_REQUEST_BYTES_BOUNDS`
     /// bucket (not cumulative).
     pub blk_read_sizes: [u64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
@@ -400,6 +416,20 @@ impl TelemetrySource {
             blk_flush_syncs: self.blk.flush_syncs.load(Ordering::Relaxed),
             blk_flush_sync_usec: self.blk.flush_sync_usec.load(Ordering::Relaxed),
             blk_flush_sync_usec_max: self.blk.flush_sync_usec_max.load(Ordering::Relaxed),
+            blk_discard_ops: self.blk.discard_ops.load(Ordering::Relaxed),
+            blk_discarded_bytes: self.blk.discarded_bytes.load(Ordering::Relaxed),
+            disks: self
+                .disks
+                .iter()
+                .filter_map(|(name, file)| {
+                    let md = file.metadata().ok()?;
+                    Some(DiskUsage {
+                        name,
+                        size_bytes: md.len(),
+                        allocated_bytes: md.blocks().saturating_mul(512),
+                    })
+                })
+                .collect(),
             blk_read_sizes: self
                 .blk
                 .read_sizes
@@ -526,6 +556,27 @@ impl TelemetrySource {
             "micropod_vmm_blk_ops_total{{op=\"flush\"}} {}\n",
             s.blk_flush_ops
         ));
+        out.push_str(&format!(
+            "micropod_vmm_blk_ops_total{{op=\"discard\"}} {}\nmicropod_vmm_blk_bytes_total{{op=\"discard\"}} {}\n",
+            s.blk_discard_ops, s.blk_discarded_bytes
+        ));
+        for (name, help, value) in [
+            (
+                "micropod_vmm_disk_size_bytes",
+                "Size of a guest disk's file on the host.",
+                (|d: &DiskUsage| d.size_bytes) as fn(&DiskUsage) -> u64,
+            ),
+            (
+                "micropod_vmm_disk_allocated_bytes",
+                "Host storage a guest disk's file takes: what the guest wrote and has not discarded (trimmed).",
+                |d: &DiskUsage| d.allocated_bytes,
+            ),
+        ] {
+            out.push_str(&format!("# HELP {name} {help}\n# TYPE {name} gauge\n"));
+            for d in &s.disks {
+                out.push_str(&format!("{name}{{disk=\"{}\"}} {}\n", d.name, value(d)));
+            }
+        }
         for (name, help, kind, value) in [
             (
                 "micropod_vmm_blk_flush_syncs_total",
@@ -1465,12 +1516,28 @@ mod tests {
     use std::os::unix::net::UnixStream;
 
     fn dummy_source(tracer: Arc<Tracer>, traces_endpoint: Option<String>) -> Arc<TelemetrySource> {
+        // A sparse 1 GiB disk file with 64 KiB written.
+        let path = std::env::temp_dir().join(format!("mp-tel-disk-{}.img", std::process::id()));
+        let disk = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        let _ = std::fs::remove_file(&path);
+        disk.set_len(1 << 30).unwrap();
+        std::os::unix::fs::FileExt::write_all_at(&disk, &[1u8; 64 << 10], 0).unwrap();
+        disk.sync_all().unwrap();
+        let disks = vec![("os", disk)];
         let blk = Arc::new(BlkMetrics::default());
         blk.read_ops.store(42, Ordering::Relaxed);
         blk.read_sizes[0].store(40, Ordering::Relaxed);
         blk.read_sizes[1].store(2, Ordering::Relaxed);
         blk.flush_sync_hist[1].store(5, Ordering::Relaxed);
         blk.flush_sync_usec.store(400, Ordering::Relaxed);
+        blk.discard_ops.store(3, Ordering::Relaxed);
+        blk.discarded_bytes.store(8192, Ordering::Relaxed);
         let fs = Arc::new(FsMetrics::default());
         fs.requests.store(99, Ordering::Relaxed);
         fs.nodes.store(7, Ordering::Relaxed);
@@ -1495,6 +1562,7 @@ mod tests {
             service_name: "micropod-vmm".into(),
             worker_id: Some("worker-test-1".into()),
             host_os: "25F".into(),
+            disks,
         })
     }
 
@@ -1672,6 +1740,19 @@ mod tests {
             )
         );
         assert!(prom.contains("micropod_vmm_blk_flush_sync_duration_microseconds_sum 400\n"));
+        assert!(prom.contains("micropod_vmm_blk_ops_total{op=\"discard\"} 3\n"));
+        assert!(prom.contains("micropod_vmm_blk_bytes_total{op=\"discard\"} 8192\n"));
+        assert!(prom.contains("micropod_vmm_disk_size_bytes{disk=\"os\"} 1073741824\n"));
+        let allocated: u64 = prom
+            .lines()
+            .find_map(|l| l.strip_prefix("micropod_vmm_disk_allocated_bytes{disk=\"os\"} "))
+            .expect("allocated bytes of the os disk")
+            .parse()
+            .unwrap();
+        assert!(
+            ((64 << 10)..(1 << 30)).contains(&allocated),
+            "a sparse disk's allocation {allocated} is what was written"
+        );
         assert!(prom.contains("micropod_vmm_virtiofs_requests_total 99"));
         assert!(
             prom.contains(
