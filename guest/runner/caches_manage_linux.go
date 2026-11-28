@@ -46,6 +46,20 @@ func (p *cachePlan) scopeFor(override string) string {
 	return p.Scope
 }
 
+// storeScope is the scope of the plan's store of a tool kind (the plan's
+// own scope when it names no such store).
+func (p *cachePlan) storeScope(kind string) string {
+	if p == nil {
+		return ""
+	}
+	for _, st := range p.Stores {
+		if st.Kind == kind {
+			return p.scopeFor(st.Scope)
+		}
+	}
+	return p.Scope
+}
+
 // parseCacheUnit splits a unit identifier ("gobuild" or "pip.u1000") into kind
 // and optional uid.
 func parseCacheUnit(unit string) (kind string, uid *uint32, ok bool) {

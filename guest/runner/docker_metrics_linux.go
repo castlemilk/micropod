@@ -21,12 +21,18 @@ type dockerMetrics struct {
 }
 
 // cacheMetrics counts auto-attach decisions: attaches per tool, skips per
-// reason (create-time rules and start-time busy/store failures), probes,
-// bounded LRU eviction measurements and the units prunes left to the crash
-// fence because they were marked dirty.
+// reason (create-time rules and start-time busy/store failures) in total and
+// per cache scope, probes, bounded LRU eviction measurements and the units
+// prunes left to the crash fence because they were marked dirty.
 type cacheMetrics struct {
-	mu                    sync.Mutex
-	attach, skips         map[string]uint64
+	mu            sync.Mutex
+	attach, skips map[string]uint64
+	// skipsByScope is skips by the scope of the store left out (a plan-level
+	// skip: the plan's scope), for the skips that have one. A scheduler reads
+	// it to tell which projects' readers find nothing (cache_skip_by_scope).
+	// At most maxSkipScopes scopes are named; later ones count under
+	// otherSkipScope.
+	skipsByScope          map[string]map[string]uint64
 	probes, probeFailures uint64
 	probeMS               int64
 	evictions             uint64
@@ -77,36 +83,65 @@ func (m *cacheMetrics) evictionSummary() cacheEvictionSummary {
 	}
 }
 
+// maxSkipScopes bounds cache_skip_by_scope: the machine's scopes are its
+// projects, and a scope past the bound counts under otherSkipScope.
+const (
+	maxSkipScopes  = 1024
+	otherSkipScope = "(other)"
+)
+
 func (m *cacheMetrics) recordPlan(p *cachePlan) {
 	if p == nil {
 		return
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.attach == nil {
-		m.attach, m.skips = map[string]uint64{}, map[string]uint64{}
-	}
 	if p.Reason != "" && len(p.Tools) == 0 {
-		m.skips[p.Reason]++
+		m.countSkip(p.Scope, p.Reason)
 	}
 	for tool, st := range p.Tools {
 		if st.Mode == "skipped" {
 			if st.Reason != skipNotSelected {
-				m.skips[st.Reason]++
+				m.countSkip(p.scopeFor(st.Scope), st.Reason)
 			}
 		} else {
+			if m.attach == nil {
+				m.attach = map[string]uint64{}
+			}
 			m.attach[tool]++
 		}
 	}
 }
 
-func (m *cacheMetrics) skip(reason string) {
+// skip counts a start-time skip of a store of scope ("" when the skip has
+// no scope, such as a legacy alias volume's).
+func (m *cacheMetrics) skip(scope, reason string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.countSkip(scope, reason)
+}
+
+func (m *cacheMetrics) countSkip(scope, reason string) {
 	if m.skips == nil {
-		m.attach, m.skips = map[string]uint64{}, map[string]uint64{}
+		m.skips = map[string]uint64{}
 	}
 	m.skips[reason]++
+	if scope == "" {
+		return
+	}
+	if m.skipsByScope == nil {
+		m.skipsByScope = map[string]map[string]uint64{}
+	}
+	reasons, ok := m.skipsByScope[scope]
+	if !ok && len(m.skipsByScope) >= maxSkipScopes {
+		scope = otherSkipScope
+		reasons = m.skipsByScope[scope]
+	}
+	if reasons == nil {
+		reasons = map[string]uint64{}
+		m.skipsByScope[scope] = reasons
+	}
+	reasons[reason]++
 }
 
 func (m *cacheMetrics) recordProbe(ms int64, ok bool) {
@@ -132,9 +167,17 @@ func (m *cacheMetrics) snapshot() map[string]any {
 	for k, v := range m.skips {
 		skips[k] = v
 	}
+	byScope := make(map[string]map[string]uint64, len(m.skipsByScope))
+	for scope, reasons := range m.skipsByScope {
+		byScope[scope] = make(map[string]uint64, len(reasons))
+		for k, v := range reasons {
+			byScope[scope][k] = v
+		}
+	}
 	return map[string]any{
 		"cache_attach":              attach,
 		"cache_skip":                skips,
+		"cache_skip_by_scope":       byScope,
 		"cache_probes":              m.probes,
 		"cache_probe_failures":      m.probeFailures,
 		"cache_probe_ms":            m.probeMS,

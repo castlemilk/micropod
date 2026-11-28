@@ -1771,7 +1771,7 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 			if _, _, shared := legacyCacheVolume(m.Source); shared && m.Type == "volume" {
 				if why := cacheDiskUnavailable(); why != "" {
 					log.Printf("cache volume %s at %s: no shared caches this boot (%s); the container gets a private directory", m.Source, m.Target, why)
-					s.metrics.cache.skip(skipNoCacheDisk)
+					s.metrics.cache.skip("", skipNoCacheDisk)
 				}
 			}
 		}

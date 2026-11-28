@@ -1311,8 +1311,8 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 	if m := dockerEnvMount(c.Config); m != nil {
 		mounts = append(mounts, m)
 	}
-	for _, reason := range caches.skipped {
-		s.metrics.cache.skip(reason)
+	for kind, reason := range caches.skipped {
+		s.metrics.cache.skip(c.Cache.storeScope(kind), reason)
 	}
 	f, err := os.OpenFile(c.logPath(), os.O_APPEND|os.O_WRONLY, 0)
 	if err == nil && c.LogError != "" {
