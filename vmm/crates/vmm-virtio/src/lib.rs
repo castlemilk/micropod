@@ -24,6 +24,7 @@ const VIRTIO_MMIO_VENDOR: u32 = 0x4d50_4f44; // "MPOD"
 
 const VIRTIO_F_VERSION_1: u64 = 1 << 32;
 const VIRTIO_F_EVENT_IDX: u64 = 1 << 29;
+const VIRTIO_RING_F_INDIRECT_DESC: u64 = 1 << 28;
 
 const VIRTQ_DESC_F_NEXT: u16 = 1;
 const VIRTQ_DESC_F_WRITE: u16 = 2;
@@ -953,6 +954,13 @@ impl VirtioBackend for VirtioRng {
 // ============================================================================
 // 2. Virtio-Blk (Device ID 2) — async zero-copy worker thread + coalesced flushes (DiskFlush)
 // ============================================================================
+/// Upper bounds, in bytes, of the block request-size histogram's buckets
+/// (`BlkMetrics::read_sizes`, `write_sizes`); one more bucket counts larger
+/// requests. A guest whose requests sit in the first bucket writes a page per
+/// request: what a device without `VIRTIO_BLK_F_SEG_MAX` gets.
+pub const BLK_REQUEST_BYTES_BOUNDS: [u64; 6] =
+    [4 << 10, 16 << 10, 64 << 10, 256 << 10, 1 << 20, 4 << 20];
+
 #[derive(Default)]
 pub struct BlkMetrics {
     pub read_ops: AtomicU64,
@@ -967,6 +975,10 @@ pub struct BlkMetrics {
     /// Time those host syncs took, in microseconds, and the longest one.
     pub flush_sync_usec: AtomicU64,
     pub flush_sync_usec_max: AtomicU64,
+    /// Read and write requests by data bytes (`BLK_REQUEST_BYTES_BOUNDS`,
+    /// not cumulative).
+    pub read_sizes: [AtomicU64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
+    pub write_sizes: [AtomicU64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
 }
 
 impl BlkMetrics {
@@ -975,6 +987,11 @@ impl BlkMetrics {
         self.flush_syncs.fetch_add(1, Ordering::Relaxed);
         self.flush_sync_usec.fetch_add(us, Ordering::Relaxed);
         self.flush_sync_usec_max.fetch_max(us, Ordering::Relaxed);
+    }
+
+    fn record_request(sizes: &[AtomicU64], bytes: u64) {
+        let bucket = BLK_REQUEST_BYTES_BOUNDS.partition_point(|&bound| bound < bytes);
+        sizes[bucket].fetch_add(1, Ordering::Relaxed);
     }
 }
 
@@ -1004,10 +1021,26 @@ pub struct VirtioBlk {
     worker_handle: Option<thread::JoinHandle<()>>,
 }
 
+const VIRTIO_BLK_F_SEG_MAX: u64 = 1 << 2;
 const VIRTIO_BLK_F_RO: u64 = 1 << 5;
 const VIRTIO_BLK_F_BLK_SIZE: u64 = 1 << 6;
 const VIRTIO_BLK_F_FLUSH: u64 = 1 << 9;
 const VIRTIO_BLK_F_DISCARD: u64 = 1 << 13;
+
+/// Host iovecs one block request is read or written with (one preadv or
+/// pwritev); a request with more data descriptors takes one call each.
+const BLK_IOVECS: usize = 64;
+/// Data segments per request the device offers (`VIRTIO_BLK_F_SEG_MAX`).
+/// Without it Linux sends one segment per request, so a write-out of
+/// scattered page-cache pages is a request per 4 KiB page: 16 x 128 MiB of
+/// random buffered writes and their fsync were 522,860 write requests and
+/// 3.5-3.6 s, with 62 segments 10,210 requests and 0.9-1.1 s (4 runs each,
+/// boots interleaved); a 1 GiB sequential read 2,700-2,960 requests against
+/// 294-302. With the header and status a full request is 64 descriptors,
+/// which indirect descriptors (`VIRTIO_RING_F_INDIRECT_DESC`) keep to one
+/// ring entry.
+const BLK_SEG_MAX: u32 = 62;
+const _: () = assert!(BLK_SEG_MAX as usize <= BLK_IOVECS);
 
 const VIRTIO_BLK_T_IN: u32 = 0;
 const VIRTIO_BLK_T_OUT: u32 = 1;
@@ -1058,6 +1091,7 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
     }
     let mut q_local: Option<VirtQueue> = None;
     let mut pending_flushes: Vec<(u16, u64)> = Vec::with_capacity(16);
+    let mut bufs: Vec<DescBuf> = Vec::with_capacity(BLK_IOVECS + 2);
 
     loop {
         if shared.shutdown.load(Ordering::Relaxed) {
@@ -1119,16 +1153,16 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
         let mut last_activity = Instant::now();
         let adaptive_spin = Duration::from_micros(30);
         let fd = shared.file.as_raw_fd();
-        let mut iovecs: [libc::iovec; 64] = [libc::iovec {
+        let mut iovecs: [libc::iovec; BLK_IOVECS] = [libc::iovec {
             iov_base: std::ptr::null_mut(),
             iov_len: 0,
-        }; 64];
+        }; BLK_IOVECS];
 
         loop {
             let mut used_any = false;
             pending_flushes.clear();
 
-            while let Some((head, bufs)) = q.pop(&mem) {
+            while let Some(head) = q.pop_into(&mem, &mut bufs) {
                 if bufs.len() < 2 {
                     q.push_used(&mem, head, 0);
                     used_any = true;
@@ -1210,6 +1244,7 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
                                 .metrics
                                 .read_bytes
                                 .fetch_add(total, Ordering::Relaxed);
+                            BlkMetrics::record_request(&shared.metrics.read_sizes, total);
                         }
                         VIRTIO_BLK_T_OUT if status == 0 => {
                             if shared.read_only {
@@ -1268,6 +1303,7 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
                                     .metrics
                                     .write_bytes
                                     .fetch_add(total, Ordering::Relaxed);
+                                BlkMetrics::record_request(&shared.metrics.write_sizes, total);
                             }
                         }
                         VIRTIO_BLK_T_FLUSH if status == 0 => {
@@ -1438,7 +1474,10 @@ impl VirtioBackend for VirtioBlk {
         2
     }
     fn features(&self) -> u64 {
-        let mut f = VIRTIO_BLK_F_BLK_SIZE | VIRTIO_BLK_F_FLUSH;
+        let mut f = VIRTIO_BLK_F_BLK_SIZE
+            | VIRTIO_BLK_F_FLUSH
+            | VIRTIO_BLK_F_SEG_MAX
+            | VIRTIO_RING_F_INDIRECT_DESC;
         if self.read_only {
             f |= VIRTIO_BLK_F_RO;
         } else {
@@ -1455,6 +1494,7 @@ impl VirtioBackend for VirtioBlk {
     fn read_config(&self, offset: u64, data: &mut [u8]) {
         let mut cfg = [0u8; 48];
         cfg[0..8].copy_from_slice(&self.capacity_sectors.to_le_bytes());
+        cfg[12..16].copy_from_slice(&BLK_SEG_MAX.to_le_bytes()); // seg_max
         cfg[20..24].copy_from_slice(&4096u32.to_le_bytes()); // blk_size
         cfg[36..40].copy_from_slice(&65536u32.to_le_bytes()); // max_discard_sectors (32 MiB)
         cfg[40..44].copy_from_slice(&16u32.to_le_bytes()); // max_discard_seg
@@ -1890,6 +1930,184 @@ mod tests {
         assert!(check.iter().all(|&b| b == 0));
         drop(f);
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// The device offers multi-segment requests (`seg_max` 62) in indirect
+    /// tables, and a request whose header, data segments and status all sit
+    /// in an indirect table is written and read back as one vectored call,
+    /// counted in the request-size histogram.
+    #[test]
+    fn virtio_blk_serves_multi_segment_requests_from_indirect_tables() {
+        const AVAIL: u64 = 0x200;
+        const USED: u64 = 0x300;
+        const SEG: u32 = 4096;
+        let path = std::env::temp_dir().join(format!("mp-blk-indirect-{}.img", std::process::id()));
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        file.set_len(1 << 20).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let metrics = Arc::new(BlkMetrics::default());
+        let block = VirtioBlk::new(
+            file.try_clone().unwrap(),
+            false,
+            metrics.clone(),
+            DiskFlush::default(),
+        )
+        .unwrap();
+        let mut backing = vec![0u64; 8192];
+        let mem = Arc::new(unsafe {
+            GuestMemory::new(backing.as_mut_ptr().cast(), 0, backing.len() * 8)
+        });
+        let mut dev = VirtioMmioDevice::new(32, mem.clone(), Box::new(block));
+        let features = dev.mmio_read(0x010, 4);
+        assert_ne!(features & VIRTIO_BLK_F_SEG_MAX, 0, "SEG_MAX offered");
+        assert_ne!(
+            features & VIRTIO_RING_F_INDIRECT_DESC,
+            0,
+            "indirect descriptors offered"
+        );
+        assert_eq!(dev.mmio_read(0x100 + 12, 4), u64::from(BLK_SEG_MAX));
+
+        let write_desc = |at: u64, addr: u64, len: u32, flags: u16, next: u16| {
+            mem.write_slice(at, 8)
+                .unwrap()
+                .copy_from_slice(&addr.to_le_bytes());
+            mem.write_u32(at + 8, len).unwrap();
+            mem.write_u16(at + 12, flags).unwrap();
+            mem.write_u16(at + 14, next).unwrap();
+        };
+        // Request 0 writes three segments at sector 8; request 1 reads them
+        // back into other pages. Each is ring descriptor `slot`, an indirect
+        // table of header, three data segments and the status byte.
+        let requests = [
+            (
+                0u16,
+                VIRTIO_BLK_T_OUT,
+                0x1000u64,
+                0x1800u64,
+                0x2000u64,
+                0x5800u64,
+            ),
+            (1u16, VIRTIO_BLK_T_IN, 0x1100, 0x1880, 0x9000, 0xc000),
+        ];
+        for (seg, byte) in (0..3u64).zip([0x11u8, 0x22, 0x33]) {
+            mem.write_slice(0x2000 + seg * u64::from(SEG), SEG as usize)
+                .unwrap()
+                .fill(byte);
+        }
+        for (slot, kind, table, header, data, status) in requests {
+            mem.write_u32(header, kind).unwrap();
+            mem.write_slice(header + 8, 8)
+                .unwrap()
+                .copy_from_slice(&8u64.to_le_bytes());
+            mem.write_slice(status, 1).unwrap()[0] = 0xff;
+            let data_flags = if kind == VIRTIO_BLK_T_IN {
+                VIRTQ_DESC_F_WRITE | VIRTQ_DESC_F_NEXT
+            } else {
+                VIRTQ_DESC_F_NEXT
+            };
+            write_desc(table, header, 16, VIRTQ_DESC_F_NEXT, 1);
+            for seg in 0..3u16 {
+                write_desc(
+                    table + 16 * u64::from(seg + 1),
+                    data + u64::from(seg) * u64::from(SEG),
+                    SEG,
+                    data_flags,
+                    seg + 2,
+                );
+            }
+            write_desc(table + 64, status, 1, VIRTQ_DESC_F_WRITE, 0);
+            write_desc(
+                0x100 + 16 * u64::from(slot),
+                table,
+                5 * 16,
+                VIRTQ_DESC_F_INDIRECT,
+                0,
+            );
+            mem.write_u16(AVAIL + 4 + 2 * u64::from(slot), slot)
+                .unwrap();
+        }
+        // The driver takes every offered feature, as Linux does.
+        for (reg, value) in [
+            (0x024, 0),
+            (0x020, features),
+            (0x024, 1),
+            (0x020, VIRTIO_F_VERSION_1 >> 32),
+            (0x030, 0),
+            (0x038, 4),
+            (0x080, 0x100),
+            (0x090, AVAIL),
+            (0x0a0, USED),
+            (0x044, 1),
+        ] {
+            dev.mmio_write(reg, 4, value);
+        }
+        for done in 1..=2u16 {
+            mem.write_u16_release(AVAIL + 2, done).unwrap();
+            dev.mmio_write(0x050, 4, 0);
+            let limit = Instant::now() + Duration::from_secs(2);
+            while mem.read_u16_acquire(USED + 2) != Some(done) {
+                assert!(Instant::now() < limit, "request {done} never completed");
+                thread::yield_now();
+            }
+        }
+        for (_, _, _, _, _, status) in requests {
+            assert_eq!(mem.read_slice(status, 1).unwrap(), &[0]);
+        }
+        let mut on_disk = vec![0u8; 3 * SEG as usize];
+        file.read_exact_at(&mut on_disk, 8 * 512).unwrap();
+        assert_eq!(mem.read_slice(0x2000, on_disk.len()).unwrap(), &on_disk[..]);
+        assert_eq!(mem.read_slice(0x9000, on_disk.len()).unwrap(), &on_disk[..]);
+        assert_eq!(on_disk[2 * SEG as usize], 0x33);
+        // 12 KiB each: the second bucket (4-16 KiB).
+        let counts = |sizes: &[AtomicU64]| -> Vec<u64> {
+            sizes.iter().map(|c| c.load(Ordering::Relaxed)).collect()
+        };
+        assert_eq!(counts(&metrics.write_sizes), [0, 1, 0, 0, 0, 0, 0]);
+        assert_eq!(counts(&metrics.read_sizes), [0, 1, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            metrics.write_bytes.load(Ordering::Relaxed),
+            3 * u64::from(SEG)
+        );
+
+        // A snapshot keeps the negotiated indirect descriptors, and a device
+        // restored from it serves the next indirect request.
+        let snap = dev.snapshot_pause();
+        assert_ne!(snap.driver_features & VIRTIO_RING_F_INDIRECT_DESC, 0);
+        drop(dev);
+        let block = VirtioBlk::new(file, false, metrics.clone(), DiskFlush::default()).unwrap();
+        let mut dev = VirtioMmioDevice::new(32, mem.clone(), Box::new(block));
+        dev.snapshot_restore(&snap).unwrap();
+        mem.write_slice(0x9000, on_disk.len()).unwrap().fill(0);
+        mem.write_slice(0xc000, 1).unwrap()[0] = 0xff;
+        mem.write_u16(AVAIL + 4 + 2 * 2, 1).unwrap();
+        mem.write_u16_release(AVAIL + 2, 3).unwrap();
+        dev.mmio_write(0x050, 4, 0);
+        let limit = Instant::now() + Duration::from_secs(2);
+        while mem.read_u16_acquire(USED + 2) != Some(3) {
+            assert!(
+                Instant::now() < limit,
+                "the restored device never completed"
+            );
+            thread::yield_now();
+        }
+        assert_eq!(mem.read_slice(0xc000, 1).unwrap(), &[0]);
+        assert_eq!(mem.read_slice(0x9000, on_disk.len()).unwrap(), &on_disk[..]);
+    }
+
+    #[test]
+    fn blk_request_sizes_fall_in_their_buckets() {
+        let sizes: [AtomicU64; BLK_REQUEST_BYTES_BOUNDS.len() + 1] = Default::default();
+        for bytes in [0, 512, 4096, 4097, 16384, 1 << 20, (4 << 20) + 1, u64::MAX] {
+            BlkMetrics::record_request(&sizes, bytes);
+        }
+        let counts: Vec<u64> = sizes.iter().map(|c| c.load(Ordering::Relaxed)).collect();
+        assert_eq!(counts, [3, 2, 0, 0, 1, 0, 2]);
     }
 
     /// A guest's VIRTIO_BLK_T_FLUSH reaches the host as the device's flush
