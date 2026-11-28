@@ -275,10 +275,8 @@ func (n node) jobCaches(ctx context.Context, image string, j job, c *cri.Contain
 
 func podConfig(id, dir string) *cri.PodSandboxConfig {
 	profile := &cri.SecurityProfile{ProfileType: cri.SecurityProfile_RuntimeDefault}
-	// The pause container's rootfs goes with its pod (rootfs_volatile_linux.go).
 	return &cri.PodSandboxConfig{Metadata: &cri.PodSandboxMetadata{Name: "mp-" + id, Namespace: "micropod-ci", Uid: id},
-		Hostname: "mp-" + id, LogDirectory: dir, Labels: map[string]string{owner: id}, Annotations: withVolatileRootFS(nil),
-		Linux: &cri.LinuxPodSandboxConfig{SecurityContext: &cri.LinuxSandboxSecurityContext{Seccomp: profile}}}
+		Hostname: "mp-" + id, LogDirectory: dir, Labels: map[string]string{owner: id}, Linux: &cri.LinuxPodSandboxConfig{SecurityContext: &cri.LinuxSandboxSecurityContext{Seccomp: profile}}}
 }
 
 // A job's (and a Docker container's) resources unless it asks for others:

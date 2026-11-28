@@ -65,13 +65,23 @@ func (n node) newPod(ctx context.Context, handler string) (p ownedPod, err error
 	if err = syscall.Mount("tmpfs", dir, "tmpfs", syscall.MS_NODEV|syscall.MS_NOSUID|syscall.MS_NOEXEC, "size=8m,mode=0700"); err != nil {
 		return p, err
 	}
-	pod := podConfig(p.id, dir)
-	result, err := n.runPodSandbox(ctx, &cri.RunPodSandboxRequest{Config: pod, RuntimeHandler: handler})
+	result, err := n.runPodSandbox(ctx, &cri.RunPodSandboxRequest{Config: sandboxConfig(p.id, dir, handler), RuntimeHandler: handler})
 	if err != nil {
 		return p, fmt.Errorf("start %s pod: %w", handler, err)
 	}
 	p.pod = result.PodSandboxId
 	return p, n.attest(ctx, p, handler)
+}
+
+// sandboxConfig is a new pod's configuration. A crun pod's pause rootfs goes
+// with the pod, so it asks for a volatile layer (rootfs_volatile_linux.go);
+// an untrusted Kata job's pod carries no annotation at all.
+func sandboxConfig(id, dir, handler string) *cri.PodSandboxConfig {
+	pod := podConfig(id, dir)
+	if handler == "crun" {
+		pod.Annotations = withVolatileRootFS(pod.Annotations)
+	}
+	return pod
 }
 
 // runPodSandbox names the engine's sandbox lease (runtime_lease_linux.go),

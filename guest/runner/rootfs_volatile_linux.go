@@ -11,8 +11,9 @@ package main
 // (and turns fsync inside it into a no-op), and the kernel refuses to mount
 // its upper a second time.
 //
-// So only the writable layers that live for one mount get it: the pod's
-// pause container (every pod is removed when its container exits), and the
+// So only the writable layers that live for one mount get it: a crun pod's
+// pause container (every pod is removed when its container exits; an
+// untrusted Kata job's pod carries no annotation), and the
 // rootfs of a container removed at its exit (AutoRemove) or with a read-only
 // rootfs (nothing is written there). A container that keeps its rootfs runs
 // on the engine's own snapshot instead (docker_rootfs_linux.go), mounted as
