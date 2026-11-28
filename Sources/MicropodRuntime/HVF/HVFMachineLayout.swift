@@ -120,6 +120,11 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var runDirectory: URL { root.appendingPathComponent("run") }
     public var dockerSocket: URL { dockerSocketOverride ?? runDirectory.appendingPathComponent("docker.sock") }
     public var buildkitSocket: URL { runDirectory.appendingPathComponent("buildkit.sock") }
+    /// micropod-vmm's own telemetry (owner-only): `GET /metrics` is its
+    /// counters in Prometheus text (disk requests by size, host flush time,
+    /// discards and each disk file's host allocation, vCPU exits, virtio-fs
+    /// and network), `/healthz` the same as JSON.
+    public var vmmTelemetrySocket: URL { runDirectory.appendingPathComponent("vmm-telemetry.sock") }
     public var supervisorLock: URL { runDirectory.appendingPathComponent("supervisor.lock") }
     public var startLock: URL { runDirectory.appendingPathComponent("start.lock") }
     public var installLock: URL { runDirectory.appendingPathComponent("install.lock") }
@@ -233,7 +238,8 @@ public struct HVFMachineLayout: Sendable, Equatable {
 
     /// Unix socket path lengths, and paths the VMM parses as `a:b[:ro]`.
     public func validatePaths() throws {
-        for socket in [dockerSocket.path, buildkitSocket.path] where socket.utf8.count > Self.maxSocketPathBytes {
+        for socket in [dockerSocket.path, buildkitSocket.path, vmmTelemetrySocket.path]
+        where socket.utf8.count > Self.maxSocketPathBytes {
             throw MicropodError.message(
                 "invalidArgument: hvf socket path \(socket) is \(socket.utf8.count) bytes; unix sockets allow "
                     + "\(Self.maxSocketPathBytes). Use a shorter MICROPOD_HVF_ROOT")
@@ -637,6 +643,11 @@ public enum HVFVMMCommand {
             args += [HVFVMMFeatures.osDiskFlushFlag, osDiskFlush]
         }
         if !config.console { args.append("--quiet") }
+        // Its counters cost nothing until read; configured arguments may name
+        // another socket instead.
+        if !config.extraArguments.contains("--telemetry-socket") {
+            args += ["--telemetry-socket", layout.vmmTelemetrySocket.path]
+        }
         args += [
             "--shutdown-timeout", String(config.shutdownTimeoutSeconds), "--json-summary",
             "--parent-pid", String(parentPID),
