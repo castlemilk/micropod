@@ -208,12 +208,27 @@ final class HVFMachineTests: XCTestCase {
                 "--cpus", "4", "--memory-mib", "4096", "--cmdline-append", "mp.config=1",
                 "--cmdline-append", "loglevel=6",
                 "--cmdline-append", "psi=1",
+                "--telemetry-socket", "\(root.path)/run/vmm-telemetry.sock",
                 "--shutdown-timeout", "10", "--json-summary", "--parent-pid", "4242",
             ])
         XCTAssertFalse(args.contains("--cmdline"), "the VMM's own kernel command line is never replaced")
         let defaults = try HVFVMMCommand.arguments(layout: layout, config: HVFMachineConfig(), parentPID: 1)
         XCTAssertEqual(
             defaults.firstIndex(of: "--workspace").map { defaults[$0 + 1] }, HVFMachineConfig.defaultWorkspace)
+    }
+
+    /// The VMM always serves its telemetry on the machine's own socket,
+    /// unless machine.json `extraArguments` names another.
+    func testTheVMMServesItsTelemetryOnTheMachineSocketUnlessConfiguredOtherwise() throws {
+        let args = try HVFVMMCommand.arguments(layout: layout, config: HVFMachineConfig(workspace: nil), parentPID: 1)
+        XCTAssertEqual(
+            args.firstIndex(of: "--telemetry-socket").map { args[$0 + 1] }, layout.vmmTelemetrySocket.path)
+        let other = try HVFVMMCommand.arguments(
+            layout: layout,
+            config: HVFMachineConfig(workspace: nil, extraArguments: ["--telemetry-socket", "/tmp/elsewhere.sock"]),
+            parentPID: 1)
+        XCTAssertEqual(other.filter { $0 == "--telemetry-socket" }.count, 1, "\(other)")
+        XCTAssertEqual(other.suffix(2), ["--telemetry-socket", "/tmp/elsewhere.sock"])
     }
 
     /// The standard machine's root sits in the default workspace (the home
