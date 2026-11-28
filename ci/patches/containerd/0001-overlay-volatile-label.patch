@@ -1,0 +1,114 @@
+diff --git a/internal/cri/server/container_create_linux.go b/internal/cri/server/container_create_linux.go
+index bb98b3d..6ef0a54 100644
+--- a/internal/cri/server/container_create_linux.go
++++ b/internal/cri/server/container_create_linux.go
+@@ -108,5 +108,16 @@ func (c *criService) containerSpecOpts(config *runtime.ContainerConfig, imageCon
+ // snapshotterOpts returns any Linux specific snapshotter options for the rootfs snapshot
+ func snapshotterOpts(config *runtime.ContainerConfig) ([]snapshots.Opt, error) {
+ 	nsOpts := config.GetLinux().GetSecurityContext().GetNamespaceOptions()
+-	return snapshotterRemapOpts(nsOpts)
++	opts, err := snapshotterRemapOpts(nsOpts)
++	if err != nil {
++		return nil, err
++	}
++	// Micropod: the overlay snapshotter's volatile label, from the container's
++	// annotation of the same name (a pod's annotations reach its sandbox's
++	// snapshot through FilterInheritedLabels already).
++	const volatileLabel = "containerd.io/snapshot/overlay.volatile"
++	if v := config.GetAnnotations()[volatileLabel]; v != "" {
++		opts = append(opts, snapshots.WithLabels(map[string]string{volatileLabel: v}))
++	}
++	return opts, nil
+ }
+diff --git a/plugins/snapshots/overlay/overlay.go b/plugins/snapshots/overlay/overlay.go
+index c56ffe5..2f3c7a7 100644
+--- a/plugins/snapshots/overlay/overlay.go
++++ b/plugins/snapshots/overlay/overlay.go
+@@ -40,6 +40,10 @@ import (
+ // the change set between this snapshot and its parent is stored.
+ const upperdirKey = "containerd.io/snapshot/overlay.upperdir"
+ 
++// volatileLabel marks an active snapshot that is mounted once and removed
++// after its single use: its overlay is mounted with the volatile option.
++const volatileLabel = "containerd.io/snapshot/overlay.volatile"
++
+ // SnapshotterConfig is used to configure the overlay snapshotter instance
+ type SnapshotterConfig struct {
+ 	asyncRemove   bool
+@@ -588,6 +592,12 @@ func (o *snapshotter) mounts(s storage.Snapshot, info snapshots.Info) []mount.Mo
+ 			fmt.Sprintf("workdir=%s", o.workPath(s.ID)),
+ 			fmt.Sprintf("upperdir=%s", o.upperPath(s.ID)),
+ 		)
++		// Micropod: an active snapshot whose owner discards it after one
++		// mount asks for a volatile overlay (no sync at its unmount, fsync a
++		// no-op). The kernel then refuses a second mount of it.
++		if info.Labels[volatileLabel] == "true" {
++			options = append(options, "volatile")
++		}
+ 	} else if len(s.ParentIDs) == 1 {
+ 		return []mount.Mount{
+ 			{
+diff --git a/plugins/snapshots/overlay/overlay_volatile_test.go b/plugins/snapshots/overlay/overlay_volatile_test.go
+new file mode 100644
+index 0000000..31dfe57
+--- /dev/null
++++ b/plugins/snapshots/overlay/overlay_volatile_test.go
+@@ -0,0 +1,58 @@
++//go:build linux
++
++package overlay
++
++import (
++	"context"
++	"slices"
++	"testing"
++
++	"github.com/containerd/containerd/v2/core/snapshots"
++)
++
++// Micropod: an active snapshot labelled volatile mounts with the volatile
++// option, at Prepare and at every later Mounts; one without the label, or a
++// view, does not.
++func TestOverlayVolatileLabel(t *testing.T) {
++	ctx := context.TODO()
++	o, err := NewSnapshotter(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer o.Close()
++	if _, err := o.Prepare(ctx, "base-active", ""); err != nil {
++		t.Fatal(err)
++	}
++	if err := o.Commit(ctx, "base", "base-active"); err != nil {
++		t.Fatal(err)
++	}
++	volatile := snapshots.WithLabels(map[string]string{volatileLabel: "true"})
++	for _, tc := range []struct {
++		key  string
++		opts []snapshots.Opt
++		view bool
++		want bool
++	}{
++		{"labelled", []snapshots.Opt{volatile}, false, true},
++		{"plain", nil, false, false},
++		{"labelled-view", []snapshots.Opt{volatile}, true, false},
++	} {
++		prepare := o.Prepare
++		if tc.view {
++			prepare = o.View
++		}
++		at, err := prepare(ctx, tc.key, "base", tc.opts...)
++		if err != nil {
++			t.Fatal(err)
++		}
++		later, err := o.Mounts(ctx, tc.key)
++		if err != nil {
++			t.Fatal(err)
++		}
++		for _, m := range [][]string{at[0].Options, later[0].Options} {
++			if slices.Contains(m, "volatile") != tc.want {
++				t.Errorf("%s: options %q, want volatile %v", tc.key, m, tc.want)
++			}
++		}
++	}
++}

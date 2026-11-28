@@ -15,6 +15,9 @@ type dockerMetrics struct {
 	creates, completions, failures, imageHits, prepared, sharedMounts atomic.Uint64
 	podMS, createMS, startMS                                          atomic.Int64
 	cache                                                             cacheMetrics
+	startBoost                                                        startBoostMetrics
+	// start: request to process running; teardown: exit to pod removed.
+	startPhase, teardownPhase phaseHistogram
 }
 
 // cacheMetrics counts auto-attach decisions: attaches per tool, skips per
@@ -171,5 +174,10 @@ func (m *dockerMetrics) snapshot() map[string]any {
 	for k, v := range m.cache.snapshot() {
 		out[k] = v
 	}
+	for k, v := range m.startBoost.snapshot() {
+		out[k] = v
+	}
+	out["start_ms_histogram"] = m.startPhase.snapshot()
+	out["teardown_ms_histogram"] = m.teardownPhase.snapshot()
 	return out
 }

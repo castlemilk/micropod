@@ -1,5 +1,8 @@
 #!/bin/bash
 # The runner uses standalone containerd, its OCI shim and crun. No engine is needed to build it.
+# containerd itself is built from its release source with Micropod's patches
+# (ci/build-containerd.sh); the shim, ctr, BuildKit and the CNI plugins are
+# the nerdctl-full bundle's.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 allocation=false
@@ -22,11 +25,12 @@ stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 runner="$stage/runner"
 mkdir -p "$runner/bin" "$runner/cni"
-members=(bin/containerd bin/containerd-shim-runc-v2 bin/ctr bin/buildkitd)
+members=(bin/containerd-shim-runc-v2 bin/ctr bin/buildkitd)
 if "$allocation"; then members+=(bin/rootlesskit); fi
 for plugin in bridge macvlan host-local loopback; do members+=("libexec/cni/$plugin"); done
 tar -xzf "$bundle" -C "$stage" "${members[@]}"
 install -m 0755 "$stage"/bin/* "$runner/bin/"
+bash "$root/ci/build-containerd.sh" "$runner/bin/containerd"
 install -m 0755 "$stage"/libexec/cni/* "$root/ci/runner/micropod-bridge" "$runner/cni/"
 install -m 0644 "$root"/ci/runner/*.toml "$root"/ci/runner/*.conflist "$runner/"
 install -m 0755 "$root/ci/runner/start.sh" "$root/ci/runner/published-ports.sh" "$root/ci/runner/rootless.sh" "$runner/"
@@ -41,7 +45,7 @@ if [ "$commit" != unknown ] && [ -n "$(git -C "$root" status --porcelain -- gues
 # caller's GOFLAGS replaces the machine-wide setting.
 (cd "$root/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
     go build -trimpath -ldflags "-X main.engineCommit=$commit" -o "$runner/bin/job" .)
-needs=(bin/buildkitd bin/ctr bin/job buildkitd.toml start.sh)
+needs=(bin/containerd bin/buildkitd bin/ctr bin/job buildkitd.toml start.sh)
 if ! "$allocation"; then needs+=(emulators/qemu-x86_64 emulators/qemu-x86_64.copyright emulators/SOURCE); fi
 for need in "${needs[@]}"; do
     [ -s "$runner/$need" ] || { echo "guest tool bundle is missing runner/$need" >&2; exit 1; }

@@ -24,6 +24,13 @@ supervisor's relaunch and checks what the engine recovered:
              every answered one present, same config
   rm-created create with AutoRemove, never started: absent, or present whole
   rm-started create with AutoRemove and start (sleep): absent (cleaned up)
+  start-burst eight creates and starts at once (sleep): containerd commits
+             their pods' and containers' records together (group commit,
+             docs/containerd-group-commit.md): every answered one present,
+             not running, neither created nor a success, and one starts and
+             runs again after the crash
+  rm-burst   eight AutoRemove starts at once (sleep): their writable layers
+             are volatile overlays (rootfs_volatile_linux.go): all absent
   volume     a named volume with labels: present, same labels
   network    a bridge network with labels: present, same labels, and a
              container started on it runs and reads a resolver
@@ -198,7 +205,29 @@ def frames(raw):
     return out.decode(errors="replace")
 
 
-KINDS = ["created", "exited", "running", "burst", "rm-created", "rm-started", "volume", "network", "on-network"]
+KINDS = ["created", "exited", "running", "burst", "rm-created", "rm-started", "volume", "network", "on-network", "start-burst", "rm-burst"]
+BURST_STARTS = 8
+
+
+def start_burst(kind, trial, t, auto_remove):
+    """BURST_STARTS creates and starts at once; the answered IDs."""
+    ids, errs = [None] * BURST_STARTS, []
+
+    def one(i):
+        try:
+            cid = create("%s%d-%s" % ("rcx" if auto_remove else "rcy", i, t), container_body(kind, trial, ["sleep", "600"], auto_remove=auto_remove))
+            start(cid)
+            ids[i] = cid
+        except Exception as e:  # noqa: BLE001 - recorded below
+            errs.append(str(e))
+    th = [threading.Thread(target=one, args=(i,)) for i in range(BURST_STARTS)]
+    for x in th:
+        x.start()
+    for x in th:
+        x.join()
+    if errs:
+        raise RuntimeError("%s: %s" % (kind, errs[0]))
+    return ids
 QUIET = float(os.environ.get("GATE_QUIET_S", "6"))
 
 
@@ -265,6 +294,10 @@ def run_trial(trial, offset_ms):
             answered["rm-started"] = cid
         elif kind == "on-network":
             answered["on-network"] = create("rco-" + t, container_body("on-network", trial, ["true"], network="rcn-" + t))
+        elif kind == "start-burst":
+            answered["start-burst"] = start_burst("start-burst", trial, t, False)
+        elif kind == "rm-burst":
+            answered["rm-burst"] = start_burst("rm-burst", trial, t, True)
     last = time.perf_counter()
     while (time.perf_counter() - last) * 1000 < offset_ms:
         time.sleep(0.0005)
@@ -357,7 +390,22 @@ def verify(trial, answered, vmm, actual, order):
         nets = list(((info or {}).get("NetworkSettings") or {}).get("Networks") or {})
         good = info is not None and same_config(info, "on-network", trial) and "rcn-" + t in nets
         ok &= record(sec, "a container created on that network survives on it", nets if info else "absent", "['rcn-%s']" % t, good)
-    unexpected = [c["Id"][:12] for c in listed if c["Labels"].get("rc-kind") == "rm-started"]
+    if "start-burst" in answered:
+        infos = [inspect(i) for i in answered["start-burst"]]
+        bad = [i[:12] for i, info in zip(answered["start-burst"], infos)
+               if info is None or info["State"]["Running"] or info["State"]["Status"] == "created" or info["State"]["ExitCode"] == 0 or not same_config(info, "start-burst", trial)]
+        ok &= record(sec, "all %d concurrent starts survive whole, not running, neither created nor a success" % BURST_STARTS, bad, "[]", not bad)
+        if not bad:
+            cid = answered["start-burst"][0]
+            start(cid)
+            info = inspect(cid)
+            running = bool(info and info["State"]["Running"])
+            ok &= record(sec, "one of them starts again and runs (containerd makes new pods after the crash)", running, True, running)
+            call("POST", "/containers/%s/kill" % cid)
+    if "rm-burst" in answered:
+        left = [i[:12] for i in answered["rm-burst"] if inspect(i) is not None]
+        ok &= record(sec, "all %d concurrent AutoRemove starts are cleaned up" % BURST_STARTS, left, "[]", not left)
+    unexpected = [c["Id"][:12] for c in listed if c["Labels"].get("rc-kind") in ("rm-started", "rm-burst")]
     ok &= record(sec, "no AutoRemove leftover is listed", unexpected, "[]", not unexpected)
     return ok
 

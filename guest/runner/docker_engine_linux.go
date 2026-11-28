@@ -1194,6 +1194,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 		s.capacity.starting.Add(-1)
 		if startErr == nil {
 			s.capacity.recordStart(time.Since(begun))
+			s.metrics.startPhase.observe(time.Since(begun))
 			return
 		}
 		s.mu.Lock()
@@ -1394,6 +1395,10 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 		}
 		defer releaseStart()
 		j := job{Trust: "trusted", Image: c.ImageID}
+		// A start whose cgroup crun creates at the boosted weight, and the
+		// timer that gives the default weight back (docker_start_boost_linux.go).
+		var boosted bool
+		var boostEnd *time.Timer
 		var parentHeld bool
 		var bridgeRetireErr error
 		hooks := processHooks{
@@ -1469,10 +1474,25 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 				if resolver != "" {
 					mounts = append(mounts, &cri.Mount{HostPath: resolver, ContainerPath: "/etc/resolv.conf", Readonly: true})
 				}
-				return c.Config.configure(cfg, mounts, containerExtras{Env: caches.env, RunAs: c.RunAs})
+				if err := c.Config.configure(cfg, mounts, containerExtras{Env: caches.env, RunAs: c.RunAs}); err != nil {
+					return err
+				}
+				if !c.retainsRootFS() {
+					// CRI's scratch snapshot is this container's rootfs, and it
+					// goes when the container does (rootfs_volatile_linux.go).
+					cfg.Annotations = withVolatileRootFS(cfg.Annotations)
+				}
+				if boostStartShares(cfg.Linux.Resources, startBoostWindow) {
+					s.metrics.startBoost.boosted.Add(1)
+					boosted = true
+				}
+				return nil
 			},
 			started: func(id string) {
 				releaseStart()
+				if boosted {
+					boostEnd = s.scheduleStartBoostEnd(dockerRuntimeCgroup(dockerRuntimeCgroupRoot, jobParent, id), startBoostWindow)
+				}
 				s.mu.Lock()
 				c.RuntimeID = id
 				c.archive = newDockerLiveArchive(files, mounts)
@@ -1500,6 +1520,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 			hooks.output = write
 			hooks.runtimeLogDir = c.dir()
 		}
+		hooks.tornDown = s.metrics.teardownPhase.observe
 		if c.retainsRootFS() {
 			hooks.bindRootFS = func(ctx context.Context, pod ownedPod, id string) (*dockerRootFSBinding, error) {
 				return s.bindDockerRootFS(ctx, c, pod, id)
@@ -1514,6 +1535,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 			}
 		}
 		res, runErr := s.node.runProcess(ctx, j, "crun", hooks)
+		if boostEnd != nil {
+			boostEnd.Stop() // the container and its cgroup are gone
+		}
 		runErr = errors.Join(runErr, bridgeRetireErr)
 		if console != nil {
 			runErr = errors.Join(runErr, console.finish(ctx))

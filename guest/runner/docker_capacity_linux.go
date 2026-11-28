@@ -79,6 +79,7 @@ type kernelSample struct {
 	osDiskTotal, osDiskFree uint64
 	cacheDisk               bool
 	cacheTotal, cacheFree   uint64
+	osIO, cacheIO           diskIO
 	inotifyInstancesMax     uint64
 	cpus                    int
 }
@@ -109,6 +110,13 @@ func (c *capacityState) recordStart(d time.Duration) {
 	c.latencies[c.latencyN%startLatencyWindow] = uint32(ms)
 	c.latencyN++
 	c.latencyMu.Unlock()
+}
+
+// startsTotal is how many starts finished since the engine started.
+func (c *capacityState) startsTotal() uint64 {
+	c.latencyMu.Lock()
+	defer c.latencyMu.Unlock()
+	return c.latencyN
 }
 
 // startLatency is the p50 and p95 of the latest starts (create's answer to
@@ -261,7 +269,53 @@ func (c *capacityState) read(previous kernelSample) kernelSample {
 	if cacheDiskMounted() {
 		s.cacheTotal, s.cacheFree, s.cacheDisk = statfsBytes(cacheRoot)
 	}
+	if b, err := os.ReadFile(c.proc + "/diskstats"); err == nil {
+		s.osIO = diskIOOf(string(b), engineRoot)
+		if s.cacheDisk {
+			s.cacheIO = diskIOOf(string(b), cacheRoot)
+		}
+	}
 	return s
+}
+
+// diskIO is a disk's I/O since boot, from /proc/diskstats: writes, bytes
+// written, and cache flushes with the time they took. Every containerd
+// metadata commit is two flushes, and every non-volatile overlay unmount
+// one more, so flushes per container start (with the engine's starts_total)
+// shows the commits a start costs, and flush_ms per flush what a flush costs
+// with the machine's other writers (profiling CONFIRMED.md §6: 58 flushes per
+// container; 1.06 against 0.53 guest ms per flush with volatile layers).
+type diskIO struct {
+	Device     string `json:"device"`
+	Writes     uint64 `json:"writes"`
+	WriteBytes uint64 `json:"write_bytes"`
+	Flushes    uint64 `json:"flushes"`
+	FlushMS    uint64 `json:"flush_ms"`
+}
+
+// diskIOOf is the diskstats line of the device that holds path. Kernels
+// before 5.5 have no flush fields; they read as zero.
+func diskIOOf(diskstats, path string) diskIO {
+	var st unix.Stat_t
+	if unix.Stat(path, &st) != nil {
+		return diskIO{}
+	}
+	major, minor := strconv.FormatUint(uint64(unix.Major(st.Dev)), 10), strconv.FormatUint(uint64(unix.Minor(st.Dev)), 10)
+	for _, line := range strings.Split(diskstats, "\n") {
+		f := strings.Fields(line)
+		if len(f) < 14 || f[0] != major || f[1] != minor {
+			continue
+		}
+		n := func(i int) uint64 {
+			if i >= len(f) {
+				return 0
+			}
+			v, _ := strconv.ParseUint(f[i], 10, 64)
+			return v
+		}
+		return diskIO{Device: f[2], Writes: n(7), WriteBytes: n(9) * 512, Flushes: n(18), FlushMS: n(19)}
+	}
+	return diskIO{}
 }
 
 // cacheDiskMounted reports whether cacheRoot is a filesystem of its own (the
@@ -576,9 +630,9 @@ func (s *dockerEngine) capacityReport() map[string]any {
 	for name, p := range k.psi {
 		pressure[name] = p
 	}
-	disks := map[string]any{"os": map[string]uint64{"total_bytes": k.osDiskTotal, "free_bytes": k.osDiskFree}}
+	disks := map[string]any{"os": map[string]any{"total_bytes": k.osDiskTotal, "free_bytes": k.osDiskFree, "io": k.osIO}}
 	if k.cacheDisk {
-		disks["cache"] = map[string]uint64{"total_bytes": k.cacheTotal, "free_bytes": k.cacheFree}
+		disks["cache"] = map[string]any{"total_bytes": k.cacheTotal, "free_bytes": k.cacheFree, "io": k.cacheIO}
 	}
 	return map[string]any{
 		"sampled_unix_ms": k.at.UnixMilli(),
@@ -603,7 +657,7 @@ func (s *dockerEngine) capacityReport() map[string]any {
 		},
 		"engine": map[string]any{
 			"creates_in_flight": s.capacity.creating.Load(), "starts_in_flight": s.capacity.starting.Load(),
-			"start_p50_ms": p50, "start_p95_ms": p95, "starts_sampled": starts,
+			"start_p50_ms": p50, "start_p95_ms": p95, "starts_sampled": starts, "starts_total": s.capacity.startsTotal(),
 			"setup_slots_in_use": len(s.startSlots),
 		},
 		"pressure": pressure,

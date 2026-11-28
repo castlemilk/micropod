@@ -651,28 +651,26 @@ func (n node) visibleDockerImageNames(ctx context.Context, rows []*cri.Image) ([
 				}
 				continue
 			}
-			if config != nil {
-				continue
-			}
 			if _, known := catalog.targetIDs[digest]; known {
 				continue
 			}
-			// A legacy tag-only import may lack a generated config record.
-			// The current manifest supplies the binding before using that tag.
-			switch target.GetMediaType() {
-			case ocispec.MediaTypeImageManifest, "application/vnd.docker.distribution.manifest.v2+json":
-				configID, known := aliasConfigs[digest]
-				if !known {
-					configID, err = n.manifestConfigID(ctx, target)
-					var problem apiError
-					if err != nil && (!errors.As(err, &problem) || problem.code != http.StatusConflict) {
-						return nil, nil, fail(http.StatusServiceUnavailable, "containerd image alias could not be verified")
-					}
-					aliasConfigs[digest] = configID
+			// The tag names a target no config-ID record names: a legacy
+			// tag-only import that lacks a generated config record, or one of
+			// several indexes that run this config (builds that differ only in
+			// provenance; CRI's one config-ID record targets the last). The
+			// target's current content supplies the binding before using that
+			// tag (targetConfigID).
+			configID, known := aliasConfigs[digest]
+			if !known {
+				configID, err = n.targetConfigID(ctx, target)
+				var problem apiError
+				if err != nil && (!errors.As(err, &problem) || problem.code != http.StatusConflict) {
+					return nil, nil, fail(http.StatusServiceUnavailable, "containerd image alias could not be verified")
 				}
-				if configID == id {
-					image.RepoTags = append(image.RepoTags, name)
-				}
+				aliasConfigs[digest] = configID
+			}
+			if configID == id {
+				image.RepoTags = append(image.RepoTags, name)
 			}
 		}
 		if config != nil || len(image.RepoTags) != 0 || len(image.RepoDigests) != 0 {

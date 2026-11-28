@@ -135,6 +135,45 @@ func TestCacheViewNeverReusesAnEarlierUpper(t *testing.T) {
 	}
 }
 
+// A view is volatile: its unmount does not sync the filesystem its upper is
+// on, as nothing in the upper is kept. A restart after a crash still mounts:
+// the mount removes the earlier view (and the incompat marker volatile leaves
+// in its work directory) first.
+func TestCacheViewIsVolatileAndARestartStillMounts(t *testing.T) {
+	useFence(t, "boot-a")
+	if !useOverlay(t) {
+		t.Skip("needs a real overlayfs")
+	}
+	fillStore(t, "marker", "v1")
+	shim := filepath.Join(filepath.Dir(cacheRoot), "c-volatile", "shim")
+	plan := untrustedGoPlan(t, "default")
+	a := openCacheMounts(&plan, shim)
+	_, merged := mountAt(t, a, cacheMountRoot+"/gomod")
+	info, err := os.ReadFile("/proc/self/mountinfo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var options string
+	for _, line := range strings.Split(string(info), "\n") {
+		if fields := strings.Fields(line); len(fields) > 4 && fields[4] == merged {
+			options = line
+		}
+	}
+	if !strings.Contains(options, "volatile") {
+		t.Fatalf("view %s is not volatile: %q", merged, options)
+	}
+	// What a crash leaves: the view still mounted, with its incompat marker.
+	// The next start's mount succeeds and shows the store.
+	b := openCacheMounts(&plan, shim)
+	_, merged2 := mountAt(t, b, cacheMountRoot+"/gomod")
+	got, err := os.ReadFile(filepath.Join(merged2, "marker"))
+	b.close()
+	a.close()
+	if err != nil || string(got) != "v1" {
+		t.Fatalf("the restart reads %q (%v)", got, err)
+	}
+}
+
 // An untrusted container's writes, however large, land in its own upper on
 // the OS disk and go with its exit: the trusted store's bytes are unchanged
 // and nothing of the view is left in the container's directory.

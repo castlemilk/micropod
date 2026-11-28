@@ -24,7 +24,7 @@ As shipped, only a trusted container may bind `/var/run/docker.sock`. With `any`
 
 What it does not relax:
 
-- An untrusted container, and everything it creates on its socket, still only reads the shared dependency caches, through the same copy-on-write views. A child that labels itself trusted is untrusted. A poisoned cache would break every project's builds, so no setting here lets untrusted code write one.
+- An untrusted container, and everything it creates on its socket, still only reads the shared dependency caches, through the same copy-on-write views. A child that labels itself trusted is untrusted. A poisoned cache would break every project's builds, so no setting here lets untrusted code write one. The views are volatile overlays (their writes are never synced, as they go with the container); the store is their lower layer and is never written through them, so that changes nothing about who can write a store ([containerd-group-commit.md](containerd-group-commit.md) §4).
 - Builds on an untrusted container's socket keep their `RUN --mount=type=cache` directories in a namespace apart from the trusted builds', for the same reason. This covers Dockerfile builds; a client that sends BuildKit its own LLB names its cache mounts itself.
 - The machine's own directory stays masked in every bind, and the cache crash fence is unchanged.
 

@@ -17,8 +17,11 @@ import (
 // containerd 2.4 resolves its first cached reference before creating any
 // container. An old ctr import can leave only the unnormalized spelling in
 // metadata after the last tag moves. Every healthy start takes one CRI call.
+//
+// The request names its pod's lease (runtime_lease_linux.go), and is repeated
+// without it if CRI finds no such lease.
 func (n node) createImageContainer(ctx context.Context, req *cri.CreateContainerRequest) (*cri.CreateContainerResponse, error) {
-	made, err := n.runtime.CreateContainer(ctx, req)
+	made, err := n.createContainer(ctx, req)
 	if status.Code(err) != codes.NotFound {
 		return made, err
 	}
@@ -45,7 +48,18 @@ func (n node) createImageContainer(ctx context.Context, req *cri.CreateContainer
 	if !repaired {
 		return made, err
 	}
-	return n.runtime.CreateContainer(ctx, req)
+	return n.createContainer(ctx, req)
+}
+
+func (n node) createContainer(ctx context.Context, req *cri.CreateContainerRequest) (*cri.CreateContainerResponse, error) {
+	if req.GetPodSandboxId() == "" {
+		return n.runtime.CreateContainer(ctx, req)
+	}
+	made, err := n.runtime.CreateContainer(withRuntimeLease(ctx, req.GetPodSandboxId()), req)
+	if missingRuntimeLease(err) {
+		return n.runtime.CreateContainer(ctx, req)
+	}
+	return made, err
 }
 
 func (n node) repairImportedDigest(ctx context.Context, id string, ref reference.Canonical) (bool, error) {

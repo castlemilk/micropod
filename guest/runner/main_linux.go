@@ -368,7 +368,9 @@ func (n node) removeOwnedPod(ctx context.Context, id, sandboxID string) error {
 		if _, err := n.runtime.StopPodSandbox(ctx, &cri.StopPodSandboxRequest{PodSandboxId: p.Id}); err != nil {
 			return err
 		}
-		if _, err := n.runtime.RemovePodSandbox(ctx, &cri.RemovePodSandboxRequest{PodSandboxId: p.Id}); err != nil {
+		// Naming the engine's sandbox lease drops its hold on the pause
+		// snapshot as the snapshot goes (runtime_lease_linux.go).
+		if _, err := n.runtime.RemovePodSandbox(n.sandboxLeaseContext(ctx), &cri.RemovePodSandboxRequest{PodSandboxId: p.Id}); err != nil {
 			return err
 		}
 	}
@@ -404,6 +406,9 @@ func (n node) recover(ctx context.Context) error {
 	}
 	if err := n.removeOrphanPods(ctx); err != nil {
 		return err
+	}
+	if err := n.resetSandboxLease(ctx); err != nil {
+		return fmt.Errorf("reset the pods' lease: %w", err)
 	}
 	return os.RemoveAll(readyDir)
 }
@@ -458,7 +463,9 @@ type processHooks struct {
 	startConsole  func(context.Context, string) error
 	runtimeLogDir string
 	started       func(string)
-	output        outputSink
+	// tornDown is told how long the pod's teardown took (retireProcess).
+	tornDown func(time.Duration)
+	output   outputSink
 }
 
 func (n node) run(ctx context.Context, j job, hooks processHooks) (res result, err error) {
@@ -518,7 +525,11 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	var rootFSDetached bool
 	var releaseCaches func()
 	defer func() {
+		retiring := time.Now()
 		err = errors.Join(err, n.retireProcess(ctx, p, hooks, binding, rootFSDetached))
+		if hooks.tornDown != nil {
+			hooks.tornDown(time.Since(retiring))
+		}
 		if releaseCaches != nil {
 			releaseCaches()
 		}
