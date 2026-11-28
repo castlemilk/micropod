@@ -246,3 +246,28 @@ tasks:
     desc: Build-cache re-use matrix (related Go/Node builds sharing deps, bases, mounts)
     cmds:
       - ./ci/cache-matrix.sh
+
+  cache-eval-fast:
+    desc: Fast deterministic Go/npm cache reuse gate; writes a normalized JSON/Markdown receipt and stores it in SQLite
+    cmds:
+      - mkdir -p .build/benchmarks/cache-eval
+      - python3 scripts/bench_ci_cache_eval.py --layers host --clients 1 4 --rounds 2 --output .build/benchmarks/cache-eval/host.json --markdown .build/benchmarks/cache-eval/host.md --database "$HOME/.micropod/benchmarks/measurements.sqlite3" {{.CLI_ARGS}}
+
+  cache-eval-worker:
+    desc: Deep production-worker Go/npm cache evaluation, including scoped offline reuse, restart retention, and full CI pipelines
+    cmds:
+      - task: cli
+      - mkdir -p .build/benchmarks/cache-eval
+      - python3 scripts/bench_ci_cache_eval.py --layers host,worker --micropod .build/debug/micropod --worker-build-package-image --worker-pipelines --pipeline-rounds 1 --clients 1 4 --rounds 1 --output .build/benchmarks/cache-eval/worker.json --markdown .build/benchmarks/cache-eval/worker.md --database "$HOME/.micropod/benchmarks/measurements.sqlite3" {{.CLI_ARGS}}
+
+  cache-eval-suite:
+    desc: Realistic CI/cache suite (requires dist/micropod and the packaged HVF artifacts) normalized into the cache scorecard
+    cmds:
+      - mkdir -p .build/benchmarks/cache-eval
+      - python3 scripts/bench_ci_cache_eval.py --layers suite --output .build/benchmarks/cache-eval/suite.json --markdown .build/benchmarks/cache-eval/suite.md --database "$HOME/.micropod/benchmarks/measurements.sqlite3" {{.CLI_ARGS}}
+
+  cache-eval-hvf:
+    desc: Full HVF cache matrix (requires QUAL_TOOLS and the packaged HVF runtime artifacts used by scripts/e2e_hvf_caches.sh)
+    cmds:
+      - mkdir -p .build/benchmarks/cache-eval
+      - python3 scripts/bench_ci_cache_eval.py --layers hvf --output .build/benchmarks/cache-eval/hvf.json --markdown .build/benchmarks/cache-eval/hvf.md --database "$HOME/.micropod/benchmarks/measurements.sqlite3" {{.CLI_ARGS}}

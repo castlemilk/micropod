@@ -77,6 +77,31 @@ jobs:
       - name: Test
         run: swift test
 
+  cache-eval-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: .go-version
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Test cache receipt normalization
+        run: python3 -m unittest discover -s scripts -p 'test_bench_ci_cache_eval.py' -v
+      - name: Measure deterministic offline Go/npm cache reuse
+        run: |
+          python3 scripts/bench_ci_cache_eval.py --layers host --clients 1 4 --rounds 2 --output "$RUNNER_TEMP/cache-eval.json" --markdown "$RUNNER_TEMP/cache-eval.md"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cache-eval-fast
+          path: |
+            ${{ runner.temp }}/cache-eval.json
+            ${{ runner.temp }}/cache-eval.md
+          if-no-files-found: ignore
+
   # Keeps a warm release build for the Release workflow: a tag run can
   # only restore caches from its own tag or master, so master pushes save
   # the release .build (SwiftPM restores it; only changed modules compile).

@@ -39,9 +39,10 @@ def require(value, message):
 def bootstrap():
     # Run exactly the script and image embedded in the shipped Mac executable.
     source = (ROOT / "Sources/MicropodRuntime/CIWorker.swift").read_text()
-    image = re.search(r'static let image =\s*"(docker\.io/[^"]+@sha256:[a-f0-9]{64})"', source)[1]
-    script = re.search(r'static let bootstrap = #"""\n(.*?)\n\s*"""#', source, re.S)[1]
-    return image, textwrap.dedent(script)
+    image_match = re.search(r'static let (?:dockerImage|image) =\s*"(docker\.io/[^"]+@sha256:[a-f0-9]{64})"', source)
+    script_match = re.search(r'static let bootstrap = #"""\n(.*?)\n\s*"""#', source, re.S)
+    require(image_match and script_match, "CIWorker.swift no longer embeds the expected worker image and bootstrap")
+    return image_match[1], textwrap.dedent(script_match[1])
 
 
 def cached_package(cli, image, scope, op, lock=None):

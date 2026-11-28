@@ -28,3 +28,4 @@ sdk/ts/node_modules/
 
 # Vendored apple/container checkout kept locally for reference
 docs/container/
+__pycache__/

@@ -409,6 +409,49 @@ sqlite3 "$HOME/.micropod/benchmarks/measurements.sqlite3" \
 
 Use the native ARM64 image from the Ubuntu benchmark artifact or build `scripts/bench_cache_image` once. Each run appends a receipt to the local SQLite store and writes its raw JSON and Perfetto/Chrome trace. The database views `go_batches`, `go_phases`, `kernel_samples` and `paired_batches` retain the run ID for comparisons across revisions. `kernel_batches` reports flushes, write bytes, ext4 syncs and stall time between counter samples inside each timed batch. Batches shorter than two sample intervals can have missing deltas. `cache_stores` exposes the observed live volume sizes and attachment counts. `pipeline_stages` holds per-engine application stage times. The macOS benchmark flag `--warm-bytecode` primes the same Python cache on each engine and checks the identities and sizes of its retained files.
 
+### Cache-evaluation scorecard
+
+`scripts/bench_ci_cache_eval.py` turns the cache checks above into one pass/fail receipt. It is an orchestration and normalization layer, not a second cache implementation: each layer either runs an existing benchmark or ingests its receipt.
+
+| Layer | What it proves | Cost |
+| --- | --- | --- |
+| `host` | Deterministic offline npm and Go fixtures seed independently, warm Go checkouts invoke no compiler or assembler, payloads keep their digests, empty stores fail closed, and cache footprints do not grow | seconds; no Docker dependency |
+| `engine` | The same fixture through a live Docker API, including concurrent fresh containers and stable payload inodes in named cache volumes | minutes; needs a socket and package image |
+| `worker` | Production `micropod ci run --cache` wiring, scope isolation, worker restart retention, and optional full Go/npm/PostgreSQL pipelines | minutes; boots the real worker |
+| `suite` | The phase-B7 realistic CI receipt: BuildKit warm hits, scoped npm and Go cache persistence across restart, snapshot-fork inheritance/isolation, workspace incremental builds and the Compose PostgreSQL/API check | long; needs packaged HVF artifacts and exported base images |
+| `hvf` | The HVF matrix in `scripts/e2e_hvf_caches.sh`: UID and precedence cases, concurrency, restart and crash recovery, BuildKit reuse, and create-to-start cache overhead | longest; stops and kills a throwaway VM |
+
+The fast tier is a repository CI job and a local task:
+
+```sh
+task cache-eval-fast
+```
+
+The production-worker tier signs the debug CLI, builds the offline package image inside the worker, runs the host and worker layers, and includes the first pipeline pass plus one warm pass:
+
+```sh
+task cache-eval-worker
+```
+
+The HVF tier requires the same packaged runtime artifacts as `scripts/e2e_hvf_caches.sh`; supply `QUAL_TOOLS` and the other `QUAL_*` inputs documented by that script before running `task cache-eval-hvf`. A standalone engine comparison can be run directly, for example:
+
+```sh
+docker --host "unix://$HOME/.orbstack/run/docker.sock" pull alpine:3.20
+python3 scripts/bench_ci_cache_eval.py --layers engine --engine-name orbstack \
+  --engine-socket "$HOME/.orbstack/run/docker.sock" --engine-image alpine:3.20 \
+  --package-image micropod-offline-cache:bench --build-package-image \
+  --clients 1 4 8 --rounds 3 --output /tmp/orbstack-cache-eval.json \
+  --markdown /tmp/orbstack-cache-eval.md
+```
+
+Every run writes normalized JSON, optional Markdown, and a persistent evidence directory containing the underlying receipts. Use `--database` (the tasks pass the standard `~/.micropod/benchmarks/measurements.sqlite3`) to append the receipt as kind `ci-cache-eval`. The SQL views are:
+
+- `cache_eval_metrics`: layer, tool, client count, phase, value and unit;
+- `cache_eval_assertions`: every pass/fail/inconclusive invariant;
+- `cache_eval_go_npm_warm`: the concise Go/npm warm-batch series.
+
+Existing evidence can be rescored without rerunning infrastructure with `--host-receipt`, `--engine-receipt`, `--worker-receipt`, `--suite-receipt`, or `--hvf-results`. HVF ingestion parses `checks.tsv`, the sentinel-backed probe files, Docker start/finish timestamps and the T7 latency series, so the scorecard retains both correctness and overhead measurements. The crash-recovery prototype patch preserved under `docs/research/` is not part of this gate; its known failing concurrency cases remain experimental. The gate uses the production cache path and the stock Docker/BuildKit checks instead.
+
 To repeat the filesystem trial, run the following on a physical Mac with a signed CLI. It alternates the two mount settings in its own qualification VM, runs direct-shell Go and the same offline Go/npm workload used in the OrbStack comparison, and restores the initial setting. Add `--repair-network` to exercise automatic route recovery while Docker Compose serves a named volume through a published port and writes back to a shared Mac checkout.
 
 ```sh

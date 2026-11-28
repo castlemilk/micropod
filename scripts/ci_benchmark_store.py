@@ -223,6 +223,19 @@ def store(path, run, kind, record):
                 FROM measurements, json_each(receipt,'$.blocks') e,
                      json_each(e.value,'$.package_caches.blocks') p, json_each(p.value,'$.batches') b
                 WHERE kind='apple-pair';
+            CREATE VIEW IF NOT EXISTS cache_eval_metrics AS
+                SELECT run, captured_utc, m.value->>'layer' AS layer, m.value->>'name' AS metric,
+                       m.value->>'tool' AS tool, m.value->>'clients' AS clients, m.value->>'phase' AS phase,
+                       m.value->>'value' AS value, m.value->>'unit' AS unit
+                FROM measurements, json_each(receipt,'$.metrics') m WHERE kind='ci-cache-eval';
+            CREATE VIEW IF NOT EXISTS cache_eval_assertions AS
+                SELECT run, captured_utc, a.value->>'id' AS assertion, a.value->>'status' AS status,
+                       a.value->>'passed' AS passed, a.value->>'detail' AS detail
+                FROM measurements, json_each(receipt,'$.assertions') a WHERE kind='ci-cache-eval';
+            CREATE VIEW IF NOT EXISTS cache_eval_go_npm_warm AS
+                SELECT run, layer, tool, clients, value AS seconds, captured_utc
+                FROM cache_eval_metrics
+                WHERE metric IN ('warm_batch_seconds_p50','warm_batch_seconds') AND tool IN ('go','npm');
         """)
         payload = json.dumps(record, separators=(",", ":"), sort_keys=True)
         saved = db.execute("INSERT INTO measurements VALUES (?, ?, ?, ?) ON CONFLICT(run, kind) DO NOTHING",
