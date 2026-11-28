@@ -55,6 +55,12 @@ configure_scheduler() (
         enable_feature HRTICK
         if [ -n "$slice" ]; then
             printf '%s' "$slice" >"$debug/sched/base_slice_ns"
+            # Rewriting tunable_scaling with its own value makes the kernel
+            # derive its CPU-count-normalized copy from this slice, so a
+            # sched domain rebuild keeps it (vmm/guest-init/sched.go).
+            if scaling=$(cat "$debug/sched/tunable_scaling" 2>/dev/null); then
+                printf '%s' "$scaling" >"$debug/sched/tunable_scaling"
+            fi
             [ "$(cat "$debug/sched/base_slice_ns")" = "$slice" ] || { echo "Guest kernel rejected slice $slice ns" >&2; exit 1; }
         fi
         echo "CI fair scheduler enabled HRTICK with base slice $(cat "$debug/sched/base_slice_ns") ns" >&2
