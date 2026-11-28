@@ -961,6 +961,13 @@ impl VirtioBackend for VirtioRng {
 pub const BLK_REQUEST_BYTES_BOUNDS: [u64; 6] =
     [4 << 10, 16 << 10, 64 << 10, 256 << 10, 1 << 20, 4 << 20];
 
+/// Upper bounds, in microseconds, of the host flush-sync histogram's buckets
+/// (`BlkMetrics::flush_sync_hist`); one more bucket counts longer syncs. An
+/// idle Mac syncs a guest flush in about 0.1 ms; another writer streaming
+/// 400 MB/s to the same disk triples that, and every flush the guest's
+/// metadata commits wait on pays it.
+pub const BLK_FLUSH_SYNC_USEC_BOUNDS: [u64; 8] = [50, 100, 200, 500, 1_000, 5_000, 20_000, 100_000];
+
 #[derive(Default)]
 pub struct BlkMetrics {
     pub read_ops: AtomicU64,
@@ -979,6 +986,8 @@ pub struct BlkMetrics {
     /// not cumulative).
     pub read_sizes: [AtomicU64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
     pub write_sizes: [AtomicU64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
+    /// Host syncs by duration (`BLK_FLUSH_SYNC_USEC_BOUNDS`, not cumulative).
+    pub flush_sync_hist: [AtomicU64; BLK_FLUSH_SYNC_USEC_BOUNDS.len() + 1],
 }
 
 impl BlkMetrics {
@@ -987,6 +996,8 @@ impl BlkMetrics {
         self.flush_syncs.fetch_add(1, Ordering::Relaxed);
         self.flush_sync_usec.fetch_add(us, Ordering::Relaxed);
         self.flush_sync_usec_max.fetch_max(us, Ordering::Relaxed);
+        let bucket = BLK_FLUSH_SYNC_USEC_BOUNDS.partition_point(|&bound| bound < us);
+        self.flush_sync_hist[bucket].fetch_add(1, Ordering::Relaxed);
     }
 
     fn record_request(sizes: &[AtomicU64], bytes: u64) {
@@ -2108,6 +2119,18 @@ mod tests {
         }
         let counts: Vec<u64> = sizes.iter().map(|c| c.load(Ordering::Relaxed)).collect();
         assert_eq!(counts, [3, 2, 0, 0, 1, 0, 2]);
+
+        let metrics = BlkMetrics::default();
+        for us in [10, 100, 101, 900, 150_000] {
+            metrics.record_flush_sync(Duration::from_micros(us));
+        }
+        let syncs: Vec<u64> = metrics
+            .flush_sync_hist
+            .iter()
+            .map(|c| c.load(Ordering::Relaxed))
+            .collect();
+        assert_eq!(syncs, [1, 1, 1, 0, 1, 0, 0, 0, 1]);
+        assert_eq!(metrics.flush_sync_usec.load(Ordering::Relaxed), 151_111);
     }
 
     /// A guest's VIRTIO_BLK_T_FLUSH reaches the host as the device's flush

@@ -30,7 +30,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use vmm_net::NetMetrics;
 use vmm_virtio::virtiofs::FsMetrics;
-use vmm_virtio::{BLK_REQUEST_BYTES_BOUNDS, BalloonMetrics, BlkMetrics};
+use vmm_virtio::{
+    BLK_FLUSH_SYNC_USEC_BOUNDS, BLK_REQUEST_BYTES_BOUNDS, BalloonMetrics, BlkMetrics,
+};
 
 use crate::ctrl::GuestControl;
 use crate::{host_phys_footprint_bytes, snapshot};
@@ -339,6 +341,8 @@ pub struct TelemetrySnapshot {
     /// bucket (not cumulative).
     pub blk_read_sizes: [u64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
     pub blk_write_sizes: [u64; BLK_REQUEST_BYTES_BOUNDS.len() + 1],
+    /// Host syncs per `BLK_FLUSH_SYNC_USEC_BOUNDS` bucket (not cumulative).
+    pub blk_flush_sync_hist: [u64; BLK_FLUSH_SYNC_USEC_BOUNDS.len() + 1],
     pub fs_requests: u64,
     pub fs_bytes_read: u64,
     pub fs_nodes: u64,
@@ -404,6 +408,11 @@ impl TelemetrySource {
             blk_write_sizes: self
                 .blk
                 .write_sizes
+                .each_ref()
+                .map(|c| c.load(Ordering::Relaxed)),
+            blk_flush_sync_hist: self
+                .blk
+                .flush_sync_hist
                 .each_ref()
                 .map(|c| c.load(Ordering::Relaxed)),
             fs_requests: self.fs.requests.load(Ordering::Relaxed),
@@ -558,6 +567,18 @@ impl TelemetrySource {
                 sum,
             );
         }
+        out.push_str(
+            "# HELP micropod_vmm_blk_flush_sync_duration_microseconds Host syncs for guest flushes by duration.\n",
+        );
+        out.push_str("# TYPE micropod_vmm_blk_flush_sync_duration_microseconds histogram\n");
+        render_histogram(
+            &mut out,
+            "micropod_vmm_blk_flush_sync_duration_microseconds",
+            "",
+            &BLK_FLUSH_SYNC_USEC_BOUNDS,
+            &s.blk_flush_sync_hist,
+            s.blk_flush_sync_usec,
+        );
         out.push_str(
             "# HELP micropod_vmm_virtiofs_requests_total Virtio-FS FUSE requests handled.\n",
         );
@@ -1448,6 +1469,8 @@ mod tests {
         blk.read_ops.store(42, Ordering::Relaxed);
         blk.read_sizes[0].store(40, Ordering::Relaxed);
         blk.read_sizes[1].store(2, Ordering::Relaxed);
+        blk.flush_sync_hist[1].store(5, Ordering::Relaxed);
+        blk.flush_sync_usec.store(400, Ordering::Relaxed);
         let fs = Arc::new(FsMetrics::default());
         fs.requests.store(99, Ordering::Relaxed);
         fs.nodes.store(7, Ordering::Relaxed);
@@ -1633,6 +1656,22 @@ mod tests {
         );
         assert!(prom.contains("micropod_vmm_blk_request_bytes_count{op=\"read\"} 42\n"));
         assert!(prom.contains("micropod_vmm_blk_request_bytes_sum{op=\"write\"} 0\n"));
+        assert!(
+            prom.contains(
+                "micropod_vmm_blk_flush_sync_duration_microseconds_bucket{le=\"50\"} 0\n"
+            )
+        );
+        assert!(
+            prom.contains(
+                "micropod_vmm_blk_flush_sync_duration_microseconds_bucket{le=\"100\"} 5\n"
+            )
+        );
+        assert!(
+            prom.contains(
+                "micropod_vmm_blk_flush_sync_duration_microseconds_bucket{le=\"+Inf\"} 5\n"
+            )
+        );
+        assert!(prom.contains("micropod_vmm_blk_flush_sync_duration_microseconds_sum 400\n"));
         assert!(prom.contains("micropod_vmm_virtiofs_requests_total 99"));
         assert!(
             prom.contains(
