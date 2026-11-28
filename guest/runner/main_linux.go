@@ -368,7 +368,9 @@ func (n node) removeOwnedPod(ctx context.Context, id, sandboxID string) error {
 		if _, err := n.runtime.StopPodSandbox(ctx, &cri.StopPodSandboxRequest{PodSandboxId: p.Id}); err != nil {
 			return err
 		}
-		if _, err := n.runtime.RemovePodSandbox(ctx, &cri.RemovePodSandboxRequest{PodSandboxId: p.Id}); err != nil {
+		// Naming the engine's sandbox lease drops its hold on the pause
+		// snapshot as the snapshot goes (runtime_lease_linux.go).
+		if _, err := n.runtime.RemovePodSandbox(n.sandboxLeaseContext(ctx), &cri.RemovePodSandboxRequest{PodSandboxId: p.Id}); err != nil {
 			return err
 		}
 	}
@@ -404,6 +406,9 @@ func (n node) recover(ctx context.Context) error {
 	}
 	if err := n.removeOrphanPods(ctx); err != nil {
 		return err
+	}
+	if err := n.resetSandboxLease(ctx); err != nil {
+		return fmt.Errorf("reset the pods' lease: %w", err)
 	}
 	return os.RemoveAll(readyDir)
 }

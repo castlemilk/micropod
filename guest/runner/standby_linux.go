@@ -66,12 +66,22 @@ func (n node) newPod(ctx context.Context, handler string) (p ownedPod, err error
 		return p, err
 	}
 	pod := podConfig(p.id, dir)
-	result, err := n.runtime.RunPodSandbox(ctx, &cri.RunPodSandboxRequest{Config: pod, RuntimeHandler: handler})
+	result, err := n.runPodSandbox(ctx, &cri.RunPodSandboxRequest{Config: pod, RuntimeHandler: handler})
 	if err != nil {
 		return p, fmt.Errorf("start %s pod: %w", handler, err)
 	}
 	p.pod = result.PodSandboxId
 	return p, n.attest(ctx, p, handler)
+}
+
+// runPodSandbox names the engine's sandbox lease (runtime_lease_linux.go),
+// and goes again without it if CRI finds no such lease.
+func (n node) runPodSandbox(ctx context.Context, request *cri.RunPodSandboxRequest) (*cri.RunPodSandboxResponse, error) {
+	result, err := n.runtime.RunPodSandbox(n.sandboxLeaseContext(ctx), request)
+	if missingRuntimeLease(err) {
+		return n.runtime.RunPodSandbox(ctx, request)
+	}
+	return result, err
 }
 
 func readyPods() ([]os.DirEntry, error) {
