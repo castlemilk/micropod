@@ -1054,7 +1054,21 @@ func mountCacheOverlay(lowerDir, baseDir string) (string, error) {
 		}
 	}
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upper, work)
-	if err := unix.Mount("overlay", merged, "overlay", 0, opts); err != nil {
+	// volatile: a view's upper is discarded with the view and never mounted
+	// again (a view an earlier start left is removed above), so nothing in it
+	// needs to reach the disk. Without it every view's unmount syncs the
+	// whole filesystem its upper is on, other containers' writes included
+	// (ovl_sync_fs: a container exit with 256 MB in its upper took 0.16-0.62 s
+	// against 0.07-0.09 s volatile, profiling CONFIRMED.md §3). fsync inside a
+	// view is then a no-op, which no reader can tell: nothing written there
+	// outlives the container. A kernel without the option mounts as before.
+	if err := unix.Mount("overlay", merged, "overlay", 0, opts+",volatile"); errors.Is(err, unix.EINVAL) {
+		err = unix.Mount("overlay", merged, "overlay", 0, opts)
+		if err != nil {
+			os.RemoveAll(baseDir)
+			return "", err
+		}
+	} else if err != nil {
 		os.RemoveAll(baseDir)
 		return "", err
 	}
