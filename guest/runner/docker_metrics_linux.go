@@ -15,6 +15,7 @@ type dockerMetrics struct {
 	creates, completions, failures, imageHits, prepared, sharedMounts atomic.Uint64
 	podMS, createMS, startMS                                          atomic.Int64
 	cache                                                             cacheMetrics
+	startBoost                                                        startBoostMetrics
 }
 
 // cacheMetrics counts auto-attach decisions: attaches per tool, skips per
@@ -169,6 +170,9 @@ func (m *dockerMetrics) snapshot() map[string]any {
 		"image_syncs": imageSyncs.Load(), "image_sync_usec_total": imageSyncUS.Load(),
 		"image_sync_fs_usec_total": imageSyncFSUS.Load()}
 	for k, v := range m.cache.snapshot() {
+		out[k] = v
+	}
+	for k, v := range m.startBoost.snapshot() {
 		out[k] = v
 	}
 	return out
