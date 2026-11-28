@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -127,6 +128,10 @@ func psiSomeTotal(psi []byte) (uint64, bool) {
 	return 0, false
 }
 
+// errTrimUnsupported is a filesystem or disk that takes no discards (a
+// read-only disk, a device without discard): it is not tried again.
+var errTrimUnsupported = errors.New("the filesystem takes no discards")
+
 // trimTarget is one mounted filesystem and how far its current pass got.
 type trimTarget struct {
 	path string
@@ -137,6 +142,8 @@ type trimTarget struct {
 	trimmed uint64
 	ranges  int
 	took    time.Duration
+	// off: the filesystem takes no discards.
+	off bool
 }
 
 // trimmer runs passes over its targets. trim discards the free space of
@@ -155,6 +162,9 @@ type trimmer struct {
 // the next pass starts from the beginning) or the machine is busy, a stop
 // begins or the filesystem refuses (false: resume here next time).
 func (tr *trimmer) pass(t *trimTarget) bool {
+	if t.off {
+		return false
+	}
 	for t.next < t.size {
 		// idle takes trimIdleWindow, and a stop may begin meanwhile.
 		if tr.stopped() || !tr.idle() || tr.stopped() {
@@ -170,6 +180,11 @@ func (tr *trimmer) pass(t *trimTarget) bool {
 		began := tr.now()
 		n, err := tr.trim(t.path, t.next, length)
 		t.took += tr.now().Sub(began)
+		if errors.Is(err, errTrimUnsupported) {
+			tr.logf("[mp-hvf-init] idle trim %s: %v; not trimmed this boot", t.path, err)
+			t.off = true
+			return false
+		}
 		if err != nil {
 			tr.logf("[mp-hvf-init] idle trim %s at %d: %v; trying again next interval", t.path, t.next, err)
 			return false

@@ -32,6 +32,10 @@ func fitrimRange(path string, start, length uint64) (uint64, error) {
 	defer syscall.Close(fd)
 	r := fstrimRange{start: start, len: length}
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), fitrim, uintptr(unsafe.Pointer(&r))); errno != 0 {
+		switch errno {
+		case syscall.EOPNOTSUPP, syscall.EROFS, syscall.ENOTTY:
+			return 0, fmt.Errorf("%w (%v)", errTrimUnsupported, errno)
+		}
 		return 0, errno
 	}
 	return r.len, nil

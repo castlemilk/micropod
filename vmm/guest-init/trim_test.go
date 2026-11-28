@@ -119,6 +119,23 @@ func TestTrimPassResumesWhereABusyMachineStoppedIt(t *testing.T) {
 	}
 }
 
+// A filesystem that takes no discards is dropped after its first try.
+func TestTrimPassDropsAFilesystemWithoutDiscards(t *testing.T) {
+	f := &fakeTrim{}
+	tr := f.trimmer()
+	tr.trim = func(_ string, start, _ uint64) (uint64, error) {
+		f.calls = append(f.calls, start)
+		return 0, fmt.Errorf("%w (operation not supported)", errTrimUnsupported)
+	}
+	target := &trimTarget{path: "/", size: 4 * trimRangeBytes}
+	if tr.pass(target) || tr.pass(target) {
+		t.Fatal("a filesystem without discards reported a finished pass")
+	}
+	if len(f.calls) != 1 || !target.off {
+		t.Errorf("calls=%v off=%v, want one try and the target off", f.calls, target.off)
+	}
+}
+
 func TestTrimPassStopsForAStopOrAnError(t *testing.T) {
 	f := &fakeTrim{stop: true}
 	target := &trimTarget{path: "/", size: 4 * trimRangeBytes}
