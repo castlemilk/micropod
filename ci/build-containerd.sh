@@ -17,12 +17,19 @@
 #        records share one bbolt transaction, and each caller still returns
 #        only after the transaction that holds its update has committed
 #        (docs/containerd-group-commit.md has the durability argument).
+#   0003 a pod's annotation io.micropod.sandbox.cpu-shares sets its sandbox's
+#        CPU shares in place of CRI's minimum of 2 (cgroup v2 weight 1), in
+#        which crun's init sets the pod up (guest/runner
+#        sandbox_shares_linux.go says which pods ask and for what).
 #
 # Environment: MICROPOD_CONTAINERD_GOTOOLCHAIN (default the release's
 # go1.26.10) for a toolchain that is already installed.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${1:?output path}
+# The build runs in the source copy: an output path relative to the caller's
+# directory is made absolute first.
+out="$(cd "$(dirname "$out")" && pwd)/$(basename "$out")"
 module=github.com/containerd/containerd/v2
 version=v2.4.2
 revision=b7a25261e029d68978bbf290df0a62fc819b3c51

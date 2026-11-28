@@ -1,0 +1,68 @@
+diff --git a/internal/cri/server/podsandbox/sandbox_run_linux.go b/internal/cri/server/podsandbox/sandbox_run_linux.go
+index 997c6f8..57afb57 100644
+--- a/internal/cri/server/podsandbox/sandbox_run_linux.go
++++ b/internal/cri/server/podsandbox/sandbox_run_linux.go
+@@ -37,6 +37,9 @@ import (
+ 	criutil "github.com/containerd/containerd/v2/internal/cri/util"
+ )
+ 
++// sandboxCPUSharesAnnotation is Micropod's: the sandbox's CPU shares.
++const sandboxCPUSharesAnnotation = "io.micropod.sandbox.cpu-shares"
++
+ func (c *Controller) sandboxContainerSpec(id string, config *runtime.PodSandboxConfig,
+ 	imageConfig *imagespec.ImageConfig, nsPath string, runtimePodAnnotations []string) (_ *runtimespec.Spec, retErr error) {
+ 	// Creates a spec Generator with the default spec.
+@@ -192,7 +195,16 @@ func (c *Controller) sandboxContainerSpec(id string, config *runtime.PodSandboxC
+ 
+ 	// Note: LinuxSandboxSecurityContext does not currently provide an apparmor profile
+ 
+-	specOpts = append(specOpts, customopts.WithDefaultSandboxShares)
++	// Micropod: a pod that names its sandbox's CPU shares in the annotation
++	// io.micropod.sandbox.cpu-shares (2 to 262144) gets them in place of the
++	// minimum, 2 (cgroup v2 weight 1). crun's init sets the pod up inside that
++	// cgroup, and at weight 1 RunPodSandbox waits behind every CPU-bound
++	// container on the machine (guest/runner sandbox_shares_linux.go).
++	if shares, err := strconv.ParseUint(config.GetAnnotations()[sandboxCPUSharesAnnotation], 10, 64); err == nil && shares >= 2 && shares <= 262144 {
++		specOpts = append(specOpts, oci.WithCPUShares(shares))
++	} else {
++		specOpts = append(specOpts, customopts.WithDefaultSandboxShares)
++	}
+ 
+ 	if res := config.GetLinux().GetResources(); res != nil {
+ 		specOpts = append(specOpts,
+diff --git a/internal/cri/server/podsandbox/sandbox_shares_micropod_test.go b/internal/cri/server/podsandbox/sandbox_shares_micropod_test.go
+new file mode 100644
+index 0000000..05c9cac
+--- /dev/null
++++ b/internal/cri/server/podsandbox/sandbox_shares_micropod_test.go
+@@ -0,0 +1,30 @@
++//go:build linux
++
++package podsandbox
++
++import "testing"
++
++// Micropod: a pod's io.micropod.sandbox.cpu-shares annotation sets its
++// sandbox's CPU shares; without it, or with a value out of range, the
++// sandbox keeps the minimum of 2.
++func TestSandboxCPUSharesAnnotation(t *testing.T) {
++	c := newControllerService()
++	for _, tc := range []struct {
++		value string
++		want  uint64
++	}{
++		{"", 2}, {"262144", 262144}, {"2598", 2598}, {"1", 2}, {"262145", 2}, {"x", 2},
++	} {
++		config, imageConfig, _ := getRunPodSandboxTestData(c.config)
++		if tc.value != "" {
++			config.Annotations = map[string]string{sandboxCPUSharesAnnotation: tc.value}
++		}
++		spec, err := c.sandboxContainerSpec("test-id", config, imageConfig, "test-cni", nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if got := *spec.Linux.Resources.CPU.Shares; got != tc.want {
++			t.Errorf("annotation %q: shares %d, want %d", tc.value, got, tc.want)
++		}
++	}
++}

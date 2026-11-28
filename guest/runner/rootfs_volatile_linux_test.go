@@ -6,7 +6,7 @@ import (
 )
 
 func TestOnlyCrunPodsAskForAVolatilePauseLayer(t *testing.T) {
-	if got := sandboxConfig(strings.Repeat("a", 32), "/jobs/a", "crun").GetAnnotations(); got[volatileSnapshotAnnotation] != "true" || len(got) != 1 {
+	if got := sandboxConfig(strings.Repeat("a", 32), "/jobs/a", "crun").GetAnnotations(); got[volatileSnapshotAnnotation] != "true" || len(got) != 2 {
 		t.Fatalf("crun pod annotations %v", got)
 	}
 	if got := sandboxConfig(strings.Repeat("b", 32), "/jobs/b", "kata").GetAnnotations(); len(got) != 0 {

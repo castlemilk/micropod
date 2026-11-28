@@ -77,6 +77,18 @@ with what the start-path profile of 2026-11-28 needed a debugging session to see
   flushes per start is containerd's commits per container (two flushes each),
   `flush_ms / flushes` what a flush costs beside the machine's other writers.
 
+A start that waits behind CPU-bound containers waits in RunPodSandbox. CRI
+gives every pod's sandbox cgroup the minimum CPU shares (2, cgroup v2 weight
+1), and crun's init sets the pod up inside it. Measured on throwaway machines
+(16 vCPU, 32 busy-loop containers started at once, then 60 timed sequential
+`docker run --rm alpine true`): with the sandbox at weight 1 the first of them
+took 4.7–22.9 s in 9 of 9 runs while the busy loops were in their start boost
+(the engine's goroutine sat in CRI's RunPodSandbox and every pause cgroup read
+weight 1), and p95 was 0.8–1.6 s without the boost; with the sandbox at the
+boost's weight (`io.micropod.sandbox.cpu-shares`, containerd patch 0003,
+guest/runner `sandbox_shares_linux.go`) max 0.46–0.58 s and p95 0.43–0.46 s.
+`cat /sys/fs/cgroup/k8s.io/*/cpu.weight` in the guest shows each pod's weight.
+
 `ContainerCLIClient.run` also emits `os_signpost` intervals
 (`com.micropod.cli`, category `pointsOfInterest`) so
 `xctrace record --template "os_signpost"` splits CLI spawn+XPC+run time from

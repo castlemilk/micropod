@@ -74,12 +74,15 @@ func (n node) newPod(ctx context.Context, handler string) (p ownedPod, err error
 }
 
 // sandboxConfig is a new pod's configuration. A crun pod's pause rootfs goes
-// with the pod, so it asks for a volatile layer (rootfs_volatile_linux.go);
-// an untrusted Kata job's pod carries no annotation at all.
+// with the pod, so it asks for a volatile layer (rootfs_volatile_linux.go),
+// and its sandbox for CPU shares above CRI's minimum
+// (sandbox_shares_linux.go); an untrusted Kata job's pod carries no
+// annotation at all.
 func sandboxConfig(id, dir, handler string) *cri.PodSandboxConfig {
 	pod := podConfig(id, dir)
 	if handler == "crun" {
 		pod.Annotations = withVolatileRootFS(pod.Annotations)
+		pod.Annotations = withSandboxCPUShares(pod.Annotations, startBoostWindow > 0)
 	}
 	return pod
 }
