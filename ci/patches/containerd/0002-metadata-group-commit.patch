@@ -1,0 +1,322 @@
+diff --git a/core/metadata/batch_test.go b/core/metadata/batch_test.go
+new file mode 100644
+index 0000000..0298544
+--- /dev/null
++++ b/core/metadata/batch_test.go
+@@ -0,0 +1,65 @@
++package metadata
++
++import (
++	"errors"
++	"fmt"
++	"sync"
++	"testing"
++
++	bolt "go.etcd.io/bbolt"
++)
++
++// Micropod: concurrent Batch callers share transactions; each gets its own
++// answer, a failing function changes nothing and the others still commit.
++func TestBatchSharesTransactionsAndIsolatesFailures(t *testing.T) {
++	ctx, db := testDB(t)
++	_ = ctx
++	var commits int
++	db.RegisterMutationCallback(func(bool) { commits++ })
++	const n = 64
++	errs := make([]error, n)
++	var wg sync.WaitGroup
++	for i := range n {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			errs[i] = db.Batch(func(tx *bolt.Tx) error {
++				b, err := tx.CreateBucketIfNotExists([]byte("batch-test"))
++				if err != nil {
++					return err
++				}
++				if err := b.Put(fmt.Appendf(nil, "k%d", i), []byte("v")); err != nil {
++					return err
++				}
++				if i%10 == 3 {
++					return fmt.Errorf("caller %d fails", i)
++				}
++				return nil
++			})
++		}()
++	}
++	wg.Wait()
++	for i, err := range errs {
++		if (i%10 == 3) != (err != nil) {
++			t.Fatalf("caller %d: %v", i, err)
++		}
++	}
++	if err := db.View(func(tx *bolt.Tx) error {
++		b := tx.Bucket([]byte("batch-test"))
++		for i := range n {
++			if got := b.Get(fmt.Appendf(nil, "k%d", i)); (got != nil) == (i%10 == 3) {
++				return fmt.Errorf("key %d: %q", i, got)
++			}
++		}
++		return nil
++	}); err != nil {
++		t.Fatal(err)
++	}
++	if commits < 1 || commits > n {
++		t.Fatalf("%d mutation callbacks", commits)
++	}
++	t.Logf("%d callers, %d transactions committed", n, commits)
++	if err := db.Batch(func(*bolt.Tx) error { panic("boom") }); err == nil || errors.Is(err, nil) {
++		t.Fatal("a panicking function was not answered with an error")
++	}
++}
+diff --git a/core/metadata/bolt.go b/core/metadata/bolt.go
+index ff57970..9406424 100644
+--- a/core/metadata/bolt.go
++++ b/core/metadata/bolt.go
+@@ -42,6 +42,24 @@ func view(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
+ 	return fn(tx)
+ }
+ 
++// batchUpdate is update for a function whose only effects are its writes to
++// the transaction: without a transaction in the context, it may share one
++// with concurrent callers (DB.Batch).
++func batchUpdate(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
++	if tx, ok := boltutil.Transaction(ctx); ok {
++		if !tx.Writable() {
++			return fmt.Errorf("unable to use transaction from context: %w", errbolt.ErrTxNotWritable)
++		}
++		return fn(tx)
++	}
++	if b, ok := db.(interface {
++		Batch(fn func(*bolt.Tx) error) error
++	}); ok {
++		return b.Batch(fn)
++	}
++	return db.Update(fn)
++}
++
+ // update gets a writable bolt db transaction either from the context
+ // or starts a new one with the provided bolt database.
+ func update(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
+diff --git a/core/metadata/db.go b/core/metadata/db.go
+index 5057b79..f1dae11 100644
+--- a/core/metadata/db.go
++++ b/core/metadata/db.go
+@@ -113,6 +113,9 @@ type DB struct {
+ 	collectors map[gc.ResourceType]Collector
+ 
+ 	dbopts dbOptions
++
++	// batch shares write transactions between concurrent Batch callers.
++	batch batcher
+ }
+ 
+ // NewDB creates a new metadata database using the provided
+@@ -283,6 +286,119 @@ func (m *DB) Update(fn func(*bolt.Tx) error) error {
+ 	return err
+ }
+ 
++// Micropod: group commit.
++//
++// Every write transaction of the metadata store commits on its own: bbolt
++// writes its pages and fdatasyncs, then writes its meta page and fdatasyncs
++// again, under one write lock. Start throughput is the rate of those
++// commits. Batch lets callers that arrive while a transaction commits share
++// the next one: one transaction runs every waiting caller's function in
++// arrival order and commits once.
++//
++// Each caller still returns only after the transaction holding its function
++// has committed (bbolt syncs before Commit returns), so what it was told is
++// as durable as with Update. Its writes are all in that one transaction, so
++// they are applied whole or not at all. A function that fails is answered
++// with its error and taken out, and the transaction is run again without it
++// (bbolt cannot roll back part of one): the functions before it run again on
++// the same state, which is why only functions whose only effects are their
++// writes to the transaction may be batched.
++//
++// No caller waits for others to arrive: the first one runs its transaction
++// at once, alone if no one else is waiting.
++
++// batchCall is one caller's function and where its answer goes.
++type batchCall struct {
++	fn  func(*bolt.Tx) error
++	err chan error
++}
++
++// batcher holds the callers waiting for the next transaction, and whether
++// a goroutine is running transactions for them.
++type batcher struct {
++	mu      sync.Mutex
++	pending []*batchCall
++	running bool
++}
++
++// Batch runs fn in a write transaction it may share with concurrent
++// callers (see batcher). fn must change nothing outside tx.
++func (m *DB) Batch(fn func(*bolt.Tx) error) error {
++	call := &batchCall{fn: fn, err: make(chan error, 1)}
++	m.batch.mu.Lock()
++	m.batch.pending = append(m.batch.pending, call)
++	lead := !m.batch.running
++	m.batch.running = true
++	m.batch.mu.Unlock()
++	if lead {
++		m.runBatch()
++	}
++	return <-call.err
++}
++
++// runBatch commits the waiting callers' functions in one transaction. If
++// more arrived meanwhile, a new goroutine runs their transaction, so that
++// the caller running this one is answered as soon as its own has committed.
++func (m *DB) runBatch() {
++	m.batch.mu.Lock()
++	calls := m.batch.pending
++	m.batch.pending = nil
++	m.batch.mu.Unlock()
++
++	m.commitBatch(calls)
++
++	m.batch.mu.Lock()
++	defer m.batch.mu.Unlock()
++	if len(m.batch.pending) == 0 {
++		m.batch.running = false
++		return
++	}
++	go m.runBatch()
++}
++
++func (m *DB) commitBatch(calls []*batchCall) {
++	m.wlock.RLock()
++	defer m.wlock.RUnlock()
++	for len(calls) > 0 {
++		failed := -1
++		err := m.db.Update(func(tx *bolt.Tx) error {
++			for i, c := range calls {
++				if err := callBatched(c.fn, tx); err != nil {
++					failed = i
++					return err
++				}
++			}
++			return nil
++		})
++		if failed >= 0 {
++			calls[failed].err <- err
++			calls = append(calls[:failed:failed], calls[failed+1:]...)
++			continue
++		}
++		if err == nil {
++			dirty := m.dirty.Load() > 0
++			for _, fn := range m.mutationCallbacks {
++				fn(dirty)
++			}
++		}
++		for _, c := range calls {
++			c.err <- err
++		}
++		return
++	}
++}
++
++// callBatched runs one caller's function, turning a panic into its error so
++// that it cannot take the other callers' answers with it.
++func callBatched(fn func(*bolt.Tx) error, tx *bolt.Tx) (err error) {
++	defer func() {
++		if p := recover(); p != nil {
++			err = fmt.Errorf("metadata update panicked: %v", p)
++		}
++	}()
++	return fn(tx)
++}
++
+ // Publisher returns an event publisher if one is configured
+ // and the current context is not inside a transaction.
+ func (m *DB) Publisher(ctx context.Context) events.Publisher {
+diff --git a/core/metadata/leases.go b/core/metadata/leases.go
+index ef4c46f..de7833d 100644
+--- a/core/metadata/leases.go
++++ b/core/metadata/leases.go
+@@ -64,7 +64,7 @@ func (lm *leaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.
+ 		return leases.Lease{}, err
+ 	}
+ 
+-	if err := update(ctx, lm.db, func(tx *bolt.Tx) error {
++	if err := batchUpdate(ctx, lm.db, func(tx *bolt.Tx) error {
+ 		topbkt, err := createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases)
+ 		if err != nil {
+ 			return err
+@@ -108,7 +108,7 @@ func (lm *leaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...lea
+ 		return err
+ 	}
+ 
+-	return update(ctx, lm.db, func(tx *bolt.Tx) error {
++	return batchUpdate(ctx, lm.db, func(tx *bolt.Tx) error {
+ 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases)
+ 		if topbkt == nil {
+ 			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
+@@ -189,7 +189,7 @@ func (lm *leaseManager) AddResource(ctx context.Context, lease leases.Lease, r l
+ 		return err
+ 	}
+ 
+-	return update(ctx, lm.db, func(tx *bolt.Tx) error {
++	return batchUpdate(ctx, lm.db, func(tx *bolt.Tx) error {
+ 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lease.ID))
+ 		if topbkt == nil {
+ 			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
+@@ -218,7 +218,7 @@ func (lm *leaseManager) DeleteResource(ctx context.Context, lease leases.Lease,
+ 		return err
+ 	}
+ 
+-	return update(ctx, lm.db, func(tx *bolt.Tx) error {
++	return batchUpdate(ctx, lm.db, func(tx *bolt.Tx) error {
+ 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lease.ID))
+ 		if topbkt == nil {
+ 			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
+diff --git a/core/metadata/sandbox.go b/core/metadata/sandbox.go
+index c97010a..e0a9183 100644
+--- a/core/metadata/sandbox.go
++++ b/core/metadata/sandbox.go
+@@ -71,7 +71,7 @@ func (s *sandboxStore) Create(ctx context.Context, sandbox api.Sandbox) (api.San
+ 		return api.Sandbox{}, fmt.Errorf("failed to validate sandbox: %w", err)
+ 	}
+ 
+-	if err := update(ctx, s.db, func(tx *bbolt.Tx) error {
++	if err := batchUpdate(ctx, s.db, func(tx *bbolt.Tx) error {
+ 		parent, err := createSandboxBucket(tx, ns)
+ 		if err != nil {
+ 			return fmt.Errorf("create error: %w", err)
+@@ -107,7 +107,7 @@ func (s *sandboxStore) Update(ctx context.Context, sandbox api.Sandbox, fieldpat
+ 	}
+ 
+ 	ret := api.Sandbox{}
+-	if err := update(ctx, s.db, func(tx *bbolt.Tx) error {
++	if err := batchUpdate(ctx, s.db, func(tx *bbolt.Tx) error {
+ 		parent := getSandboxBucket(tx, ns)
+ 		if parent == nil {
+ 			return fmt.Errorf("no sandbox buckets: %w", errdefs.ErrNotFound)
+@@ -266,7 +266,7 @@ func (s *sandboxStore) Delete(ctx context.Context, id string) error {
+ 		return err
+ 	}
+ 
+-	if err := update(ctx, s.db, func(tx *bbolt.Tx) error {
++	if err := batchUpdate(ctx, s.db, func(tx *bbolt.Tx) error {
+ 		buckets := getSandboxBucket(tx, ns)
+ 		if buckets == nil {
+ 			return fmt.Errorf("no sandbox buckets: %w", errdefs.ErrNotFound)
+diff --git a/plugins/services/containers/local.go b/plugins/services/containers/local.go
+index e6cb36d..d5e76c0 100644
+--- a/plugins/services/containers/local.go
++++ b/plugins/services/containers/local.go
+@@ -214,8 +214,11 @@ func (l *local) withStoreView(ctx context.Context, fn func(ctx context.Context)
+ 	return l.db.View(l.withStore(ctx, fn))
+ }
+ 
++// withStoreUpdate may share its transaction with concurrent updates
++// (metadata.DB.Batch): a container record's create, update and delete change
++// nothing but the store.
+ func (l *local) withStoreUpdate(ctx context.Context, fn func(ctx context.Context) error) error {
+-	return l.db.Update(l.withStore(ctx, fn))
++	return l.db.Batch(l.withStore(ctx, fn))
+ }
+ 
+ type localStream struct {

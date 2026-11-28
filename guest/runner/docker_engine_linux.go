@@ -1476,6 +1476,11 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 				if err := c.Config.configure(cfg, mounts, containerExtras{Env: caches.env, RunAs: c.RunAs}); err != nil {
 					return err
 				}
+				if !c.retainsRootFS() {
+					// CRI's scratch snapshot is this container's rootfs, and it
+					// goes when the container does (rootfs_volatile_linux.go).
+					cfg.Annotations = withVolatileRootFS(cfg.Annotations)
+				}
 				if boostStartShares(cfg.Linux.Resources, startBoostWindow) {
 					s.metrics.startBoost.boosted.Add(1)
 					boosted = true

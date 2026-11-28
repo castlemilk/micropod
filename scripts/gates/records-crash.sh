@@ -12,12 +12,14 @@
 # one that ran and whose wait answered exit 7, one whose start answered and
 # that still runs, six concurrent creates, an AutoRemove container never
 # started and one running, a named volume, a bridge network and a container
-# on it. One kind per trial (rotating) comes last and alone, after a quiet
+# on it, eight concurrent starts (containerd commits their records together:
+# group commit) and eight concurrent AutoRemove starts (on volatile writable
+# layers). One kind per trial (rotating) comes last and alone, after a quiet
 # 6 s (GATE_QUIET_S; ext4 commits its journal by itself every 5 s, so all the
 # rest is on the disk by then), and this root's VMM is killed with SIGKILL the
 # trial's offset after that last answer: only that kind's own syncs can have
 # kept it. The default sweep runs each kind twice, at offsets 0 to 3000 ms
-# (0, 1, 3, 10, 30, 100, 300, 1000, 3000, then reversed). The supervisor
+# (0, 1, 3, 10, 30, 100, 300, 600, 1000, 2000, 3000, then reversed). The supervisor
 # relaunches it, and the checks require:
 #   - the relaunched engine answers (its recovery refuses a torn or empty
 #     record, so an engine that does not come back fails),
@@ -25,6 +27,9 @@
 #     the state the API reported (created; exited 7; a started container
 #     present, not running, never created and never a success),
 #   - all six concurrent creates present,
+#   - all eight concurrent starts present, none running, created or a
+#     success, and one of them starts and runs again,
+#   - all eight concurrent AutoRemove starts gone,
 #   - the volume and the network present with their labels, and a container
 #     started on the network runs and reads a resolver,
 #   - AutoRemove: a started one gone, a never-started one gone or whole,
@@ -94,7 +99,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 GATE="$HERE/records-crash"
 REPO="$(cd "$HERE/../.." && pwd)"
 PAYLOAD_SRC=""
-OFFSETS="0,1,3,10,30,100,300,1000,3000,3000,1000,300,100,30,10,3,1,0"
+OFFSETS="0,1,3,10,30,100,300,600,1000,2000,3000,3000,2000,1000,600,300,100,30,10,3,1,0"
 IMAGE_TRIALS="pull:after:0,pull:after:30,pull:after:300,pull:after:3000,pull:after:10000,pull:before:0.5,pull:before:0.8,pull:before:0.95"
 IMAGE_TRIALS="$IMAGE_TRIALS,load:after:0,load:after:300,load:after:3000,load:before:0.5,load:before:0.8"
 IMAGE_TRIALS="$IMAGE_TRIALS,build:after:0,build:after:300,build:after:3000,build:before:0.35,build:before:0.6"
