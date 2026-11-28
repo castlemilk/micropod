@@ -77,6 +77,23 @@ and `containers` is 0, with `under_pressure` and the reasons, when any of these 
 
 CPU and memory are counted on what is used, not on the limits containers were given. A limit is a ceiling and CI containers idle most of their time, so counting limits would leave most of the machine empty; the pressure terms are what catches a machine whose promised memory is being used after all. A scheduler should therefore ramp: admit up to the headroom, look again a second later, and stop while `under_pressure` is true.
 
+### When the engine does not answer
+
+The machine's host socket (`~/.micropod/hvf/run/docker.sock`) is the VMM's own listener, a byte relay to the guest engine. Measured on a throwaway machine by polling `GET /_ping` every 0.2 s through a boot and a stop:
+
+| state | what a client sees |
+| --- | --- |
+| no VMM (before start, after a stop) | no socket file (`ENOENT`) |
+| a VMM that crashed | the socket file with nothing accepting (`ECONNREFUSED`) |
+| VMM up, engine not listening (boot, engine stopping) | the connection is accepted and closed without a byte, 16–20 ms later (curl: "Empty reply from server") |
+| VMM up, guest kernel not answering | the connection is closed after 5 s (the relay's handshake timeout) |
+
+The relay carries BuildKit's gRPC as well, so it never writes an HTTP status of its own. A scheduler should treat a refused, missing, reset or closed-without-an-answer connection as a machine that is down, and a timeout as one that is slow.
+
+### Which projects' caches are empty
+
+`GET /micropod/caches` reports `metrics.cache_skip` (skips by reason since boot) and, beside it, `metrics.cache_skip_by_scope`: `{scope: {reason: count}}`, the same skips by the scope of the store left out (a tool's own store scope, such as `global` for an L0 store, or the plan's). A skip with no scope, such as a legacy alias volume's, is only in the total. A scope whose untrusted readers keep counting `no-store-to-read` has no store at all: only a trusted run writes one. At most 1024 scopes are named; later ones count under `(other)`.
+
 ## Families: whose containers are whose
 
 A family is the unit the report counts by and cleanup works on.
