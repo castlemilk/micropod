@@ -609,8 +609,20 @@ func (s dockerBuildSolver) finishLocalLoad(ctx context.Context, tags []string, r
 				MediaType: desc.MediaType, Size: desc.Size, Digest: desc.Digest.String(),
 			})
 		case ocispec.MediaTypeImageIndex, "application/vnd.docker.distribution.manifest.list.v2+json":
-			// A provenance attestation adds a second manifest. CRI records the
-			// runnable config it selected for the local platform on this index.
+			// A provenance attestation adds a second manifest. The index's
+			// runnable manifest names the config. CRI's config-ID record is no
+			// answer here: builds of one config with different provenance
+			// publish different indexes, and that one record targets whichever
+			// index CRI indexed last (nativeIndexConfigID). The tag wait below
+			// still confirms that CRI runs this config for every tag.
+			id, err = s.node.nativeIndexConfigID(imageMetadataContext(ctx), &types.Descriptor{
+				MediaType: desc.MediaType, Size: desc.Size, Digest: desc.Digest.String(),
+			})
+			if err != nil || id != "" {
+				break
+			}
+			// The runnable manifest is not here: CRI records the config it
+			// selected for the local platform on this index.
 			err = waitForDockerImageIndex(ctx, func(visible context.Context) (bool, error) {
 				record, err := s.node.dockerConfigRecordForTarget(imageMetadataContext(visible), desc.Digest.String())
 				if record != nil && (record.GetTarget().GetMediaType() != desc.MediaType || record.GetTarget().GetSize() != desc.Size) {

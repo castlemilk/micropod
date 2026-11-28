@@ -215,6 +215,66 @@ func (n node) verifyImageIDAttestationIndex(ctx context.Context, id string, targ
 	return native.Digest.String(), nil
 }
 
+// nativeIndexConfigID is the config ID an index runs here: the config of its
+// one runnable linux/arm64 manifest (attestation manifests name
+// unknown/unknown and carry a reference annotation, so they never qualify).
+// It is "" when the index names no such manifest or several, or when the
+// index or that manifest is not in the content store or cannot be verified.
+//
+// Builds that differ only in their provenance publish different indexes for
+// one config. CRI keeps a single config-ID record for that config, whose
+// target is the index it indexed last, so that record cannot say which config
+// any other of those indexes runs; their content can.
+func (n node) nativeIndexConfigID(ctx context.Context, target *types.Descriptor) (string, error) {
+	data, err := n.readVerifiedImageBlob(ctx, target, "image index")
+	var problem apiError
+	if errors.As(err, &problem) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	var index ocispec.Index
+	if json.Unmarshal(data, &index) != nil || index.SchemaVersion != 2 ||
+		len(index.Manifests) == 0 || len(index.Manifests) > platformIndexMaxManifests {
+		return "", nil
+	}
+	var native *ocispec.Descriptor
+	for i := range index.Manifests {
+		m := &index.Manifests[i]
+		if !localImageDescriptor(*m) || !isManifestDescriptor(m.MediaType) || !buildxIndexPlatform(m.Platform, "linux", "arm64") ||
+			m.Annotations[attestation.DockerAnnotationReferenceType] != "" || m.Annotations[attestation.DockerAnnotationReferenceDigest] != "" {
+			continue
+		}
+		if native != nil {
+			return "", nil
+		}
+		native = m
+	}
+	if native == nil {
+		return "", nil
+	}
+	id, err := n.manifestConfigID(ctx, imageBlobDescriptor(*native))
+	if errors.As(err, &problem) {
+		return "", nil
+	}
+	return id, err
+}
+
+// targetConfigID is the config ID a record's target runs here: a manifest's
+// config, or an index's runnable linux/arm64 manifest's (nativeIndexConfigID).
+// It is "" for any other target. A manifest whose content cannot be verified
+// is an apiError with 409, as from manifestConfigID.
+func (n node) targetConfigID(ctx context.Context, target *types.Descriptor) (string, error) {
+	switch {
+	case isManifestDescriptor(target.GetMediaType()):
+		return n.manifestConfigID(ctx, target)
+	case isIndexDescriptor(target.GetMediaType()):
+		return n.nativeIndexConfigID(ctx, target)
+	}
+	return "", nil
+}
+
 func localImageDescriptor(descriptor ocispec.Descriptor) bool {
 	return fullDockerImageID(descriptor.Digest.String()) && descriptor.Size > 0 &&
 		len(descriptor.URLs) == 0 && len(descriptor.Data) == 0 && descriptor.ArtifactType == ""

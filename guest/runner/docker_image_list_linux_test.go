@@ -100,7 +100,10 @@ func imageListLabelFixture(t *testing.T) (*dockerEngine, *imageListLabelCRI) {
 		catalog.rows[id] = &images.Image{Name: id, Target: target}
 		catalog.rows[row.tag] = &images.Image{Name: row.tag, Target: target}
 	}
-	return &dockerEngine{node: node{images: f, imageStore: catalog}}, f
+	// The content store holds none of these targets: a tag the catalog does
+	// not bind to its row's config record stays off that row.
+	content := &buildxDeleteContent{blobs: map[string][]byte{}}
+	return &dockerEngine{node: node{images: f, imageStore: catalog, content: content}}, f
 }
 
 func listImagesV147(engine *dockerEngine, filters string) *httptest.ResponseRecorder {
