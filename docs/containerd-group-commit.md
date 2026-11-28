@@ -119,6 +119,18 @@ answered and requires all eight gone after the relaunch.
 
 A containerd without the patch ignores the annotation.
 
+Known cost, measured (32 cold builds with `docker run --rm` probes between
+them, `stall3.py`, profiling `instruments2.txt` and `fsync-burst.txt`): the
+syncs a volatile exit no longer makes kept dirty data small, so it builds up,
+and each of containerd's commits (an ext4 journal commit, which in
+`data=ordered` writes out the data of every file in the transaction) waits
+for more of it. containerd's fsync and fdatasync summed 6.9 s (longest
+1.1 s) in a burst against 1.4 s (0.13 s) with every exit syncing, and the
+engine's teardown histogram rose from 0.17-0.41 s to 0.43-0.66 s mean. The
+probes' own runs were as fast or faster and the disk wrote 30 % less. The
+next lever is to keep `meta.db`'s journal commits out of other containers'
+writeback (its own filesystem, or a bound on dirty data); it is not built.
+
 ## 4. Copy-on-write cache views are volatile (engine `mountCacheOverlay`)
 
 An untrusted (or read-only) container reads a shared cache store through a
