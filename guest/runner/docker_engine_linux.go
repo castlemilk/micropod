@@ -1194,6 +1194,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 		s.capacity.starting.Add(-1)
 		if startErr == nil {
 			s.capacity.recordStart(time.Since(begun))
+			s.metrics.startPhase.observe(time.Since(begun))
 			return
 		}
 		s.mu.Lock()
@@ -1519,6 +1520,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (s
 			hooks.output = write
 			hooks.runtimeLogDir = c.dir()
 		}
+		hooks.tornDown = s.metrics.teardownPhase.observe
 		if c.retainsRootFS() {
 			hooks.bindRootFS = func(ctx context.Context, pod ownedPod, id string) (*dockerRootFSBinding, error) {
 				return s.bindDockerRootFS(ctx, c, pod, id)

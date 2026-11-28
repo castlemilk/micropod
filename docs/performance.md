@@ -60,6 +60,23 @@ Three families:
   budget: every spawn costs ~15–80 ms. Status 504 = timeout kill, 499 = cancel.
 - `micropod_shim_cache_{hits,misses}` — `ReadThroughCache` effectiveness.
 
+The hvf machine's engine answers `GET /micropod/metrics` and
+`GET /micropod/capacity` on the machine's socket (`~/.micropod/hvf/run/docker.sock`),
+with what the start-path profile of 2026-11-28 needed a debugging session to see:
+
+- `start_ms_histogram` and `teardown_ms_histogram` (`le_ms` cumulative counts,
+  `count`, `total_ms`, `max_ms`): a container's start (request to process
+  running) and its teardown (exit to pod removed, which includes the
+  shim's unmount and so, for a non-volatile writable layer, a sync of the
+  whole disk).
+- `start_boosts`, `start_boost_restores`, `start_boost_restore_failures`,
+  `start_boost_window_ms`: young containers created at CPU weight 10000 and
+  given the default back (`MICROPOD_START_BOOST_MS`, 0 off).
+- `disks.os.io` and `disks.cache.io` in the capacity report (`writes`,
+  `write_bytes`, `flushes`, `flush_ms` since boot) with `engine.starts_total`:
+  flushes per start is containerd's commits per container (two flushes each),
+  `flush_ms / flushes` what a flush costs beside the machine's other writers.
+
 `ContainerCLIClient.run` also emits `os_signpost` intervals
 (`com.micropod.cli`, category `pointsOfInterest`) so
 `xctrace record --template "os_signpost"` splits CLI spawn+XPC+run time from

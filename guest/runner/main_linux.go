@@ -465,7 +465,9 @@ type processHooks struct {
 	startConsole  func(context.Context, string) error
 	runtimeLogDir string
 	started       func(string)
-	output        outputSink
+	// tornDown is told how long the pod's teardown took (retireProcess).
+	tornDown func(time.Duration)
+	output   outputSink
 }
 
 func (n node) run(ctx context.Context, j job, hooks processHooks) (res result, err error) {
@@ -525,7 +527,11 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	var rootFSDetached bool
 	var releaseCaches func()
 	defer func() {
+		retiring := time.Now()
 		err = errors.Join(err, n.retireProcess(ctx, p, hooks, binding, rootFSDetached))
+		if hooks.tornDown != nil {
+			hooks.tornDown(time.Since(retiring))
+		}
 		if releaseCaches != nil {
 			releaseCaches()
 		}
