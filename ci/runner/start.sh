@@ -259,6 +259,12 @@ iptables -w 5 -t nat -C POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE 2>/dev
 # The snapshotter creates each container root with mode 0755. An inherited
 # 0077 umask makes / unsearchable after the image switches to a non-root UID.
 step="starting containerd and the engine"
+# micropod.start_boost_ms=<milliseconds> (machine.json kernelArguments) turns
+# the engine's start boost on for a measurement; it is off without it
+# (guest/runner/docker_start_boost_linux.go). The engine refuses a value it
+# cannot use.
+start_boost=$(tr ' ' '\n' </proc/cmdline | sed -n 's/^micropod\.start_boost_ms=//p' | tail -n 1)
+if [ -n "$start_boost" ]; then export MICROPOD_START_BOOST_MS="$start_boost"; fi
 # containerd, its shims and so every container inherit this open-file limit
 # (init's is 1024, 4096 at most): containerd itself holds descriptors for
 # every live container, and a container gets what a Docker daemon gives

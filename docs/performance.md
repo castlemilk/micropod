@@ -71,7 +71,12 @@ with what the start-path profile of 2026-11-28 needed a debugging session to see
   whole disk).
 - `start_boosts`, `start_boost_restores`, `start_boost_restore_failures`,
   `start_boost_window_ms`: young containers created at CPU weight 10000 and
-  given the default back (`MICROPOD_START_BOOST_MS`, 0 off).
+  given the default back. The boost is off unless the machine's
+  `kernelArguments` name `micropod.start_boost_ms=<milliseconds>`: with the
+  sandbox weight below fixed it bought no start time (p50 0.34–0.36 s with
+  it, 0.35–0.37 s without, under 32 busy loops) and an established container
+  got 15 % of its CPU against 46 % while CPU-bound containers kept starting
+  (`guest/runner/docker_start_boost_linux.go`).
 - `disks.os.io` and `disks.cache.io` in the capacity report (`writes`,
   `write_bytes`, `flushes`, `flush_ms` since boot) with `engine.starts_total`:
   flushes per start is containerd's commits per container (two flushes each),
@@ -86,7 +91,9 @@ took 4.7–22.9 s in 9 of 9 runs while the busy loops were in their start boost
 (the engine's goroutine sat in CRI's RunPodSandbox and every pause cgroup read
 weight 1), and p95 was 0.8–1.6 s without the boost; with the sandbox at the
 boost's weight (`io.micropod.sandbox.cpu-shares`, containerd patch 0003,
-guest/runner `sandbox_shares_linux.go`) max 0.46–0.58 s and p95 0.43–0.46 s.
+guest/runner `sandbox_shares_linux.go`) max 0.46–0.58 s and p95 0.43–0.46 s,
+and with the boost off and the sandbox at the default weight 100, as shipped,
+max 0.49–0.50 s and p95 0.45 s.
 `cat /sys/fs/cgroup/k8s.io/*/cpu.weight` in the guest shows each pod's weight.
 
 `ContainerCLIClient.run` also emits `os_signpost` intervals

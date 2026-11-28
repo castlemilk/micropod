@@ -26,8 +26,8 @@ func TestStartBoostOnlyForContainersThatNameNoShares(t *testing.T) {
 
 func TestStartBoostWindowSetting(t *testing.T) {
 	for raw, want := range map[string]time.Duration{
-		"": 4 * time.Second, "0": 0, "1500": 1500 * time.Millisecond,
-		"-1": 4 * time.Second, "60001": 4 * time.Second, "soon": 4 * time.Second,
+		"": 0, "0": 0, "1500": 1500 * time.Millisecond, "4000": 4 * time.Second,
+		"-1": 0, "60001": 0, "soon": 0,
 	} {
 		if got := startBoostDuration(raw); got != want {
 			t.Errorf("MICROPOD_START_BOOST_MS=%q: %v, want %v", raw, got, want)

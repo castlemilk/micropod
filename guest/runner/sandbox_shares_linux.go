@@ -16,8 +16,8 @@ import "strconv"
 //
 // So a crun pod names its sandbox's shares (the annotation below, which
 // containerd as the runner bundle builds it turns into the sandbox's CPU
-// shares: ci/patches/containerd/0003-sandbox-cpu-shares.patch): the boost's
-// while the boost is on, else the kernel's default weight. Only the pause
+// shares: ci/patches/containerd/0003-sandbox-cpu-shares.patch): the kernel's
+// default weight, or the boost's on a machine that turned the boost on. Only the pause
 // process lives in that cgroup, and it sleeps once it has started, so the
 // weight only decides how soon a pod is set up. A containerd without the
 // patch ignores the annotation. An untrusted Kata job's pod carries none.
